@@ -53,7 +53,7 @@ const (
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Cincinnati is the Schema for the cincinnatis API
+// Cincinnati is the Schema for a Cincinnati service.
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=cincinnatis,scope=Namespaced
 type Cincinnati struct {
