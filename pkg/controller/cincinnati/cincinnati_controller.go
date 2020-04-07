@@ -119,9 +119,9 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 		r.ensureConfig,
 		r.ensureEnvConfig,
 		r.ensureDeployment,
-		r.ensureGBService,
-		r.ensurePEService,
-		r.ensurePDB,
+		r.ensureGraphBuilderService,
+		r.ensurePolicyEngineService,
+		r.ensurePodDisruptionBudget,
 	} {
 		err = f(ctx, reqLogger, instanceCopy)
 		if err != nil {
@@ -131,12 +131,12 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 
 	// handle status. Ensure functions should set conditions on the passed-in
 	// instance as appropriate but not save. If an ensure function returns an
-	// error, it should also set the ResourcesExist condition to false with an
+	// error, it should also set the ReconcileCompleted condition to false with an
 	// appropriate message. Otherwise it should set any other conditions as
 	// appropriate.
 	if err == nil {
 		conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
-			Type:    cv1alpha1.ConditionResourcesExist,
+			Type:    cv1alpha1.ConditionReconcileCompleted,
 			Status:  corev1.ConditionTrue,
 			Reason:  "Success",
 			Message: "",
@@ -154,7 +154,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 // handleErr logs the error and sets an appropriate Condition on the status.
 func handleErr(reqLogger logr.Logger, status *cv1alpha1.CincinnatiStatus, reason string, e error) {
 	conditionsv1.SetStatusCondition(&status.Conditions, conditionsv1.Condition{
-		Type:    cv1alpha1.ConditionResourcesExist,
+		Type:    cv1alpha1.ConditionReconcileCompleted,
 		Status:  corev1.ConditionFalse,
 		Reason:  reason,
 		Message: e.Error(),
@@ -176,8 +176,8 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 		err := r.client.Create(ctx, deployment)
 		if err != nil {
 			handleErr(reqLogger, &instance.Status, "CreateDeploymentFailed", err)
-			return err
 		}
+		return err
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetDeploymentFailed", err)
 		return err
@@ -202,9 +202,9 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 		var original corev1.Container
 		switch containers[i].Name {
 		case NameContainerGraphBuilder:
-			original = newGBContainer(instance, r.operandImage)
+			original = newGraphBuilderContainer(instance, r.operandImage)
 		case NameContainerPolicyEngine:
-			original = newPEContainer(instance, r.operandImage)
+			original = newPolicyEngineContainer(instance, r.operandImage)
 		default:
 			reqLogger.Info("encountered unexpected container in pod", "Container.Name", containers[i].Name)
 			continue
@@ -268,6 +268,7 @@ func (r *ReconcileCincinnati) ensurePodDisruptionBudget(ctx context.Context, req
 		if err = r.client.Create(ctx, pdb); err != nil {
 			handleErr(reqLogger, &instance.Status, "CreatePDBFailed", err)
 		}
+		return err
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetPDBFailed", err)
 		return err
@@ -288,7 +289,7 @@ func (r *ReconcileCincinnati) ensurePodDisruptionBudget(ctx context.Context, req
 }
 
 func (r *ReconcileCincinnati) ensureConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	config, err := newConfig(instance)
+	config, err := newGraphBuilderConfig(instance)
 	if err != nil {
 		return err
 	}
@@ -319,7 +320,7 @@ func (r *ReconcileCincinnati) ensureEnvConfig(ctx context.Context, reqLogger log
 }
 
 func (r *ReconcileCincinnati) ensureGraphBuilderService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	service := newGBService(instance)
+	service := newGraphBuilderService(instance)
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
 		return err
@@ -333,7 +334,7 @@ func (r *ReconcileCincinnati) ensureGraphBuilderService(ctx context.Context, req
 }
 
 func (r *ReconcileCincinnati) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	service := newPEService(instance)
+	service := newPolicyEngineService(instance)
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
 		return err

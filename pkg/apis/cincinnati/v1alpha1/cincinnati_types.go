@@ -5,7 +5,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // CincinnatiSpec defines the desired state of Cincinnati
@@ -47,9 +46,9 @@ type CincinnatiStatus struct {
 
 // Condition Types
 const (
-	// ConditionResourcesExist reports whether all required resources have been created
+	// ConditionReconcileCompleted reports whether all required resources have been created
 	// in the cluster and reflect the specified state.
-	ConditionResourcesExist conditionsv1.ConditionType = "ResourcesExist"
+	ConditionReconcileCompleted conditionsv1.ConditionType = "ReconcileCompleted"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

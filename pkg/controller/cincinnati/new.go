@@ -54,7 +54,7 @@ func newPodDisruptionBudget(instance *cv1alpha1.Cincinnati) *policyv1beta1.PodDi
 	}
 	return &policyv1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      namePDB(instance),
+			Name:      namePodDisruptionBudget(instance),
 			Namespace: instance.Namespace,
 		},
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
@@ -69,7 +69,7 @@ func newPodDisruptionBudget(instance *cv1alpha1.Cincinnati) *policyv1beta1.PodDi
 }
 
 func newGraphBuilderService(instance *cv1alpha1.Cincinnati) *corev1.Service {
-	name := nameGBService(instance)
+	name := nameGraphBuilderService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -103,7 +103,7 @@ func newGraphBuilderService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 }
 
 func newPolicyEngineService(instance *cv1alpha1.Cincinnati) *corev1.Service {
-	name := namePEService(instance)
+	name := namePolicyEngineService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -136,7 +136,6 @@ func newPolicyEngineService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	}
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
 func newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,7 +155,7 @@ func newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.ConfigMap {
 }
 
 func newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, error) {
-	tmpl, err := template.New("gb").Parse(gbTOML)
+	tmpl, err := template.New("gb").Parse(graphBuilderTOML)
 	if err != nil {
 		return nil, err
 	}
@@ -221,8 +220,8 @@ func newDeployment(instance *cv1alpha1.Cincinnati, image string) *appsv1.Deploym
 						},
 					},
 					Containers: []corev1.Container{
-						newGBContainer(instance, image),
-						newPEContainer(instance, image),
+						newGraphBuilderContainer(instance, image),
+						newPolicyEngineContainer(instance, image),
 					},
 				},
 			},
@@ -230,7 +229,7 @@ func newDeployment(instance *cv1alpha1.Cincinnati, image string) *appsv1.Deploym
 	}
 }
 
-func newGBContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Container {
+func newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Container {
 	return corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
@@ -359,13 +358,6 @@ func newPolicyEngineContainer(instance *cv1alpha1.Cincinnati, image string) core
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    *resource.NewMilliQuantity(150, resource.DecimalSI),
 				corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
-			},
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			corev1.VolumeMount{
-				Name:      "configs",
-				ReadOnly:  true,
-				MountPath: "/etc/configs",
 			},
 		},
 		LivenessProbe: &corev1.Probe{
