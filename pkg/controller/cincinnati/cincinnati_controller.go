@@ -142,10 +142,8 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 			Message: "",
 		})
 	}
-	if !reflect.DeepEqual(instanceCopy.Status, instance.Status) {
-		if err := r.client.Status().Update(ctx, instanceCopy); err != nil {
-			reqLogger.Error(err, "Failed to update Status")
-		}
+	if err := r.client.Status().Update(ctx, instanceCopy); err != nil {
+		reqLogger.Error(err, "Failed to update Status")
 	}
 
 	return reconcile.Result{}, err
