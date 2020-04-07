@@ -1,0 +1,11 @@
+apiVersion: cincinnati.openshift.io/v1alpha1
+kind: Cincinnati
+metadata:
+  name: example-cincinnati
+spec:
+  replicas: 1
+  registry: "quay.io"
+  repository: "openshift-release-dev/ocp-release"
+  gitHubOrg: "openshift"
+  gitHubRepo: "cincinnati-graph-data"
+  branch: "master"
