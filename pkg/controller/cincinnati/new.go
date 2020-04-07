@@ -14,7 +14,7 @@ import (
 	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
 )
 
-const gbTOML string = `verbosity = "vvv"
+const graphBuilderTOML string = `verbosity = "vvv"
 
 [service]
 pause_secs = 300
@@ -68,7 +68,7 @@ func newPodDisruptionBudget(instance *cv1alpha1.Cincinnati) *policyv1beta1.PodDi
 	}
 }
 
-func newGBService(instance *cv1alpha1.Cincinnati) *corev1.Service {
+func newGraphBuilderService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	name := nameGBService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -102,7 +102,7 @@ func newGBService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	}
 }
 
-func newPEService(instance *cv1alpha1.Cincinnati) *corev1.Service {
+func newPolicyEngineService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	name := namePEService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -155,7 +155,7 @@ func newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.ConfigMap {
 	}
 }
 
-func newConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, error) {
+func newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, error) {
 	tmpl, err := template.New("gb").Parse(gbTOML)
 	if err != nil {
 		return nil, err
@@ -305,7 +305,7 @@ func newGBContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Contain
 	}
 }
 
-func newPEContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Container {
+func newPolicyEngineContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Container {
 	envConfigName := nameEnvConfig(instance)
 	return corev1.Container{
 		Name:            NameContainerPolicyEngine,

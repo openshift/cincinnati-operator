@@ -15,7 +15,7 @@ func nameDeployment(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name
 }
 
-func namePDB(instance *cv1alpha1.Cincinnati) string {
+func namePodDisruptionBudget(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name
 }
 
@@ -27,10 +27,10 @@ func nameConfig(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name + "-config"
 }
 
-func namePEService(instance *cv1alpha1.Cincinnati) string {
+func namePolicyEngineService(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name + "-policy-engine"
 }
 
-func nameGBService(instance *cv1alpha1.Cincinnati) string {
+func nameGraphBuilderService(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name + "-graph-builder"
 }

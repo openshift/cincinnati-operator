@@ -253,7 +253,7 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensurePDB(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
+func (r *ReconcileCincinnati) ensurePodDisruptionBudget(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
 	pdb := newPodDisruptionBudget(instance)
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, pdb, r.scheme); err != nil {
@@ -318,7 +318,7 @@ func (r *ReconcileCincinnati) ensureEnvConfig(ctx context.Context, reqLogger log
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensureGBService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
+func (r *ReconcileCincinnati) ensureGraphBuilderService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
 	service := newGBService(instance)
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
@@ -332,7 +332,7 @@ func (r *ReconcileCincinnati) ensureGBService(ctx context.Context, reqLogger log
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensurePEService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
+func (r *ReconcileCincinnati) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
 	service := newPEService(instance)
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
