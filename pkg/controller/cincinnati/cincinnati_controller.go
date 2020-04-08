@@ -115,7 +115,14 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	instanceCopy := instance.DeepCopy()
 	instanceCopy.Status = cv1alpha1.CincinnatiStatus{}
 
-	for _, f := range []func(context.Context, logr.Logger, *cv1alpha1.Cincinnati) error{
+	// this object creates all the kube resources we need and then holds them as
+	// the canonical reference for those resources during reconciliation.
+	resources, err := newKubeResources(instanceCopy, r.operandImage)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	for _, f := range []func(context.Context, logr.Logger, *cv1alpha1.Cincinnati, *kubeResources) error{
 		r.ensureConfig,
 		r.ensureEnvConfig,
 		r.ensureDeployment,
@@ -123,7 +130,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 		r.ensurePolicyEngineService,
 		r.ensurePodDisruptionBudget,
 	} {
-		err = f(ctx, reqLogger, instanceCopy)
+		err = f(ctx, reqLogger, instanceCopy, resources)
 		if err != nil {
 			break
 		}
@@ -160,8 +167,8 @@ func handleErr(reqLogger logr.Logger, status *cv1alpha1.CincinnatiStatus, reason
 	reqLogger.Error(e, reason)
 }
 
-func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	deployment := newDeployment(instance, r.operandImage)
+func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
+	deployment := resources.deployment
 	if err := controllerutil.SetControllerReference(instance, deployment, r.scheme); err != nil {
 		return err
 	}
@@ -188,21 +195,30 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 	updated.Spec.Replicas = deployment.Spec.Replicas
 	updated.Spec.Selector = deployment.Spec.Selector
 	updated.Spec.Strategy = deployment.Spec.Strategy
+
+	// apply labels an annotations
 	if updated.Spec.Template.ObjectMeta.Labels == nil {
 		updated.Spec.Template.ObjectMeta.Labels = map[string]string{}
 	}
 	for key, value := range deployment.Spec.Template.ObjectMeta.Labels {
 		updated.Spec.Template.ObjectMeta.Labels[key] = value
 	}
+	if updated.Spec.Template.ObjectMeta.Annotations == nil {
+		updated.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+	}
+	for key, value := range deployment.Spec.Template.ObjectMeta.Annotations {
+		updated.Spec.Template.ObjectMeta.Annotations[key] = value
+	}
+
 	updated.Spec.Template.Spec.Volumes = deployment.Spec.Template.Spec.Volumes
 	containers := updated.Spec.Template.Spec.Containers
 	for i := range containers {
-		var original corev1.Container
+		var original *corev1.Container
 		switch containers[i].Name {
 		case NameContainerGraphBuilder:
-			original = newGraphBuilderContainer(instance, r.operandImage)
+			original = resources.graphBuilderContainer
 		case NameContainerPolicyEngine:
-			original = newPolicyEngineContainer(instance, r.operandImage)
+			original = resources.policyEngineContainer
 		default:
 			reqLogger.Info("encountered unexpected container in pod", "Container.Name", containers[i].Name)
 			continue
@@ -251,8 +267,8 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensurePodDisruptionBudget(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	pdb := newPodDisruptionBudget(instance)
+func (r *ReconcileCincinnati) ensurePodDisruptionBudget(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
+	pdb := resources.podDisruptionBudget
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, pdb, r.scheme); err != nil {
 		return err
@@ -286,11 +302,8 @@ func (r *ReconcileCincinnati) ensurePodDisruptionBudget(ctx context.Context, req
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensureConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	config, err := newGraphBuilderConfig(instance)
-	if err != nil {
-		return err
-	}
+func (r *ReconcileCincinnati) ensureConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
+	config := resources.graphBuilderConfig
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, config, r.scheme); err != nil {
 		return err
@@ -303,8 +316,8 @@ func (r *ReconcileCincinnati) ensureConfig(ctx context.Context, reqLogger logr.L
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensureEnvConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	config := newEnvConfig(instance)
+func (r *ReconcileCincinnati) ensureEnvConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
+	config := resources.envConfig
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, config, r.scheme); err != nil {
 		return err
@@ -317,8 +330,8 @@ func (r *ReconcileCincinnati) ensureEnvConfig(ctx context.Context, reqLogger log
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensureGraphBuilderService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	service := newGraphBuilderService(instance)
+func (r *ReconcileCincinnati) ensureGraphBuilderService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
+	service := resources.graphBuilderService
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
 		return err
@@ -331,8 +344,8 @@ func (r *ReconcileCincinnati) ensureGraphBuilderService(ctx context.Context, req
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati) error {
-	service := newPolicyEngineService(instance)
+func (r *ReconcileCincinnati) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
+	service := resources.policyEngineService
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.scheme); err != nil {
 		return err
