@@ -22,7 +22,7 @@ metadata:
       ]
     capabilities: Basic Install
     description: Creates and maintains a Cincinnati instance
-    operatorframework.io/suggested-namespace: cincinnati
+    operatorframework.io/suggested-namespace: openshift-cincinnati
     createdAt: "2020-04-08 21:10:40"
     categories: OpenShift Optional
     containerImage: quay.io/cincinnati/cincinnati-operator:latest
@@ -93,7 +93,7 @@ spec:
                 - name: WATCH_NAMESPACE
                   valueFrom:
                     fieldRef:
-                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                      fieldPath: metadata.namespace
                 - name: POD_NAME
                   valueFrom:
                     fieldRef:
