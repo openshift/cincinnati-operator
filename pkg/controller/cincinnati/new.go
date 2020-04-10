@@ -32,13 +32,6 @@ repository = "{{.Repository}}"
 fetch_concurrency = 16
 
 [[plugin_settings]]
-name = "github-secondary-metadata-scrape"
-github_org = "{{.GitHubOrg}}"
-github_repo = "{{.GitHubRepo}}"
-reference_branch = "{{.Branch}}"
-output_directory = "/tmp/cincinnati/graph-data"
-
-[[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
 data_directory = "/tmp/cincinnati/graph-data"
 
@@ -218,12 +211,35 @@ func newDeployment(instance *cv1alpha1.Cincinnati, image string) *appsv1.Deploym
 								},
 							},
 						},
+						corev1.Volume{
+							Name: "cincinnati-graph-data",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
 					},
 					Containers: []corev1.Container{
 						newGraphBuilderContainer(instance, image),
 						newPolicyEngineContainer(instance, image),
 					},
+					InitContainers: []corev1.Container{
+						newGraphDataInitContainer(instance, image),
+					},
 				},
+			},
+		},
+	}
+}
+
+func newGraphDataInitContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Container {
+	return corev1.Container{
+		Name:            NameInitContainerGraphData,
+		Image:           "quay.io/rwsu/cincinnati-graph-data-container:latest",
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		VolumeMounts: []corev1.VolumeMount{
+			corev1.VolumeMount{
+				Name:      "cincinnati-graph-data",
+				MountPath: "/tmp/cincinnati/graph-data",
 			},
 		},
 	}
@@ -271,6 +287,10 @@ func newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string) core
 				Name:      "configs",
 				ReadOnly:  true,
 				MountPath: "/etc/configs",
+			},
+			corev1.VolumeMount{
+				Name:      "cincinnati-graph-data",
+				MountPath: "/tmp/cincinnati/graph-data",
 			},
 		},
 		LivenessProbe: &corev1.Probe{
