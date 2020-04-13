@@ -71,14 +71,16 @@ name = "edge-add-remove"`
 // once up-front makes it MUCH easier to access those resources as-needed
 // throughout the reconciliation code.
 type kubeResources struct {
-	envConfig             *corev1.ConfigMap
-	graphBuilderConfig    *corev1.ConfigMap
-	podDisruptionBudget   *policyv1beta1.PodDisruptionBudget
-	deployment            *appsv1.Deployment
-	graphBuilderContainer *corev1.Container
-	policyEngineContainer *corev1.Container
-	graphBuilderService   *corev1.Service
-	policyEngineService   *corev1.Service
+	envConfig              *corev1.ConfigMap
+	envConfigHash          string
+	graphBuilderConfig     *corev1.ConfigMap
+	graphBuilderConfigHash string
+	podDisruptionBudget    *policyv1beta1.PodDisruptionBudget
+	deployment             *appsv1.Deployment
+	graphBuilderContainer  *corev1.Container
+	policyEngineContainer  *corev1.Container
+	graphBuilderService    *corev1.Service
+	policyEngineService    *corev1.Service
 }
 
 func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResources, error) {
@@ -92,7 +94,17 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 	// order matters in some cases. For example, the Deployment needs the
 	// Containers to already exist.
 	k.graphBuilderConfig = gbConfig
+	graphBuilderConfigHash, err := checksumMap(k.graphBuilderConfig.Data)
+	if err != nil {
+		return nil, err
+	}
+	k.graphBuilderConfigHash = graphBuilderConfigHash
 	k.envConfig = k.newEnvConfig(instance)
+	envConfigHash, err := checksumMap(k.envConfig.Data)
+	if err != nil {
+		return nil, err
+	}
+	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
 	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
@@ -263,8 +275,8 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 						"deployment": name,
 					},
 					Annotations: map[string]string{
-						GraphBuilderConfigHashAnnotation: checksumMap(k.graphBuilderConfig.Data),
-						EnvConfigHashAnnotation:          checksumMap(k.envConfig.Data),
+						GraphBuilderConfigHashAnnotation: k.graphBuilderConfigHash,
+						EnvConfigHashAnnotation:          k.envConfigHash,
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -453,7 +465,7 @@ func newCMEnvVar(name, key, cmName string) corev1.EnvVar {
 
 // checksumMap produces a checksum of a ConfigMap's Data attribute. The checksum
 // can be used to detect when the contents of a ConfigMap have changed.
-func checksumMap(m map[string]string) string {
+func checksumMap(m map[string]string) (string, error) {
 	keys := sort.StringSlice([]string{})
 	for k := range m {
 		keys = append(keys, k)
@@ -463,15 +475,24 @@ func checksumMap(m map[string]string) string {
 	hash := sha256.New()
 	encoder := base64.NewEncoder(base64.StdEncoding, hash)
 
-	// We base64 encode the data to limit the character set and then use ":" as
-	// a separator.
 	for _, k := range keys {
-		encoder.Write([]byte(k))
-		hash.Write([]byte(":"))
-		encoder.Write([]byte(m[k]))
-		hash.Write([]byte(":"))
+		for _, data := range [][]byte{
+			[]byte(k),
+			[]byte(m[k]),
+		} {
+			// We base64 encode the data to limit the character set and then use
+			// ":" as a separator.
+			_, err := encoder.Write(data)
+			if err != nil {
+				return "", err
+			}
+			_, err = hash.Write([]byte(":"))
+			if err != nil {
+				return "", err
+			}
+		}
 	}
 	encoder.Close()
 
-	return fmt.Sprintf("%x", hash.Sum(nil))
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
