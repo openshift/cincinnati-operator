@@ -463,9 +463,13 @@ func checksumMap(m map[string]string) string {
 	hash := sha256.New()
 	encoder := base64.NewEncoder(base64.StdEncoding, hash)
 
+	// We base64 encode the data to limit the character set and then use ":" as
+	// a separator.
 	for _, k := range keys {
-		encoder.Write([]byte(k + ":"))
-		encoder.Write([]byte(m[k] + ":"))
+		encoder.Write([]byte(k))
+		hash.Write([]byte(":"))
+		encoder.Write([]byte(m[k]))
+		hash.Write([]byte(":"))
 	}
 	encoder.Close()
 

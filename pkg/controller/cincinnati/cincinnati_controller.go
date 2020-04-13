@@ -119,6 +119,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	// the canonical reference for those resources during reconciliation.
 	resources, err := newKubeResources(instanceCopy, r.operandImage)
 	if err != nil {
+		reqLogger.Error(err, "Failed to render resources")
 		return reconcile.Result{}, err
 	}
 
@@ -196,7 +197,7 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 	updated.Spec.Selector = deployment.Spec.Selector
 	updated.Spec.Strategy = deployment.Spec.Strategy
 
-	// apply labels an annotations
+	// apply labels and annotations
 	if updated.Spec.Template.ObjectMeta.Labels == nil {
 		updated.Spec.Template.ObjectMeta.Labels = map[string]string{}
 	}
