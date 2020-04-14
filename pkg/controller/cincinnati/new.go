@@ -1,6 +1,10 @@
 package cincinnati
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -12,6 +16,19 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
+)
+
+const (
+	// GraphBuilderConfigHashAnnotation is the key for an annotation storing a
+	// hash of the graph builder config on the operand Pod. Storing the
+	// annotation ensures that the Pod will be replaced whenever the content of
+	// the ConfigMap changes.
+	GraphBuilderConfigHashAnnotation string = "cincinnati.openshift.io/graph-builder-config-hash"
+
+	// EnvConfigHashAnnotation is the key for an annotation storing a hash of
+	// the env config on the operand Pod. Storing the annotation ensures that
+	// the Pod will be replaced whenever the content of the ConfigMap changes.
+	EnvConfigHashAnnotation string = "cincinnati.openshift.io/env-config-hash"
 )
 
 const graphBuilderTOML string = `verbosity = "vvv"
@@ -45,7 +62,60 @@ data_directory = "/tmp/cincinnati/graph-data"
 [[plugin_settings]]
 name = "edge-add-remove"`
 
-func newPodDisruptionBudget(instance *cv1alpha1.Cincinnati) *policyv1beta1.PodDisruptionBudget {
+// kubeResources holds a reference to all of the kube resources we need during
+// reconciliation. This object enables us to create all of the resources
+// up-front at the beginning of the Reconcile function, and then have one place
+// to reference each of the resources when needed. This is especially helpful
+// because creation of at least one of the resources can return an error, since
+// it renders a Template. Creating the resources and handling the error just
+// once up-front makes it MUCH easier to access those resources as-needed
+// throughout the reconciliation code.
+type kubeResources struct {
+	envConfig              *corev1.ConfigMap
+	envConfigHash          string
+	graphBuilderConfig     *corev1.ConfigMap
+	graphBuilderConfigHash string
+	podDisruptionBudget    *policyv1beta1.PodDisruptionBudget
+	deployment             *appsv1.Deployment
+	graphBuilderContainer  *corev1.Container
+	policyEngineContainer  *corev1.Container
+	graphBuilderService    *corev1.Service
+	policyEngineService    *corev1.Service
+}
+
+func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResources, error) {
+	k := kubeResources{}
+
+	gbConfig, err := k.newGraphBuilderConfig(instance)
+	if err != nil {
+		return nil, err
+	}
+
+	// order matters in some cases. For example, the Deployment needs the
+	// Containers to already exist.
+	k.graphBuilderConfig = gbConfig
+	graphBuilderConfigHash, err := checksumMap(k.graphBuilderConfig.Data)
+	if err != nil {
+		return nil, err
+	}
+	k.graphBuilderConfigHash = graphBuilderConfigHash
+	k.envConfig = k.newEnvConfig(instance)
+	envConfigHash, err := checksumMap(k.envConfig.Data)
+	if err != nil {
+		return nil, err
+	}
+	k.envConfigHash = envConfigHash
+	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
+	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
+	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
+	k.deployment = k.newDeployment(instance)
+	k.graphBuilderService = k.newGraphBuilderService(instance)
+	k.policyEngineService = k.newPolicyEngineService(instance)
+
+	return &k, nil
+}
+
+func (k *kubeResources) newPodDisruptionBudget(instance *cv1alpha1.Cincinnati) *policyv1beta1.PodDisruptionBudget {
 	// When running a single replica, allow 0 available so we don't block node
 	// drains. Otherwise require 1.
 	minAvailable := intstr.FromInt(0)
@@ -68,7 +138,7 @@ func newPodDisruptionBudget(instance *cv1alpha1.Cincinnati) *policyv1beta1.PodDi
 	}
 }
 
-func newGraphBuilderService(instance *cv1alpha1.Cincinnati) *corev1.Service {
+func (k *kubeResources) newGraphBuilderService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	name := nameGraphBuilderService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -102,7 +172,7 @@ func newGraphBuilderService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	}
 }
 
-func newPolicyEngineService(instance *cv1alpha1.Cincinnati) *corev1.Service {
+func (k *kubeResources) newPolicyEngineService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	name := namePolicyEngineService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -136,7 +206,7 @@ func newPolicyEngineService(instance *cv1alpha1.Cincinnati) *corev1.Service {
 	}
 }
 
-func newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.ConfigMap {
+func (k *kubeResources) newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameEnvConfig(instance),
@@ -154,7 +224,7 @@ func newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.ConfigMap {
 	}
 }
 
-func newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, error) {
+func (k *kubeResources) newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, error) {
 	tmpl, err := template.New("gb").Parse(graphBuilderTOML)
 	if err != nil {
 		return nil, err
@@ -174,7 +244,7 @@ func newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, e
 	}, nil
 }
 
-func newDeployment(instance *cv1alpha1.Cincinnati, image string) *appsv1.Deployment {
+func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.Deployment {
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
@@ -204,6 +274,10 @@ func newDeployment(instance *cv1alpha1.Cincinnati, image string) *appsv1.Deploym
 						"app":        name,
 						"deployment": name,
 					},
+					Annotations: map[string]string{
+						GraphBuilderConfigHashAnnotation: k.graphBuilderConfigHash,
+						EnvConfigHashAnnotation:          k.envConfigHash,
+					},
 				},
 				Spec: corev1.PodSpec{
 					Volumes: []corev1.Volume{
@@ -220,8 +294,8 @@ func newDeployment(instance *cv1alpha1.Cincinnati, image string) *appsv1.Deploym
 						},
 					},
 					Containers: []corev1.Container{
-						newGraphBuilderContainer(instance, image),
-						newPolicyEngineContainer(instance, image),
+						*k.graphBuilderContainer,
+						*k.policyEngineContainer,
 					},
 				},
 			},
@@ -229,8 +303,8 @@ func newDeployment(instance *cv1alpha1.Cincinnati, image string) *appsv1.Deploym
 	}
 }
 
-func newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Container {
-	return corev1.Container{
+func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {
+	return &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
@@ -304,9 +378,9 @@ func newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string) core
 	}
 }
 
-func newPolicyEngineContainer(instance *cv1alpha1.Cincinnati, image string) corev1.Container {
+func (k *kubeResources) newPolicyEngineContainer(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {
 	envConfigName := nameEnvConfig(instance)
-	return corev1.Container{
+	return &corev1.Container{
 		Name:            NameContainerPolicyEngine,
 		Image:           image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
@@ -387,4 +461,38 @@ func newCMEnvVar(name, key, cmName string) corev1.EnvVar {
 			},
 		},
 	}
+}
+
+// checksumMap produces a checksum of a ConfigMap's Data attribute. The checksum
+// can be used to detect when the contents of a ConfigMap have changed.
+func checksumMap(m map[string]string) (string, error) {
+	keys := sort.StringSlice([]string{})
+	for k := range m {
+		keys = append(keys, k)
+	}
+	keys.Sort()
+
+	hash := sha256.New()
+	encoder := base64.NewEncoder(base64.StdEncoding, hash)
+
+	for _, k := range keys {
+		for _, data := range [][]byte{
+			[]byte(k),
+			[]byte(m[k]),
+		} {
+			// We base64 encode the data to limit the character set and then use
+			// ":" as a separator.
+			_, err := encoder.Write(data)
+			if err != nil {
+				return "", err
+			}
+			_, err = hash.Write([]byte(":"))
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+	encoder.Close()
+
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
