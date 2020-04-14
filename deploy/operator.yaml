@@ -15,8 +15,7 @@ spec:
       serviceAccountName: cincinnati-operator
       containers:
         - name: cincinnati-operator
-          # TODO Replace this with the built image name
-          image: docker.io/mhrivnak/cincinnati-operator:latest
+          image: quay.io/cincinnati/cincinnati-operator:latest
           command:
           - cincinnati-operator
           imagePullPolicy: Always
@@ -31,6 +30,5 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "cincinnati-operator"
-              # pick a new value from https://quay.io/repository/app-sre/cincinnati?tag=latest&tab=tags
             - name: OPERAND_IMAGE
-              value: "quay.io/app-sre/cincinnati:2873c6b"
+              value: "quay.io/cincinnati/cincinnati:latest"
