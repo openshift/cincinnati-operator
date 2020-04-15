@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
+	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/openshift/cincinnati-operator/pkg/apis"
 	"github.com/openshift/cincinnati-operator/pkg/controller"
 	cincontroller "github.com/openshift/cincinnati-operator/pkg/controller/cincinnati"
@@ -119,6 +120,11 @@ func main() {
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	if err := imagev1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
