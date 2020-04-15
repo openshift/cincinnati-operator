@@ -43,6 +43,12 @@ spec:
               description: GitHubRepo is the repository to use on GitHub for retrieving
                 additional graph data.
               type: string
+            graphDataImage:
+              description: GraphDataImage is an init container image that contains the
+                Cincinnati graph data and copies it to /tmp/cincinnati/graph-data. If 
+                specified, it takes precedence over GitHubOrg and GitHubRepo and disables
+                retrieval of graph data from GitHub.
+              type: string
             registry:
               description: Registry is the container registry to use, such as "quay.io".
               type: string
@@ -58,9 +64,6 @@ spec:
                 as "openshift-release-dev/ocp-release"
               type: string
           required:
-          - branch
-          - gitHubOrg
-          - gitHubRepo
           - registry
           - replicas
           - repository

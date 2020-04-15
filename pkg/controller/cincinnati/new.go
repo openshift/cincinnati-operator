@@ -31,7 +31,8 @@ const (
 	EnvConfigHashAnnotation string = "cincinnati.openshift.io/env-config-hash"
 )
 
-const graphBuilderTOML string = `verbosity = "vvv"
+// TOML when graph data source is a github repository
+const graphBuilderTOMLGitHub string = `verbosity = "vvv"
 
 [service]
 pause_secs = 300
@@ -62,6 +63,31 @@ data_directory = "/tmp/cincinnati/graph-data"
 [[plugin_settings]]
 name = "edge-add-remove"`
 
+// TOML when graph data source is an init container
+const graphBuilderTOMLInitContainer string = `verbosity = "vvv"
+
+[service]
+pause_secs = 300
+address = "0.0.0.0"
+port = 8080
+
+[status]
+address = "0.0.0.0"
+port = 9080
+
+[[plugin_settings]]
+name = "release-scrape-dockerv2"
+registry = "{{.Registry}}"
+repository = "{{.Repository}}"
+fetch_concurrency = 16
+
+[[plugin_settings]]
+name = "openshift-secondary-metadata-parse"
+data_directory = "/tmp/cincinnati/graph-data"
+
+[[plugin_settings]]
+name = "edge-add-remove"`
+
 // kubeResources holds a reference to all of the kube resources we need during
 // reconciliation. This object enables us to create all of the resources
 // up-front at the beginning of the Reconcile function, and then have one place
@@ -78,6 +104,7 @@ type kubeResources struct {
 	podDisruptionBudget    *policyv1beta1.PodDisruptionBudget
 	deployment             *appsv1.Deployment
 	graphBuilderContainer  *corev1.Container
+	graphDataInitContainer *corev1.Container
 	policyEngineContainer  *corev1.Container
 	graphBuilderService    *corev1.Service
 	policyEngineService    *corev1.Service
@@ -107,6 +134,9 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
 	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
+	if k.UseInitContainer(instance) {
+		k.graphDataInitContainer = k.newGraphDataInitContainer(instance, instance.Spec.GraphDataImage)
+	}
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
 	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
@@ -225,7 +255,13 @@ func (k *kubeResources) newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.Con
 }
 
 func (k *kubeResources) newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, error) {
-	tmpl, err := template.New("gb").Parse(graphBuilderTOML)
+	var tmpl *template.Template
+	var err error
+	if k.UseInitContainer(instance) {
+		tmpl, err = template.New("gb").Parse(graphBuilderTOMLInitContainer)
+	} else {
+		tmpl, err = template.New("gb").Parse(graphBuilderTOMLGitHub)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +285,8 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
 	mode := int32(420) // 0644
-	return &appsv1.Deployment{
+
+	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
@@ -292,12 +329,39 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 								},
 							},
 						},
+						corev1.Volume{
+							Name: "cincinnati-graph-data",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
 					},
 					Containers: []corev1.Container{
 						*k.graphBuilderContainer,
 						*k.policyEngineContainer,
 					},
 				},
+			},
+		},
+	}
+	if k.UseInitContainer(instance) {
+		dep.Spec.Template.Spec.InitContainers = []corev1.Container{
+			*k.graphDataInitContainer,
+		}
+	}
+
+	return dep
+}
+
+func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {
+	return &corev1.Container{
+		Name:            NameInitContainerGraphData,
+		Image:           image,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		VolumeMounts: []corev1.VolumeMount{
+			corev1.VolumeMount{
+				Name:      "cincinnati-graph-data",
+				MountPath: "/tmp/cincinnati/graph-data",
 			},
 		},
 	}
@@ -345,6 +409,10 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 				Name:      "configs",
 				ReadOnly:  true,
 				MountPath: "/etc/configs",
+			},
+			corev1.VolumeMount{
+				Name:      "cincinnati-graph-data",
+				MountPath: "/tmp/cincinnati/graph-data",
 			},
 		},
 		LivenessProbe: &corev1.Probe{
@@ -495,4 +563,8 @@ func checksumMap(m map[string]string) (string, error) {
 	encoder.Close()
 
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func (k *kubeResources) UseInitContainer(instance *cv1alpha1.Cincinnati) bool {
+	return instance.Spec.GraphDataImage != ""
 }

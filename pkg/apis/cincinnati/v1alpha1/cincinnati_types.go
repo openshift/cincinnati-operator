@@ -33,6 +33,10 @@ type CincinnatiSpec struct {
 	// Branch is the git branch to use on GitHub for retrieving additional graph
 	// data.
 	Branch string `json:"branch"`
+
+	// GraphDataImage is an init container image that contains the Cincinnati
+	// graph data and copies it to /tmp/cincinnati/graph-data.
+	GraphDataImage string `json:"graphDataImage"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati
