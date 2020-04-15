@@ -31,8 +31,7 @@ const (
 	EnvConfigHashAnnotation string = "cincinnati.openshift.io/env-config-hash"
 )
 
-// TOML when graph data source is a github repository
-const graphBuilderTOMLGitHub string = `verbosity = "vvv"
+const graphBuilderTOML string = `verbosity = "vvv"
 
 [service]
 pause_secs = 300
@@ -49,41 +48,18 @@ registry = "{{.Registry}}"
 repository = "{{.Repository}}"
 fetch_concurrency = 16
 
+{{ if not .GraphDataImage }}
 [[plugin_settings]]
 name = "github-secondary-metadata-scrape"
 github_org = "{{.GitHubOrg}}"
 github_repo = "{{.GitHubRepo}}"
 reference_branch = "{{.Branch}}"
-output_directory = "/tmp/cincinnati/graph-data"
+output_directory = "/var/cincinnati/graph-data"
+{{ end }}
 
 [[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
-data_directory = "/tmp/cincinnati/graph-data"
-
-[[plugin_settings]]
-name = "edge-add-remove"`
-
-// TOML when graph data source is an init container
-const graphBuilderTOMLInitContainer string = `verbosity = "vvv"
-
-[service]
-pause_secs = 300
-address = "0.0.0.0"
-port = 8080
-
-[status]
-address = "0.0.0.0"
-port = 9080
-
-[[plugin_settings]]
-name = "release-scrape-dockerv2"
-registry = "{{.Registry}}"
-repository = "{{.Repository}}"
-fetch_concurrency = 16
-
-[[plugin_settings]]
-name = "openshift-secondary-metadata-parse"
-data_directory = "/tmp/cincinnati/graph-data"
+data_directory = "/var/cincinnati/graph-data"
 
 [[plugin_settings]]
 name = "edge-add-remove"`
@@ -134,9 +110,7 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
 	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
-	if k.UseInitContainer(instance) {
-		k.graphDataInitContainer = k.newGraphDataInitContainer(instance, instance.Spec.GraphDataImage)
-	}
+	k.graphDataInitContainer = k.newGraphDataInitContainer(instance)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
 	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
@@ -255,13 +229,7 @@ func (k *kubeResources) newEnvConfig(instance *cv1alpha1.Cincinnati) *corev1.Con
 }
 
 func (k *kubeResources) newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*corev1.ConfigMap, error) {
-	var tmpl *template.Template
-	var err error
-	if k.UseInitContainer(instance) {
-		tmpl, err = template.New("gb").Parse(graphBuilderTOMLInitContainer)
-	} else {
-		tmpl, err = template.New("gb").Parse(graphBuilderTOMLGitHub)
-	}
+	tmpl, err := template.New("gb").Parse(graphBuilderTOML)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +312,7 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 			},
 		},
 	}
-	if k.UseInitContainer(instance) {
+	if k.graphDataInitContainer != nil {
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{
 			*k.graphDataInitContainer,
 		}
@@ -353,15 +321,18 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 	return dep
 }
 
-func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {
+func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati) *corev1.Container {
+	if instance.Spec.GraphDataImage == "" {
+		return nil
+	}
 	return &corev1.Container{
 		Name:            NameInitContainerGraphData,
-		Image:           image,
+		Image:           instance.Spec.GraphDataImage,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		VolumeMounts: []corev1.VolumeMount{
 			corev1.VolumeMount{
 				Name:      "cincinnati-graph-data",
-				MountPath: "/tmp/cincinnati/graph-data",
+				MountPath: "/var/cincinnati/graph-data",
 			},
 		},
 	}
@@ -412,7 +383,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 			},
 			corev1.VolumeMount{
 				Name:      "cincinnati-graph-data",
-				MountPath: "/tmp/cincinnati/graph-data",
+				MountPath: "/var/cincinnati/graph-data",
 			},
 		},
 		LivenessProbe: &corev1.Probe{
@@ -563,8 +534,4 @@ func checksumMap(m map[string]string) (string, error) {
 	encoder.Close()
 
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
-}
-
-func (k *kubeResources) UseInitContainer(instance *cv1alpha1.Cincinnati) bool {
-	return instance.Spec.GraphDataImage != ""
 }

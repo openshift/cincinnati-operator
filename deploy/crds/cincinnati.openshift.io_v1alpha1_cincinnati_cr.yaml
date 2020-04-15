@@ -15,4 +15,4 @@ spec:
   # The second is through an init container specified by graphDataImage.
   # When specified, graphDataImage takes precedence over gitHubOrg, 
   # gitHubRepo, and branch. 
-  graphDataImage: "quay.io/rwsu/cincinnati-graph-data-container:latest"
+  #graphDataImage: "your-registry/your-repo/your-init-container"

@@ -9,8 +9,8 @@ const (
 	NameContainerGraphBuilder string = "graph-builder"
 	// NameContainerPolicyEngine is the Name property of the policy engine container
 	NameContainerPolicyEngine string = "policy-engine"
-	// NameContainerPolicyEngine is the Name property of the policy engine container
-	NameInitContainerGraphData string = "graph-data-init-container"
+	// NameInitContainerGraphData is the Name property of the graph data container
+	NameInitContainerGraphData string = "graph-data"
 )
 
 func nameDeployment(instance *cv1alpha1.Cincinnati) string {
