@@ -1,7 +1,7 @@
 # Graph Data Init Container
 
 Normally, the graph data is fetched directly from the Cincinnati graph
-data repository at: http://github.com/openshift/cincinnati-graph-data.
+data repository at: [https://github.com/openshift/cincinnati-graph-data](https://github.com/openshift/cincinnati-graph-data).
 In environments where an internet connection is not available, loading
 from an init container is another way to make the graph data available
 to Cincinnati.
@@ -14,8 +14,7 @@ the graph data from the same location.
 ## Build the graph data init container
 
 An example of how to build an init container can be found in ./dev/Dockerfile.
-In the example, the image clones the Cincinnati graph data repository,
-http://github.com/openshift/cincinnati-graph-data.
+In the example, the image clones the Cincinnati graph data repository.
 
 ````
 podman build -f ./dev/Dockerfile -t quay.io/rwsu/cincinnati-graph-data-

@@ -35,7 +35,7 @@ type CincinnatiSpec struct {
 	Branch string `json:"branch"`
 
 	// GraphDataImage is an init container image that contains the Cincinnati
-	// graph data and copies it to /tmp/cincinnati/graph-data.
+	// graph data and copies it to /var/cincinnati/graph-data.
 	GraphDataImage string `json:"graphDataImage"`
 }
 
