@@ -53,6 +53,11 @@ const (
 	// ConditionReconcileCompleted reports whether all required resources have been created
 	// in the cluster and reflect the specified state.
 	ConditionReconcileCompleted conditionsv1.ConditionType = "ReconcileCompleted"
+
+	// ConditionConfigurationConflict reports conflicts in the graph data configuration.
+	// There are two ways to configure the graph data source. If both ways are configured,
+	// this condition will indicate that.
+	ConditionConfigurationConflict conditionsv1.ConditionType = "ConfigurationConflict"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
