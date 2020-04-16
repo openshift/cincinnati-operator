@@ -155,7 +155,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 			Type:    cv1alpha1.ConditionConfigurationConflict,
 			Status:  corev1.ConditionTrue,
 			Reason:  "ConflictFound",
-			Message: "graphDataImage and gitHubOrg/gitHubRepo/branch should not be configured at the same time.",
+			Message: "graphDataImage and gitHubOrg/gitHubRepo/branch should not be configured at the same time. graphDataImage is winning.",
 		})
 	} else {
 		conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
