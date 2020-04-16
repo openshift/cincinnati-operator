@@ -15,7 +15,7 @@ spec:
       serviceAccountName: cincinnati-operator
       containers:
         - name: cincinnati-operator
-          image: quay.io/cincinnati/cincinnati-operator:latest
+          image: local.registry:5000/rhallise/cincinnati-operator
           command:
           - cincinnati-operator
           imagePullPolicy: Always
