@@ -54,12 +54,12 @@ name = "github-secondary-metadata-scrape"
 github_org = "{{.GitHubOrg}}"
 github_repo = "{{.GitHubRepo}}"
 reference_branch = "{{.Branch}}"
-output_directory = "/var/cincinnati/graph-data"
+output_directory = "/var/lib/cincinnati/graph-data"
 {{ end }}
 
 [[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
-data_directory = "/var/cincinnati/graph-data"
+data_directory = "/var/lib/cincinnati/graph-data"
 
 [[plugin_settings]]
 name = "edge-add-remove"`
@@ -332,7 +332,7 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati
 		VolumeMounts: []corev1.VolumeMount{
 			corev1.VolumeMount{
 				Name:      "cincinnati-graph-data",
-				MountPath: "/var/cincinnati/graph-data",
+				MountPath: "/var/lib/cincinnati/graph-data",
 			},
 		},
 	}
@@ -383,7 +383,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 			},
 			corev1.VolumeMount{
 				Name:      "cincinnati-graph-data",
-				MountPath: "/var/cincinnati/graph-data",
+				MountPath: "/var/lib/cincinnati/graph-data",
 			},
 		},
 		LivenessProbe: &corev1.Probe{

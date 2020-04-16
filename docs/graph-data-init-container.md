@@ -8,7 +8,7 @@ to Cincinnati.
 
 The role of the init container is to provide a copy of the graph data.
 During pod initialization, the init container copies the data to a volume
-at /var/cincinnati/graph-data. The graph builder is configured to read 
+at /var/lib/cincinnati/graph-data. The graph builder is configured to read 
 the graph data from the same location.
 
 ## Build the graph data init container
@@ -17,8 +17,7 @@ An example of how to build an init container can be found in ./dev/Dockerfile.
 In the example, the image clones the Cincinnati graph data repository.
 
 ````
-podman build -f ./dev/Dockerfile -t quay.io/rwsu/cincinnati-graph-data-
-container:latest
+podman build -f ./dev/Dockerfile -t quay.io/rwsu/cincinnati-graph-data-container:latest
 podman push quay.io/rwsu/cincinnati-graph-data-container:latest
 ````
 
