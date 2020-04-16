@@ -150,6 +150,21 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 			Message: "",
 		})
 	}
+	if instance.Spec.GraphDataImage != "" && (instance.Spec.GitHubOrg != "" || instance.Spec.GitHubRepo != "" || instance.Spec.Branch != "") {
+		conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
+			Type:    cv1alpha1.ConditionConfigurationConflict,
+			Status:  corev1.ConditionTrue,
+			Reason:  "ConflictFound",
+			Message: "graphDataImage and gitHubOrg/gitHubRepo/branch should not be configured at the same time. graphDataImage is winning.",
+		})
+	} else {
+		conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
+			Type:    cv1alpha1.ConditionConfigurationConflict,
+			Status:  corev1.ConditionFalse,
+			Reason:  "NoConflicts",
+			Message: "",
+		})
+	}
 	if err := r.client.Status().Update(ctx, instanceCopy); err != nil {
 		reqLogger.Error(err, "Failed to update Status")
 	}

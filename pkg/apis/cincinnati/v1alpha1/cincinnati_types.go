@@ -24,15 +24,21 @@ type CincinnatiSpec struct {
 
 	// GitHubOrg is the organization to use on GitHub for retrieving additional
 	// graph data.
-	GitHubOrg string `json:"gitHubOrg"`
+	GitHubOrg string `json:"gitHubOrg,omitempty"`
 
 	// GitHubRepo is the repository to use on GitHub for retrieving additional
 	// graph data.
-	GitHubRepo string `json:"gitHubRepo"`
+	GitHubRepo string `json:"gitHubRepo,omitempty"`
 
 	// Branch is the git branch to use on GitHub for retrieving additional graph
 	// data.
-	Branch string `json:"branch"`
+	Branch string `json:"branch,omitempty"`
+
+	// GraphDataImage is an init container image that contains the
+	// Cincinnati graph data and copies it to /var/cincinnati/graph-data. If
+	// specified, it takes precedence over GitHubOrg and GitHubRepo and disables
+	// retrieval of graph data from GitHub.
+	GraphDataImage string `json:"graphDataImage,omitempty"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati
@@ -49,6 +55,11 @@ const (
 	// ConditionReconcileCompleted reports whether all required resources have been created
 	// in the cluster and reflect the specified state.
 	ConditionReconcileCompleted conditionsv1.ConditionType = "ReconcileCompleted"
+
+	// ConditionConfigurationConflict reports conflicts in the graph data configuration.
+	// There are two ways to configure the graph data source. If both ways are configured,
+	// this condition will indicate that.
+	ConditionConfigurationConflict conditionsv1.ConditionType = "ConfigurationConflict"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

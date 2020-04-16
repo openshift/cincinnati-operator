@@ -6,6 +6,13 @@ spec:
   replicas: 1
   registry: "quay.io"
   repository: "openshift-release-dev/ocp-release"
+  # There two ways to specify the source of the Cincinnati graph data.
+  # The first is through a github repository specified by these three
+  # parameters.
   gitHubOrg: "openshift"
   gitHubRepo: "cincinnati-graph-data"
   branch: "master"
+  # The second is through an init container specified by graphDataImage.
+  # When specified, graphDataImage takes precedence over gitHubOrg, 
+  # gitHubRepo, and branch. 
+  #graphDataImage: "your-registry/your-repo/your-init-container"

@@ -48,16 +48,18 @@ registry = "{{.Registry}}"
 repository = "{{.Repository}}"
 fetch_concurrency = 16
 
+{{ if not .GraphDataImage }}
 [[plugin_settings]]
 name = "github-secondary-metadata-scrape"
 github_org = "{{.GitHubOrg}}"
 github_repo = "{{.GitHubRepo}}"
 reference_branch = "{{.Branch}}"
-output_directory = "/tmp/cincinnati/graph-data"
+output_directory = "/var/cincinnati/graph-data"
+{{ end }}
 
 [[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
-data_directory = "/tmp/cincinnati/graph-data"
+data_directory = "/var/cincinnati/graph-data"
 
 [[plugin_settings]]
 name = "edge-add-remove"`
@@ -78,6 +80,7 @@ type kubeResources struct {
 	podDisruptionBudget    *policyv1beta1.PodDisruptionBudget
 	deployment             *appsv1.Deployment
 	graphBuilderContainer  *corev1.Container
+	graphDataInitContainer *corev1.Container
 	policyEngineContainer  *corev1.Container
 	graphBuilderService    *corev1.Service
 	policyEngineService    *corev1.Service
@@ -107,6 +110,7 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
 	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
+	k.graphDataInitContainer = k.newGraphDataInitContainer(instance)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
 	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
@@ -249,7 +253,8 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
 	mode := int32(420) // 0644
-	return &appsv1.Deployment{
+
+	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
@@ -292,12 +297,42 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 								},
 							},
 						},
+						corev1.Volume{
+							Name: "cincinnati-graph-data",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
 					},
 					Containers: []corev1.Container{
 						*k.graphBuilderContainer,
 						*k.policyEngineContainer,
 					},
 				},
+			},
+		},
+	}
+	if k.graphDataInitContainer != nil {
+		dep.Spec.Template.Spec.InitContainers = []corev1.Container{
+			*k.graphDataInitContainer,
+		}
+	}
+
+	return dep
+}
+
+func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati) *corev1.Container {
+	if instance.Spec.GraphDataImage == "" {
+		return nil
+	}
+	return &corev1.Container{
+		Name:            NameInitContainerGraphData,
+		Image:           instance.Spec.GraphDataImage,
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		VolumeMounts: []corev1.VolumeMount{
+			corev1.VolumeMount{
+				Name:      "cincinnati-graph-data",
+				MountPath: "/var/cincinnati/graph-data",
 			},
 		},
 	}
@@ -345,6 +380,10 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 				Name:      "configs",
 				ReadOnly:  true,
 				MountPath: "/etc/configs",
+			},
+			corev1.VolumeMount{
+				Name:      "cincinnati-graph-data",
+				MountPath: "/var/cincinnati/graph-data",
 			},
 		},
 		LivenessProbe: &corev1.Probe{
