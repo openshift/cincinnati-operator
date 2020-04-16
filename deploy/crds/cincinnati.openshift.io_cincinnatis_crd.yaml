@@ -44,10 +44,10 @@ spec:
                 additional graph data.
               type: string
             graphDataImage:
-              description: GraphDataImage is an init container image that contains the
-                Cincinnati graph data and copies it to /var/cincinnati/graph-data. If 
-                specified, it takes precedence over GitHubOrg and GitHubRepo and disables
-                retrieval of graph data from GitHub.
+              description: GraphDataImage is an init container image that contains
+                the Cincinnati graph data and copies it to /var/cincinnati/graph-data.
+                If specified, it takes precedence over GitHubOrg and GitHubRepo and
+                disables retrieval of graph data from GitHub.
               type: string
             registry:
               description: Registry is the container registry to use, such as "quay.io".
@@ -72,7 +72,7 @@ spec:
           description: CincinnatiStatus defines the observed state of Cincinnati
           properties:
             conditions:
-              description: Conditions describes the state of the Cincinnati resource.
+              description: Conditions describe the state of the Cincinnati resource.
               items:
                 description: Condition represents the state of the operator's reconciliation
                   functionality.

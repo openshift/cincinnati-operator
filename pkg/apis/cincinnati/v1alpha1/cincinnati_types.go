@@ -24,19 +24,21 @@ type CincinnatiSpec struct {
 
 	// GitHubOrg is the organization to use on GitHub for retrieving additional
 	// graph data.
-	GitHubOrg string `json:"gitHubOrg"`
+	GitHubOrg string `json:"gitHubOrg,omitempty"`
 
 	// GitHubRepo is the repository to use on GitHub for retrieving additional
 	// graph data.
-	GitHubRepo string `json:"gitHubRepo"`
+	GitHubRepo string `json:"gitHubRepo,omitempty"`
 
 	// Branch is the git branch to use on GitHub for retrieving additional graph
 	// data.
-	Branch string `json:"branch"`
+	Branch string `json:"branch,omitempty"`
 
-	// GraphDataImage is an init container image that contains the Cincinnati
-	// graph data and copies it to /var/cincinnati/graph-data.
-	GraphDataImage string `json:"graphDataImage"`
+	// GraphDataImage is an init container image that contains the
+	// Cincinnati graph data and copies it to /var/cincinnati/graph-data. If
+	// specified, it takes precedence over GitHubOrg and GitHubRepo and disables
+	// retrieval of graph data from GitHub.
+	GraphDataImage string `json:"graphDataImage,omitempty"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati
