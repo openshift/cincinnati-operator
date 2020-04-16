@@ -73,19 +73,17 @@ name = "edge-add-remove"`
 // once up-front makes it MUCH easier to access those resources as-needed
 // throughout the reconciliation code.
 type kubeResources struct {
-	envConfig                       *corev1.ConfigMap
-	envConfigHash                   string
-	graphBuilderConfig              *corev1.ConfigMap
-	graphBuilderConfigHash          string
-	podDisruptionBudget             *policyv1beta1.PodDisruptionBudget
-	deployment                      *appsv1.Deployment
-	deploymentAdditionalTrustedCA   *appsv1.Deployment
-	graphBuilderContainer           *corev1.Container
-	graphDataInitContainer          *corev1.Container
-	graphBuilderAdditionalTrustedCA *corev1.Container
-	policyEngineContainer           *corev1.Container
-	graphBuilderService             *corev1.Service
-	policyEngineService             *corev1.Service
+	envConfig              *corev1.ConfigMap
+	envConfigHash          string
+	graphBuilderConfig     *corev1.ConfigMap
+	graphBuilderConfigHash string
+	podDisruptionBudget    *policyv1beta1.PodDisruptionBudget
+	deployment             *appsv1.Deployment
+	graphBuilderContainer  *corev1.Container
+	graphDataInitContainer *corev1.Container
+	policyEngineContainer  *corev1.Container
+	graphBuilderService    *corev1.Service
+	policyEngineService    *corev1.Service
 }
 
 func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResources, error) {
@@ -117,8 +115,6 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
 	k.policyEngineService = k.newPolicyEngineService(instance)
-	k.deploymentAdditionalTrustedCA = k.newDeploymentAdditionalTrustedCA(instance)
-	k.graphBuilderAdditionalTrustedCA = k.newGraphBuilderAdditionalTrustedCA(instance, image)
 	return &k, nil
 }
 
@@ -251,41 +247,6 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*
 	}, nil
 }
 
-func (k *kubeResources) newDeploymentAdditionalTrustedCA(instance *cv1alpha1.Cincinnati) *appsv1.Deployment {
-	mode := int32(420) // 0644
-	d := k.newDeployment(instance)
-	v := corev1.Volume{
-		Name: "trusted-ca",
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				DefaultMode: &mode,
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: nameAdditionalTrustedCA(instance),
-				},
-				Items: []corev1.KeyToPath{
-					corev1.KeyToPath{
-						Path: "tls-ca-bundle.pem",
-						Key:  instance.Spec.CmKey,
-					},
-				},
-			},
-		},
-	}
-	d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
-	return d
-}
-
-func (k *kubeResources) newGraphBuilderAdditionalTrustedCA(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {
-	g := k.newGraphBuilderContainer(instance, image)
-	v := corev1.VolumeMount{
-		Name:      "trusted-ca",
-		ReadOnly:  true,
-		MountPath: "/etc/pki/ca-trust/extracted/pem",
-	}
-	g.VolumeMounts = append(g.VolumeMounts, v)
-	return g
-}
-
 func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.Deployment {
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
@@ -349,7 +310,6 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 			},
 		},
 	}
-
 	if k.graphDataInitContainer != nil {
 		dep.Spec.Template.Spec.InitContainers = []corev1.Container{
 			*k.graphDataInitContainer,
@@ -374,7 +334,7 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 				},
 			},
 		}
-		dep.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, v)
 	}
 	return dep
 }
@@ -473,7 +433,6 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 			},
 		},
 	}
-
 	if instance.Spec.CmKey != "" {
 		v := corev1.VolumeMount{
 			Name:      "trusted-ca",
@@ -482,7 +441,6 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 		}
 		g.VolumeMounts = append(g.VolumeMounts, v)
 	}
-
 	return g
 }
 

@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
-	//imagev1 "github.com/openshift/api/image/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cincinnati-operator/pkg/apis"
 	"github.com/openshift/cincinnati-operator/pkg/controller"
