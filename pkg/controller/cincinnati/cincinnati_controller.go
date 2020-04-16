@@ -221,7 +221,7 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		return nil
 	}
 
-	// Search for the openshift-config ConfigMap
+	// Search for the ConfigMap in openshift-config
 	sourceCM := &corev1.ConfigMap{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: defaultOpenShiftConfigNS}, sourceCM)
 	if err != nil && errors.IsNotFound(err) {
@@ -231,29 +231,22 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		return err
 	}
 
-	// updated is a local copy of the ConfigMap containing registry CA data
-	// from openshift-config.
-	localCM := sourceCM.DeepCopy()
+	localCM := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nameAdditionalTrustedCA(instance),
+			Namespace: instance.Namespace,
+		},
+		Data: sourceCM.Data,
+	}
 
-	// Search for the local ConfigMap
-	found := &corev1.ConfigMap{}
-	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: instance.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating local copy of the ConfigMap", "Name", localCM.ObjectMeta.Name, "Namespace", localCM.ObjectMeta.Namespace)
-
-		// Creating ConfigMap in the local namespace
-		localCM.ObjectMeta.Namespace = instance.Namespace
-		err := r.client.Create(ctx, localCM)
-		if err != nil {
-			handleErr(reqLogger, &instance.Status, "CreateConfigMapFailed", err)
-		}
-		return err
-	} else if err != nil {
+	// Set Cincinnati instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, localCM, r.scheme); err != nil {
 		return err
 	}
 
-	reqLogger.Info("Found local copy of the ConfigMap", "Name", localCM.ObjectMeta.Name, "Namespace", localCM.ObjectMeta.Namespace)
-	localCM.ObjectMeta.Namespace = instance.Namespace
 	if err := r.ensureConfigMap(ctx, reqLogger, localCM); err != nil {
 		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
 		return err
@@ -263,6 +256,7 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 
 func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
 	deployment := resources.deployment
+
 	if err := controllerutil.SetControllerReference(instance, deployment, r.scheme); err != nil {
 		return err
 	}

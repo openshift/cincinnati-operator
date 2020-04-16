@@ -36,3 +36,7 @@ func namePolicyEngineService(instance *cv1alpha1.Cincinnati) string {
 func nameGraphBuilderService(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name + "-graph-builder"
 }
+
+func nameAdditionalTrustedCA(instance *cv1alpha1.Cincinnati) string {
+	return instance.Name + "-trusted-ca"
+}
