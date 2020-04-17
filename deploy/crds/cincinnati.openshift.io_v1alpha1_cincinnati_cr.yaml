@@ -6,7 +6,7 @@ spec:
   replicas: 1
   registry: "quay.io"
   repository: "openshift-release-dev/ocp-release"
-  configmapKey: ""
+  certConfigMapKey: ""
   # There two ways to specify the source of the Cincinnati graph data.
   # The first is through a github repository specified by these three
   # parameters.

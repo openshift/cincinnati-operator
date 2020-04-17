@@ -317,7 +317,7 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 		}
 	}
 
-	if instance.Spec.ConfigmapKey != "" {
+	if instance.Spec.CertConfigMapKey != "" {
 		v := corev1.Volume{
 			Name: trustedCaName,
 			VolumeSource: corev1.VolumeSource{
@@ -329,7 +329,7 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 					Items: []corev1.KeyToPath{
 						corev1.KeyToPath{
 							Path: "tls-ca-bundle.pem",
-							Key:  instance.Spec.ConfigmapKey,
+							Key:  instance.Spec.CertConfigMapKey,
 						},
 					},
 				},
@@ -435,7 +435,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 			},
 		},
 	}
-	if instance.Spec.ConfigmapKey != "" {
+	if instance.Spec.CertConfigMapKey != "" {
 		v := corev1.VolumeMount{
 			Name:      trustedCaName,
 			ReadOnly:  true,
