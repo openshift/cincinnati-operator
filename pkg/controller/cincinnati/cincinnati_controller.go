@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -189,30 +188,10 @@ func handleErr(reqLogger logr.Logger, status *cv1alpha1.CincinnatiStatus, reason
 }
 
 func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
-	defaultOpenShiftConfigNS := "openshift-config"
-
 	// Check if the Cluster is aware of a registry requiring an
 	// AdditionalTrustedCA
-	regconf := &apicfgv1.RegistrySources{}
-	image := &apicfgv1.Image{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: apicfgv1.SchemeGroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       defaults.ImageConfigName,
-			UID:        types.UID(utilrand.String(5)),
-			Generation: 1,
-		},
-		Spec: apicfgv1.ImageSpec{
-			RegistrySources: *regconf,
-		},
-	}
-	key, err := client.ObjectKeyFromObject(image)
-	if err != nil {
-		reqLogger.Error(err, "Failed to get object key for ImageConfig")
-	}
-
-	err = r.client.Get(ctx, key, image)
+	image := &apicfgv1.Image{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
 	if err != nil {
 		return err
 	}
@@ -223,18 +202,15 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 
 	// Search for the ConfigMap in openshift-config
 	sourceCM := &corev1.ConfigMap{}
-	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: defaultOpenShiftConfigNS}, sourceCM)
+	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: openshiftConfigNamespace}, sourceCM)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", defaultOpenShiftConfigNS)
+		reqLogger.Info("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", openshiftConfigNamespace)
 		return err
 	} else if err != nil {
 		return err
 	}
 
 	localCM := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameAdditionalTrustedCA(instance),
 			Namespace: instance.Namespace,

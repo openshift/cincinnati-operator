@@ -40,11 +40,11 @@ type CincinnatiSpec struct {
 	// retrieval of graph data from GitHub.
 	GraphDataImage string `json:"graphDataImage,omitempty"`
 
-	// CmKey refers to the ConfigMap key that holds a CA cert to the registry
+	// CofigmapKey refers to the ConfigMap key that holds a CA cert to the registry
 	// Cincinnati will contact to build the upgrade graph.  The name of the
 	// ConfigMap holding the key comes from the field additionalTrustedCA
 	// in the image.config.openshift.io API.
-	CmKey string `json:"cmKey"`
+	ConfigmapKey string `json:"configmapKey"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati

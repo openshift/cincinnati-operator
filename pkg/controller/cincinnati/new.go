@@ -248,6 +248,7 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*
 }
 
 func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.Deployment {
+	trustedCaName := nameDeploymentTrustedCA()
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
@@ -316,9 +317,9 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 		}
 	}
 
-	if instance.Spec.CmKey != "" {
+	if instance.Spec.ConfigmapKey != "" {
 		v := corev1.Volume{
-			Name: "trusted-ca",
+			Name: trustedCaName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					DefaultMode: &mode,
@@ -328,7 +329,7 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 					Items: []corev1.KeyToPath{
 						corev1.KeyToPath{
 							Path: "tls-ca-bundle.pem",
-							Key:  instance.Spec.CmKey,
+							Key:  instance.Spec.ConfigmapKey,
 						},
 					},
 				},
@@ -357,6 +358,7 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati
 }
 
 func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {
+	trustedCaName := nameDeploymentTrustedCA()
 	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
@@ -433,9 +435,9 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 			},
 		},
 	}
-	if instance.Spec.CmKey != "" {
+	if instance.Spec.ConfigmapKey != "" {
 		v := corev1.VolumeMount{
-			Name:      "trusted-ca",
+			Name:      trustedCaName,
 			ReadOnly:  true,
 			MountPath: "/etc/pki/ca-trust/extracted/pem",
 		}
