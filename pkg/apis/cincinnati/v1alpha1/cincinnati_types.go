@@ -44,7 +44,7 @@ type CincinnatiSpec struct {
 	// Cincinnati will contact to build the upgrade graph.  The name of the
 	// ConfigMap holding the key comes from the field additionalTrustedCA
 	// in the image.config.openshift.io API.
-	CertConfigMapKey string `json:"certConfigMapKey"`
+	CertConfigMapKey string `json:"certConfigMapKey,omitempty"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati
