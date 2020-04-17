@@ -115,7 +115,6 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
 	k.policyEngineService = k.newPolicyEngineService(instance)
-
 	return &k, nil
 }
 
@@ -249,11 +248,11 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*
 }
 
 func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.Deployment {
+	trustedCaName := nameDeploymentTrustedCA()
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
 	mode := int32(420) // 0644
-
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -318,6 +317,26 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 		}
 	}
 
+	if instance.Spec.CertConfigMapKey != "" {
+		v := corev1.Volume{
+			Name: trustedCaName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &mode,
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: nameAdditionalTrustedCA(instance),
+					},
+					Items: []corev1.KeyToPath{
+						corev1.KeyToPath{
+							Path: "tls-ca-bundle.pem",
+							Key:  instance.Spec.CertConfigMapKey,
+						},
+					},
+				},
+			},
+		}
+		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, v)
+	}
 	return dep
 }
 
@@ -339,7 +358,8 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati
 }
 
 func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {
-	return &corev1.Container{
+	trustedCaName := nameDeploymentTrustedCA()
+	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
@@ -415,6 +435,15 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 			},
 		},
 	}
+	if instance.Spec.CertConfigMapKey != "" {
+		v := corev1.VolumeMount{
+			Name:      trustedCaName,
+			ReadOnly:  true,
+			MountPath: "/etc/pki/ca-trust/extracted/pem",
+		}
+		g.VolumeMounts = append(g.VolumeMounts, v)
+	}
+	return g
 }
 
 func (k *kubeResources) newPolicyEngineContainer(instance *cv1alpha1.Cincinnati, image string) *corev1.Container {

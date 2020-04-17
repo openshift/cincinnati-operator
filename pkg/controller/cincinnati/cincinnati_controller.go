@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,7 +22,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	apicfgv1 "github.com/openshift/api/config/v1"
 	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
+	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 )
 
 var log = logf.Log.WithName("controller_cincinnati")
@@ -126,6 +129,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	for _, f := range []func(context.Context, logr.Logger, *cv1alpha1.Cincinnati, *kubeResources) error{
 		r.ensureConfig,
 		r.ensureEnvConfig,
+		r.ensureAdditionalTrustedCA,
 		r.ensureDeployment,
 		r.ensureGraphBuilderService,
 		r.ensurePolicyEngineService,
@@ -181,6 +185,51 @@ func handleErr(reqLogger logr.Logger, status *cv1alpha1.CincinnatiStatus, reason
 		Message: e.Error(),
 	})
 	reqLogger.Error(e, reason)
+}
+
+func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {
+	// Check if the Cluster is aware of a registry requiring an
+	// AdditionalTrustedCA
+	image := &apicfgv1.Image{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	if image.Spec.AdditionalTrustedCA.Name == "" {
+		return nil
+	}
+
+	// Search for the ConfigMap in openshift-config
+	sourceCM := &corev1.ConfigMap{}
+	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: openshiftConfigNamespace}, sourceCM)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", openshiftConfigNamespace)
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	localCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nameAdditionalTrustedCA(instance),
+			Namespace: instance.Namespace,
+		},
+		Data: sourceCM.Data,
+	}
+
+	// Set Cincinnati instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, localCM, r.scheme); err != nil {
+		return err
+	}
+
+	if err := r.ensureConfigMap(ctx, reqLogger, localCM); err != nil {
+		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
+		return err
+	}
+	return nil
 }
 
 func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1alpha1.Cincinnati, resources *kubeResources) error {

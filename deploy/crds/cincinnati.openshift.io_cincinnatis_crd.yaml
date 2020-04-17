@@ -63,6 +63,9 @@ spec:
               description: Repository is the repository to use in the Registry, such
                 as "openshift-release-dev/ocp-release"
               type: string
+            certConfigMapKey:
+              description: CertConfigMapKey refers to the ConfigMap key that holds a CA cert to the registry Cincinnati will contact to build the upgrade graph.  The name of the ConfigMap holding the key comes from the field additionalTrustedCA in the image.config.openshift.io API.
+              type: string
           required:
           - registry
           - replicas

@@ -16,7 +16,8 @@ metadata:
             "gitHubRepo": "cincinnati-graph-data",
             "registry": "quay.io",
             "replicas": 1,
-            "repository": "openshift-release-dev/ocp-release"
+            "repository": "openshift-release-dev/ocp-release",
+            "certConfigMapKey": "",
           }
         }
       ]

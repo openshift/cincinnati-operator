@@ -11,6 +11,8 @@ const (
 	NameContainerPolicyEngine string = "policy-engine"
 	// NameInitContainerGraphData is the Name property of the graph data container
 	NameInitContainerGraphData string = "graph-data"
+	// openshiftConfigNamespace is the name of openshift's configuration namespace
+	openshiftConfigNamespace = "openshift-config"
 )
 
 func nameDeployment(instance *cv1alpha1.Cincinnati) string {
@@ -35,4 +37,12 @@ func namePolicyEngineService(instance *cv1alpha1.Cincinnati) string {
 
 func nameGraphBuilderService(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name + "-graph-builder"
+}
+
+func nameAdditionalTrustedCA(instance *cv1alpha1.Cincinnati) string {
+	return instance.Name + "-trusted-ca"
+}
+
+func nameDeploymentTrustedCA() string {
+	return "trusted-ca"
 }

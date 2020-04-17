@@ -39,6 +39,12 @@ type CincinnatiSpec struct {
 	// specified, it takes precedence over GitHubOrg and GitHubRepo and disables
 	// retrieval of graph data from GitHub.
 	GraphDataImage string `json:"graphDataImage,omitempty"`
+
+	// CertConfigMapKey refers to the ConfigMap key that holds a CA cert to the registry
+	// Cincinnati will contact to build the upgrade graph.  The name of the
+	// ConfigMap holding the key comes from the field additionalTrustedCA
+	// in the image.config.openshift.io API.
+	CertConfigMapKey string `json:"certConfigMapKey,omitempty"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati
