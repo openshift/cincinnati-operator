@@ -192,7 +192,9 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 	// AdditionalTrustedCA
 	image := &apicfgv1.Image{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
-	if err != nil {
+	if err != nil && errors.IsNotFound(err) {
+		return nil
+	} else if err != nil {
 		return err
 	}
 
