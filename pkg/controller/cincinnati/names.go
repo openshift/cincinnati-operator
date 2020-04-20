@@ -2,6 +2,7 @@ package cincinnati
 
 import (
 	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -45,4 +46,14 @@ func nameAdditionalTrustedCA(instance *cv1alpha1.Cincinnati) string {
 
 func nameDeploymentTrustedCA() string {
 	return "trusted-ca"
+}
+
+// When running a single replica, allow 0 available so we don't block node
+// drains. Otherwise require 1.
+func getMinAvailablePBD(instance *cv1alpha1.Cincinnati) intstr.IntOrString {
+	minAvailable := intstr.FromInt(0)
+	if instance.Spec.Replicas >= 2 {
+		minAvailable = intstr.FromInt(1)
+	}
+	return minAvailable
 }

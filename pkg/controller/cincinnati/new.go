@@ -119,12 +119,7 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 }
 
 func (k *kubeResources) newPodDisruptionBudget(instance *cv1alpha1.Cincinnati) *policyv1beta1.PodDisruptionBudget {
-	// When running a single replica, allow 0 available so we don't block node
-	// drains. Otherwise require 1.
-	minAvailable := intstr.FromInt(0)
-	if instance.Spec.Replicas >= 2 {
-		minAvailable = intstr.FromInt(1)
-	}
+	minAvailable := getMinAvailablePBD(instance)
 	return &policyv1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namePodDisruptionBudget(instance),
