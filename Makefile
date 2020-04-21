@@ -1,0 +1,3 @@
+unit-test:
+	@echo "Executing unit tests"
+	go test -v ./pkg/...
