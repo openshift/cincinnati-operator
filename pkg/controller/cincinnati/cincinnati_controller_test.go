@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	imagev1 "github.com/openshift/api/image/v1"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cincinnati-operator/pkg/apis"
 	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 		log.Error(err, "Failed adding apis to scheme")
 		os.Exit(1)
 	}
-	if err := imagev1.AddToScheme(scheme.Scheme); err != nil {
+	if err := configv1.AddToScheme(scheme.Scheme); err != nil {
 		log.Error(err, "Failed adding apis to scheme")
 		os.Exit(1)
 	}
