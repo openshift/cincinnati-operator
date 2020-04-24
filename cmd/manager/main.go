@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
+	"github.com/openshift/cincinnati-operator/pkg/manager/wrapper"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cincinnati-operator/pkg/apis"
 	"github.com/openshift/cincinnati-operator/pkg/controller"
@@ -139,7 +140,7 @@ func main() {
 	// Usually this is done with an init() function in the package, but since we
 	// need to provide input, we're doing it here instead.
 	controller.AddToManagerFuncs = append(controller.AddToManagerFuncs, func(mgr manager.Manager) error {
-		return cincontroller.Add(mgr, opts)
+		return cincontroller.Add(wrapper.New(mgr), opts)
 	})
 	// Setup Cincinnati controllers
 	if err := controller.AddToManager(mgr); err != nil {
