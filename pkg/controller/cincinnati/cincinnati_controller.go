@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -78,6 +79,24 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// Watch for all Image changes, only Reconcile when image found is named defaults.ImageConfigName and is at cluster level
+	err = c.Watch(&source.Kind{Type: &apicfgv1.Image{}},
+		&handler.EnqueueRequestsFromMapFunc{ToRequests: &mapper{mgr.GetClient()}},
+		predicate.GenerationChangedPredicate{})
+	if err != nil {
+		log.Error(err, "Error watching ImageConfig API")
+		return err
+	}
+
+	//Watch for all ConfigMap changes, only Reconcile when name == Image.Spec.AdditionalTrustedCA.Name
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}},
+		&handler.EnqueueRequestsFromMapFunc{ToRequests: &mapper{mgr.GetClient()}},
+		predicate.GenerationChangedPredicate{})
+	if err != nil {
+		log.Error(err, "Error watching ConfigMap API")
+		return err
 	}
 
 	return nil
