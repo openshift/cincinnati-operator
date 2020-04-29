@@ -35,7 +35,7 @@ type CincinnatiSpec struct {
 	Branch string `json:"branch,omitempty"`
 
 	// GraphDataImage is an init container image that contains the
-	// Cincinnati graph data and copies it to /var/cincinnati/graph-data. If
+	// Cincinnati graph data and copies it to /var/lib/cincinnati/graph-data. If
 	// specified, it takes precedence over GitHubOrg and GitHubRepo and disables
 	// retrieval of graph data from GitHub.
 	GraphDataImage string `json:"graphDataImage,omitempty"`
