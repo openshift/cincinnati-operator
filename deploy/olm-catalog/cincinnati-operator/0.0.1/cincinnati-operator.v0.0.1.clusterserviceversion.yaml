@@ -14,7 +14,6 @@ metadata:
             "registry": "quay.io",
             "replicas": 1,
             "repository": "openshift-release-dev/ocp-release",
-            "certConfigMapKey": "",
             "graphDataImage": "quay.io/cincinnati/demo-graph-data:for-testing-only",
           }
         }

@@ -217,22 +217,30 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		return err
 	}
 
-	localCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nameAdditionalTrustedCA(instance),
-			Namespace: instance.Namespace,
-		},
-		Data: sourceCM.Data,
-	}
+	if _, ok := sourceCM.Data[NameCertConfigMapKey]; ok {
+		localCM := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      nameAdditionalTrustedCA(instance),
+				Namespace: instance.Namespace,
+			},
+			Data: sourceCM.Data,
+		}
 
-	// Set Cincinnati instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, localCM, r.scheme); err != nil {
-		return err
-	}
+		// Set Cincinnati instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, localCM, r.scheme); err != nil {
+			return err
+		}
 
-	if err := r.ensureConfigMap(ctx, reqLogger, localCM); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
-		return err
+		if err := r.ensureConfigMap(ctx, reqLogger, localCM); err != nil {
+			handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
+			return err
+		}
+		// Mount in ConfigMap data from the cincinnati-registry key
+		ExternalCACert := true
+		resources.graphBuilderContainer = resources.newGraphBuilderContainer(instance, r.operandImage, ExternalCACert)
+		resources.deployment = resources.newDeployment(instance, ExternalCACert)
+	} else {
+		reqLogger.Info("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert.", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", openshiftConfigNamespace)
 	}
 	return nil
 }
