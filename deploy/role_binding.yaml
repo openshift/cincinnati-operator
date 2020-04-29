@@ -17,7 +17,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: cincinnati-operator
-  namespace: openshift-cincinnati
+  namespace: default
 roleRef:
   kind: ClusterRole
   name: cincinnati-operator

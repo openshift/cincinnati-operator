@@ -11,4 +11,5 @@ operator-sdk run --local
 
 ## Using an init container to load graph data
 
-The Cincinnati graph data can also be [loaded from an init container](docs/graph-data-init-container.md).
+The Cincinnati graph data is loaded from an init container. Before deploying 
+the cincinnati-operator, you will need to [build and push an init container containing the graph data](docs/graph-data-init-container.md).

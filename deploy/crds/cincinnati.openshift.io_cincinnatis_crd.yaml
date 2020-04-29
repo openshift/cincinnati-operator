@@ -31,23 +31,15 @@ spec:
         spec:
           description: CincinnatiSpec defines the desired state of Cincinnati
           properties:
-            branch:
-              description: Branch is the git branch to use on GitHub for retrieving
-                additional graph data.
-              type: string
-            gitHubOrg:
-              description: GitHubOrg is the organization to use on GitHub for retrieving
-                additional graph data.
-              type: string
-            gitHubRepo:
-              description: GitHubRepo is the repository to use on GitHub for retrieving
-                additional graph data.
+            certConfigMapKey:
+              description: CertConfigMapKey refers to the ConfigMap key that holds
+                a CA cert to the registry Cincinnati will contact to build the upgrade
+                graph.  The name of the ConfigMap holding the key comes from the field
+                additionalTrustedCA in the image.config.openshift.io API.
               type: string
             graphDataImage:
-              description: GraphDataImage is an init container image that contains
-                the Cincinnati graph data and copies it to /var/lib/cincinnati/graph-data.
-                If specified, it takes precedence over GitHubOrg and GitHubRepo and
-                disables retrieval of graph data from GitHub.
+              description: GraphDataImage is a container image that contains the Cincinnati
+                graph data. The data is copied to /var/lib/cincinnati/graph-data.
               type: string
             registry:
               description: Registry is the container registry to use, such as "quay.io".
@@ -63,10 +55,8 @@ spec:
               description: Repository is the repository to use in the Registry, such
                 as "openshift-release-dev/ocp-release"
               type: string
-            certConfigMapKey:
-              description: CertConfigMapKey refers to the ConfigMap key that holds a CA cert to the registry Cincinnati will contact to build the upgrade graph.  The name of the ConfigMap holding the key comes from the field additionalTrustedCA in the image.config.openshift.io API.
-              type: string
           required:
+          - graphDataImage
           - registry
           - replicas
           - repository

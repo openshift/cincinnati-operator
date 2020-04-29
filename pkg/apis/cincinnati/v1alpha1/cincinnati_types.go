@@ -22,23 +22,9 @@ type CincinnatiSpec struct {
 	// "openshift-release-dev/ocp-release"
 	Repository string `json:"repository"`
 
-	// GitHubOrg is the organization to use on GitHub for retrieving additional
-	// graph data.
-	GitHubOrg string `json:"gitHubOrg,omitempty"`
-
-	// GitHubRepo is the repository to use on GitHub for retrieving additional
-	// graph data.
-	GitHubRepo string `json:"gitHubRepo,omitempty"`
-
-	// Branch is the git branch to use on GitHub for retrieving additional graph
-	// data.
-	Branch string `json:"branch,omitempty"`
-
-	// GraphDataImage is an init container image that contains the
-	// Cincinnati graph data and copies it to /var/lib/cincinnati/graph-data. If
-	// specified, it takes precedence over GitHubOrg and GitHubRepo and disables
-	// retrieval of graph data from GitHub.
-	GraphDataImage string `json:"graphDataImage,omitempty"`
+	// GraphDataImage is a container image that contains the Cincinnati graph
+	// data. The data is copied to /var/lib/cincinnati/graph-data.
+	GraphDataImage string `json:"graphDataImage"`
 
 	// CertConfigMapKey refers to the ConfigMap key that holds a CA cert to the registry
 	// Cincinnati will contact to build the upgrade graph.  The name of the
@@ -61,11 +47,6 @@ const (
 	// ConditionReconcileCompleted reports whether all required resources have been created
 	// in the cluster and reflect the specified state.
 	ConditionReconcileCompleted conditionsv1.ConditionType = "ReconcileCompleted"
-
-	// ConditionConfigurationConflict reports conflicts in the graph data configuration.
-	// There are two ways to configure the graph data source. If both ways are configured,
-	// this condition will indicate that.
-	ConditionConfigurationConflict conditionsv1.ConditionType = "ConfigurationConflict"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
