@@ -256,8 +256,8 @@ func TestEnsureDeployment(t *testing.T) {
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Name, resources.policyEngineContainer.Name)
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Image, resources.graphBuilderContainer.Image)
 			if test.caCert {
-				assert.Equal(t, found.Spec.Template.Spec.Volumes[2].Name, NameDeploymentTrustedCA)
-				assert.Equal(t, found.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name, NameDeploymentTrustedCA)
+				assert.Equal(t, found.Spec.Template.Spec.Volumes[2].Name, NameConfigMapTrustedCA)
+				assert.Equal(t, found.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name, NameConfigMapTrustedCA)
 			}
 
 			initContainer := found.Spec.Template.Spec.InitContainers[0]
