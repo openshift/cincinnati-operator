@@ -14,7 +14,10 @@ the graph data from the same location.
 ## Build the graph data init container
 
 An example of how to build an init container can be found in ./dev/Dockerfile.
-In the example, the image clones the Cincinnati graph data repository.
+In the example, the image takes a tarball of the Cincinnati graph data repository.
+When the init container runs, it untars the data to /var/lib/cincinnati/graph-data.
+
+Build and push the image to your own repository. 
 
 ````
 podman build -f ./dev/Dockerfile -t quay.io/rwsu/cincinnati-graph-data-container:latest
@@ -24,7 +27,8 @@ podman push quay.io/rwsu/cincinnati-graph-data-container:latest
 ## Configure the operator to use the init container
 
 Edit the Cincinnati CR to include a new parameter graphDataImage.
-The value should be set to the location of your init container image.
+The value should be set to the location where you pushed your init 
+container image.
 
 For the example above:
 ```
@@ -38,9 +42,3 @@ spec:
   repository: "openshift-release-dev/ocp-release"
   graphDataImage: "quay.io/rwsu/cincinnati-graph-data-container:latest"
 ```
-
-The gitHubOrg, gitHubRepo, and branch parameters in the CR are used
-to configure the graph builder to fetch the graph data from a
-git repository. If those parameters and graphDataImage are both specified,
-graphDataImage will take precedence. The init container will be used in
-lieu of fetching the data from git.

@@ -33,9 +33,6 @@ const (
 	testReplicas             = 1
 	testRegistry             = "testRegistry"
 	testRepository           = "testRepository"
-	testGitHubOrg            = "testGitHubOrg"
-	testGitHubRepo           = "testGitHubRepo"
-	testGitHubBranch         = "testGitHubBranch"
 	testGraphDataImage       = "testGraphDataImage"
 	testConfigMap            = "testConfigMap"
 )
@@ -68,28 +65,6 @@ func TestReconcileComplete(t *testing.T) {
 			expectedConditions: []conditionsv1.Condition{
 				{
 					Type:   cv1alpha1.ConditionReconcileCompleted,
-					Status: corev1.ConditionTrue,
-				},
-				{
-					Type:   cv1alpha1.ConditionConfigurationConflict,
-					Status: corev1.ConditionFalse,
-				},
-			},
-		},
-		{
-			name: "ReconcileWithGraphDataImage",
-			cincinnati: func() *cv1alpha1.Cincinnati {
-				cincinnati := newDefaultCincinnati()
-				cincinnati.Spec.GraphDataImage = testGraphDataImage
-				return cincinnati
-			}(),
-			expectedConditions: []conditionsv1.Condition{
-				{
-					Type:   cv1alpha1.ConditionReconcileCompleted,
-					Status: corev1.ConditionTrue,
-				},
-				{
-					Type:   cv1alpha1.ConditionConfigurationConflict,
 					Status: corev1.ConditionTrue,
 				},
 			},
@@ -268,10 +243,8 @@ func TestEnsureDeployment(t *testing.T) {
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Name, resources.policyEngineContainer.Name)
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Image, resources.graphBuilderContainer.Image)
 
-			if cincinnati.Spec.GraphDataImage != "" {
-				initContainer := found.Spec.Template.Spec.InitContainers[0]
-				assert.Equal(t, &initContainer, resources.graphDataInitContainer)
-			}
+			initContainer := found.Spec.Template.Spec.InitContainers[0]
+			assert.Equal(t, &initContainer, resources.graphDataInitContainer)
 		})
 	}
 }
@@ -389,12 +362,10 @@ func newDefaultCincinnati() *cv1alpha1.Cincinnati {
 			Namespace: testNamespace,
 		},
 		Spec: cv1alpha1.CincinnatiSpec{
-			Replicas:   testReplicas,
-			Registry:   testRegistry,
-			Repository: testRepository,
-			GitHubOrg:  testGitHubOrg,
-			GitHubRepo: testGitHubRepo,
-			Branch:     testGitHubBranch,
+			Replicas:       testReplicas,
+			Registry:       testRegistry,
+			Repository:     testRepository,
+			GraphDataImage: testGraphDataImage,
 		},
 	}
 }

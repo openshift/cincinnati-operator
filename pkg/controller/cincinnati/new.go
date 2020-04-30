@@ -48,15 +48,6 @@ registry = "{{.Registry}}"
 repository = "{{.Repository}}"
 fetch_concurrency = 16
 
-{{ if not .GraphDataImage }}
-[[plugin_settings]]
-name = "github-secondary-metadata-scrape"
-github_org = "{{.GitHubOrg}}"
-github_repo = "{{.GitHubRepo}}"
-reference_branch = "{{.Branch}}"
-output_directory = "/var/lib/cincinnati/graph-data"
-{{ end }}
-
 [[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
 data_directory = "/var/lib/cincinnati/graph-data"
@@ -336,9 +327,6 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati) *appsv1.De
 }
 
 func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati) *corev1.Container {
-	if instance.Spec.GraphDataImage == "" {
-		return nil
-	}
 	return &corev1.Container{
 		Name:            NameInitContainerGraphData,
 		Image:           instance.Spec.GraphDataImage,
