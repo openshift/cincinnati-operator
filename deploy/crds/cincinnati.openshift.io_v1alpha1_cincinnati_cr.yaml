@@ -7,4 +7,4 @@ spec:
   registry: "quay.io"
   repository: "openshift-release-dev/ocp-release"
   certConfigMapKey: ""
-  graphDataImage: "quay.io/rwsu/cincinnati-graph-data-container:latest"
+  graphDataImage: "your-registry/your-repo/your-init-container"
