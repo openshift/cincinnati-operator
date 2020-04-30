@@ -236,9 +236,9 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 			return err
 		}
 		// Mount in ConfigMap data from the cincinnati-registry key
-		ExternalCACert := true
-		resources.graphBuilderContainer = resources.newGraphBuilderContainer(instance, r.operandImage, ExternalCACert)
-		resources.deployment = resources.newDeployment(instance, ExternalCACert)
+		externalCACert := true
+		resources.graphBuilderContainer = resources.newGraphBuilderContainer(instance, r.operandImage, externalCACert)
+		resources.deployment = resources.newDeployment(instance, externalCACert)
 	} else {
 		reqLogger.Info("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert.", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", openshiftConfigNamespace)
 	}

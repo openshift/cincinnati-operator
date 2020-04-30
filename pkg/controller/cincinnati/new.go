@@ -98,13 +98,13 @@ func newKubeResources(instance *cv1alpha1.Cincinnati, image string) (*kubeResour
 	if err != nil {
 		return nil, err
 	}
-	ExternalCACert := false
+	externalCACert := false
 	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
-	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image, ExternalCACert)
+	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image, externalCACert)
 	k.graphDataInitContainer = k.newGraphDataInitContainer(instance)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
-	k.deployment = k.newDeployment(instance, ExternalCACert)
+	k.deployment = k.newDeployment(instance, externalCACert)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
 	k.policyEngineService = k.newPolicyEngineService(instance)
 	return &k, nil
@@ -234,7 +234,7 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1alpha1.Cincinnati) (*
 	}, nil
 }
 
-func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati, ExternalCACert bool) *appsv1.Deployment {
+func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati, externalCACert bool) *appsv1.Deployment {
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
@@ -303,7 +303,7 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati, ExternalCA
 		}
 	}
 
-	if ExternalCACert {
+	if externalCACert {
 		v := corev1.Volume{
 			Name: NameConfigMapTrustedCA,
 			VolumeSource: corev1.VolumeSource{
@@ -340,7 +340,7 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1alpha1.Cincinnati
 	}
 }
 
-func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string, ExternalCACert bool) *corev1.Container {
+func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati, image string, externalCACert bool) *corev1.Container {
 	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
@@ -417,7 +417,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 			},
 		},
 	}
-	if ExternalCACert {
+	if externalCACert {
 		v := corev1.VolumeMount{
 			Name:      NameConfigMapTrustedCA,
 			ReadOnly:  true,
