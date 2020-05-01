@@ -10,8 +10,7 @@ that we'll use to store the external registry CA Cert.  You can read more about
 this API in the [OpenShift documentation](https://docs.openshift.com/container-platform/4.3/registry/configuring-registry-operator.html#images-configuration-cas_configuring-registry-operator).
 
 Create a ConfigMap in the `openshift-config` namespace.  Fill in your CA Cert
-and ConfigMap name, but keep the key, `cincinnati-registry`, because it's how
-Cincinnati locates your Cert:
+under the key `cincinnati-registry`, because it's how Cincinnati locates your Cert:
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -35,5 +34,5 @@ spec:
 ```
 
 The Cincinnati Operator will watch the `image.config.openshift.io` API and the
-`openshift-config` ConfigMap you created for changes and restart the deployment
-if the Cert has changed.
+ConfigMap you created in the `openshift-config` namespace for changes, then
+restart the deployment if the Cert has changed.
