@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	configv1 "github.com/openshift/api/config/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openshift/cincinnati-operator/pkg/apis"
 	"github.com/openshift/cincinnati-operator/pkg/controller"
 	cincontroller "github.com/openshift/cincinnati-operator/pkg/controller/cincinnati"
@@ -125,6 +126,11 @@ func main() {
 	}
 
 	if err := configv1.Install(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	if err := routev1.Install(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

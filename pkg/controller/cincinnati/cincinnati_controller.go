@@ -25,6 +25,7 @@ import (
 
 	apicfgv1 "github.com/openshift/api/config/v1"
 	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 )
 
@@ -71,6 +72,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		&corev1.ConfigMap{},
 		&corev1.Service{},
 		&policyv1beta1.PodDisruptionBudget{},
+		&routev1.Route{},
 	} {
 		err = c.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForOwner{
 			IsController: true,
@@ -153,6 +155,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 		r.ensureGraphBuilderService,
 		r.ensurePolicyEngineService,
 		r.ensurePodDisruptionBudget,
+		r.ensurePolicyEngineRoute,
 	} {
 		err = f(ctx, reqLogger, instanceCopy, resources)
 		if err != nil {
@@ -435,6 +438,41 @@ func (r *ReconcileCincinnati) ensurePolicyEngineService(ctx context.Context, req
 		handleErr(reqLogger, &instance.Status, "EnsureServiceFailed", err)
 		return err
 	}
+	return nil
+}
+
+func (r *ReconcileCincinnati) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	route := resources.policyEngineRoute
+	// Set Cincinnati instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, route, r.scheme); err != nil {
+		return err
+	}
+
+	// Check if it already exists
+	found := &routev1.Route{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating Route", "Namespace", route.Namespace, "Name", route.Name)
+		if err = r.client.Create(ctx, route); err != nil {
+			handleErr(reqLogger, &instance.Status, "CreateRouteFailed", err)
+		}
+		return err
+	} else if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
+		return err
+	}
+
+	// found existing resource; let's compare and update if needed
+	if !reflect.DeepEqual(found.Spec, route.Spec) {
+		reqLogger.Info("Updating Route", "Namespace", route.Namespace, "Name", route.Name)
+		updated := found.DeepCopy()
+		updated.Spec = route.Spec
+		err = r.client.Update(ctx, updated)
+		if err != nil {
+			handleErr(reqLogger, &instance.Status, "UpdateRouteFailed", err)
+		}
+	}
+
 	return nil
 }
 

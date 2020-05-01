@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/openshift/cincinnati-operator/pkg/apis"
 	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
@@ -19,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -45,6 +47,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	if err := configv1.AddToScheme(scheme.Scheme); err != nil {
+		log.Error(err, "Failed adding apis to scheme")
+		os.Exit(1)
+	}
+
+	if err := routev1.AddToScheme(scheme.Scheme); err != nil {
 		log.Error(err, "Failed adding apis to scheme")
 		os.Exit(1)
 	}
@@ -348,6 +355,42 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 
 			minAvailable := getMinAvailablePBD(cincinnati)
 			assert.Equal(t, found.Spec.MinAvailable, &minAvailable)
+		})
+	}
+}
+
+func TestEnsurePolicyEngineRoute(t *testing.T) {
+	tests := []struct {
+		name       string
+		cincinnati *cv1beta1.Cincinnati
+	}{
+		{
+			name:       "EnsurePolicyEngineRoute",
+			cincinnati: newDefaultCincinnati(),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cincinnati := test.cincinnati
+			r := newTestReconciler(cincinnati)
+
+			resources, err := newKubeResources(test.cincinnati, testOperandImage)
+			err = r.ensurePolicyEngineRoute(context.TODO(), log, cincinnati, resources)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			found := &routev1.Route{}
+			err = r.client.Get(context.TODO(), types.NamespacedName{Name: namePolicyEngineRoute(cincinnati), Namespace: cincinnati.Namespace}, found)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
+			assert.Equal(t, found.ObjectMeta.Labels["app"], nameDeployment(cincinnati))
+			assert.Equal(t, found.Spec.To.Kind, "Service")
+			assert.Equal(t, found.Spec.To.Name, namePolicyEngineService(cincinnati))
+			assert.Equal(t, found.Spec.Port.TargetPort, intstr.FromString("policy-engine"))
 		})
 	}
 }

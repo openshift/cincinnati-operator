@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -75,6 +76,7 @@ type kubeResources struct {
 	policyEngineContainer  *corev1.Container
 	graphBuilderService    *corev1.Service
 	policyEngineService    *corev1.Service
+	policyEngineRoute      *routev1.Route
 }
 
 func newKubeResources(instance *cv1beta1.Cincinnati, image string) (*kubeResources, error) {
@@ -107,6 +109,7 @@ func newKubeResources(instance *cv1beta1.Cincinnati, image string) (*kubeResourc
 	k.deployment = k.newDeployment(instance, externalCACert)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
 	k.policyEngineService = k.newPolicyEngineService(instance)
+	k.policyEngineRoute = k.newPolicyEngineRoute(instance)
 	return &k, nil
 }
 
@@ -192,6 +195,32 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1beta1.Cincinnati) *c
 				"deployment": nameDeployment(instance),
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
+		},
+	}
+}
+
+func (k *kubeResources) newPolicyEngineRoute(instance *cv1beta1.Cincinnati) *routev1.Route {
+	name := namePolicyEngineRoute(instance)
+	return &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				"app": nameDeployment(instance),
+			},
+		},
+		Spec: routev1.RouteSpec{
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString("policy-engine"),
+			},
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: namePolicyEngineService(instance),
+			},
+			TLS: &routev1.TLSConfig{
+				Termination:                   routev1.TLSTerminationEdge,
+				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
+			},
 		},
 	}
 }
