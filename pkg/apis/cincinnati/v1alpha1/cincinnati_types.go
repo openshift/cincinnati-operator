@@ -25,12 +25,6 @@ type CincinnatiSpec struct {
 	// GraphDataImage is a container image that contains the Cincinnati graph
 	// data. The data is copied to /var/lib/cincinnati/graph-data.
 	GraphDataImage string `json:"graphDataImage"`
-
-	// CertConfigMapKey refers to the ConfigMap key that holds a CA cert to the registry
-	// Cincinnati will contact to build the upgrade graph.  The name of the
-	// ConfigMap holding the key comes from the field additionalTrustedCA
-	// in the image.config.openshift.io API.
-	CertConfigMapKey string `json:"certConfigMapKey,omitempty"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati

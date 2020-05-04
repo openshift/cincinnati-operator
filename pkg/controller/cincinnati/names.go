@@ -14,6 +14,10 @@ const (
 	NameInitContainerGraphData string = "graph-data"
 	// openshiftConfigNamespace is the name of openshift's configuration namespace
 	openshiftConfigNamespace = "openshift-config"
+	// NameTrustedCAVolume is the name of the Volume used in Cincinnati's deployment containing the CA Cert
+	NameTrustedCAVolume = "trusted-ca"
+	// NameCertConfigMapKey is the ConfigMap key name where the operator expects the external registry CA Cert
+	NameCertConfigMapKey = "cincinnati-registry"
 )
 
 func nameDeployment(instance *cv1alpha1.Cincinnati) string {
@@ -42,10 +46,6 @@ func nameGraphBuilderService(instance *cv1alpha1.Cincinnati) string {
 
 func nameAdditionalTrustedCA(instance *cv1alpha1.Cincinnati) string {
 	return instance.Name + "-trusted-ca"
-}
-
-func nameDeploymentTrustedCA() string {
-	return "trusted-ca"
 }
 
 // When running a single replica, allow 0 available so we don't block node

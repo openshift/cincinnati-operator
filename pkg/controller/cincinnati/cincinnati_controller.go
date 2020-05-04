@@ -217,6 +217,11 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		return err
 	}
 
+	if _, ok := sourceCM.Data[NameCertConfigMapKey]; !ok {
+		reqLogger.Info("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert.", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", openshiftConfigNamespace)
+		return nil
+	}
+
 	localCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameAdditionalTrustedCA(instance),
@@ -234,6 +239,11 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
 		return err
 	}
+	// Mount in ConfigMap data from the cincinnati-registry key
+	externalCACert := true
+	resources.graphBuilderContainer = resources.newGraphBuilderContainer(instance, r.operandImage, externalCACert)
+	resources.deployment = resources.newDeployment(instance, externalCACert)
+
 	return nil
 }
 
