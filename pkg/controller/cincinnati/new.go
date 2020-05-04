@@ -98,13 +98,12 @@ func newKubeResources(instance *cv1beta1.Cincinnati, image string) (*kubeResourc
 	if err != nil {
 		return nil, err
 	}
-	externalCACert := false
 	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
-	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image, externalCACert)
+	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
 	k.graphDataInitContainer = k.newGraphDataInitContainer(instance)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
-	k.deployment = k.newDeployment(instance, externalCACert)
+	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
 	k.policyEngineService = k.newPolicyEngineService(instance)
 	return &k, nil
@@ -234,7 +233,7 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1beta1.Cincinnati) (*c
 	}, nil
 }
 
-func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati, externalCACert bool) *appsv1.Deployment {
+func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Deployment {
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
@@ -302,9 +301,24 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati, externalCAC
 			*k.graphDataInitContainer,
 		}
 	}
+	return dep
+}
 
-	if externalCACert {
-		v := corev1.Volume{
+func (k *kubeResources) addExternalCACert(instance *cv1beta1.Cincinnati) {
+	mode := int32(420) // 0644
+
+	// Add the volumeMount to the graph builder container
+	k.graphBuilderContainer.VolumeMounts = append(k.graphBuilderContainer.VolumeMounts, corev1.VolumeMount{
+			Name:      NameTrustedCAVolume,
+			ReadOnly:  true,
+			MountPath: "/etc/pki/ca-trust/extracted/pem",
+	})
+
+	// Rebuild the deployment since we modified the container definition
+	k.deployment = k.newDeployment(instance)
+
+	// Add the volume for the graph builder container
+	k.deployment.Spec.Template.Spec.Volumes = append(k.deployment.Spec.Template.Spec.Volumes, corev1.Volume{
 			Name: NameTrustedCAVolume,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -320,10 +334,7 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati, externalCAC
 					},
 				},
 			},
-		}
-		dep.Spec.Template.Spec.Volumes = append(dep.Spec.Template.Spec.Volumes, v)
-	}
-	return dep
+	})
 }
 
 func (k *kubeResources) newGraphDataInitContainer(instance *cv1beta1.Cincinnati) *corev1.Container {
@@ -340,7 +351,7 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1beta1.Cincinnati)
 	}
 }
 
-func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, image string, externalCACert bool) *corev1.Container {
+func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, image string) *corev1.Container {
 	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
@@ -416,14 +427,6 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 				},
 			},
 		},
-	}
-	if externalCACert {
-		v := corev1.VolumeMount{
-			Name:      NameTrustedCAVolume,
-			ReadOnly:  true,
-			MountPath: "/etc/pki/ca-trust/extracted/pem",
-		}
-		g.VolumeMounts = append(g.VolumeMounts, v)
 	}
 	return g
 }

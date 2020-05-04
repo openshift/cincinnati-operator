@@ -239,10 +239,9 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
 		return err
 	}
+
 	// Mount in ConfigMap data from the cincinnati-registry key
-	externalCACert := true
-	resources.graphBuilderContainer = resources.newGraphBuilderContainer(instance, r.operandImage, externalCACert)
-	resources.deployment = resources.newDeployment(instance, externalCACert)
+	resources.addExternalCACert(instance)
 
 	return nil
 }
