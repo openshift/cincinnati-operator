@@ -32,7 +32,7 @@ container image.
 
 For the example above:
 ```
-apiVersion: cincinnati.openshift.io/v1alpha1
+apiVersion: cincinnati.openshift.io/v1beta1
 kind: Cincinnati
 metadata:
   name: example-cincinnati

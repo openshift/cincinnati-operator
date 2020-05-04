@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicfgv1 "github.com/openshift/api/config/v1"
-	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
+	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 )
 
@@ -50,7 +50,7 @@ func (m *mapper) Map(obj handler.MapObject) []reconcile.Request {
 }
 
 func (m *mapper) requeueCincinnatis() []reconcile.Request {
-	cincinnatis := &cv1alpha1.CincinnatiList{}
+	cincinnatis := &cv1beta1.CincinnatiList{}
 	err := m.client.List(context.TODO(), cincinnatis)
 	if err != nil {
 		return []reconcile.Request{}

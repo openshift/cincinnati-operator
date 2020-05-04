@@ -1,11 +1,11 @@
-apiVersion: operators.coreos.com/v1alpha1
+apiVersion: operators.coreos.com/v1beta1
 kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: |-
       [
         {
-          "apiVersion": "cincinnati.openshift.io/v1alpha1",
+          "apiVersion": "cincinnati.openshift.io/v1beta1",
           "kind": "Cincinnati",
           "metadata": {
             "name": "cincinnati-instance"
@@ -34,7 +34,7 @@ spec:
     - description: Cincinnati is the Schema for a Cincinnati service.
       kind: Cincinnati
       name: cincinnatis.cincinnati.openshift.io
-      version: v1alpha1
+      version: v1beta1
   description: |-
     # Use Case
     Running a Cincinnati instance in a cluster is appealing for offline OpenShift
