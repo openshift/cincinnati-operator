@@ -305,7 +305,7 @@ func (k *kubeResources) newDeployment(instance *cv1alpha1.Cincinnati, externalCA
 
 	if externalCACert {
 		v := corev1.Volume{
-			Name: NameConfigMapTrustedCA,
+			Name: NameTrustedCAVolume,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					DefaultMode: &mode,
@@ -419,7 +419,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1alpha1.Cincinnati,
 	}
 	if externalCACert {
 		v := corev1.VolumeMount{
-			Name:      NameConfigMapTrustedCA,
+			Name:      NameTrustedCAVolume,
 			ReadOnly:  true,
 			MountPath: "/etc/pki/ca-trust/extracted/pem",
 		}
