@@ -1,7 +1,7 @@
 package cincinnati
 
 import (
-	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
+	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -20,37 +20,37 @@ const (
 	NameCertConfigMapKey = "cincinnati-registry"
 )
 
-func nameDeployment(instance *cv1alpha1.Cincinnati) string {
+func nameDeployment(instance *cv1beta1.Cincinnati) string {
 	return instance.Name
 }
 
-func namePodDisruptionBudget(instance *cv1alpha1.Cincinnati) string {
+func namePodDisruptionBudget(instance *cv1beta1.Cincinnati) string {
 	return instance.Name
 }
 
-func nameEnvConfig(instance *cv1alpha1.Cincinnati) string {
+func nameEnvConfig(instance *cv1beta1.Cincinnati) string {
 	return instance.Name + "-env"
 }
 
-func nameConfig(instance *cv1alpha1.Cincinnati) string {
+func nameConfig(instance *cv1beta1.Cincinnati) string {
 	return instance.Name + "-config"
 }
 
-func namePolicyEngineService(instance *cv1alpha1.Cincinnati) string {
+func namePolicyEngineService(instance *cv1beta1.Cincinnati) string {
 	return instance.Name + "-policy-engine"
 }
 
-func nameGraphBuilderService(instance *cv1alpha1.Cincinnati) string {
+func nameGraphBuilderService(instance *cv1beta1.Cincinnati) string {
 	return instance.Name + "-graph-builder"
 }
 
-func nameAdditionalTrustedCA(instance *cv1alpha1.Cincinnati) string {
+func nameAdditionalTrustedCA(instance *cv1beta1.Cincinnati) string {
 	return instance.Name + "-trusted-ca"
 }
 
 // When running a single replica, allow 0 available so we don't block node
 // drains. Otherwise require 1.
-func getMinAvailablePBD(instance *cv1alpha1.Cincinnati) intstr.IntOrString {
+func getMinAvailablePBD(instance *cv1beta1.Cincinnati) intstr.IntOrString {
 	minAvailable := intstr.FromInt(0)
 	if instance.Spec.Replicas >= 2 {
 		minAvailable = intstr.FromInt(1)

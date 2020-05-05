@@ -31,12 +31,6 @@ spec:
         spec:
           description: CincinnatiSpec defines the desired state of Cincinnati
           properties:
-            certConfigMapKey:
-              description: CertConfigMapKey refers to the ConfigMap key that holds
-                a CA cert to the registry Cincinnati will contact to build the upgrade
-                graph.  The name of the ConfigMap holding the key comes from the field
-                additionalTrustedCA in the image.config.openshift.io API.
-              type: string
             graphDataImage:
               description: GraphDataImage is a container image that contains the Cincinnati
                 graph data. The data is copied to /var/lib/cincinnati/graph-data.
@@ -93,8 +87,8 @@ spec:
               type: array
           type: object
       type: object
-  version: v1alpha1
+  version: v1beta1
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     served: true
     storage: true

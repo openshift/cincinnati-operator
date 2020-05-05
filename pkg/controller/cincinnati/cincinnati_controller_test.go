@@ -8,7 +8,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/cincinnati-operator/pkg/apis"
-	cv1alpha1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1alpha1"
+	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/stretchr/testify/assert"
@@ -56,7 +56,7 @@ func TestMain(m *testing.M) {
 func TestReconcileComplete(t *testing.T) {
 	tests := []struct {
 		name               string
-		cincinnati         *cv1alpha1.Cincinnati
+		cincinnati         *cv1beta1.Cincinnati
 		expectedConditions []conditionsv1.Condition
 	}{
 		{
@@ -64,7 +64,7 @@ func TestReconcileComplete(t *testing.T) {
 			cincinnati: newDefaultCincinnati(),
 			expectedConditions: []conditionsv1.Condition{
 				{
-					Type:   cv1alpha1.ConditionReconcileCompleted,
+					Type:   cv1beta1.ConditionReconcileCompleted,
 					Status: corev1.ConditionTrue,
 				},
 			},
@@ -80,7 +80,7 @@ func TestReconcileComplete(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			instance := &cv1alpha1.Cincinnati{}
+			instance := &cv1beta1.Cincinnati{}
 			err = r.client.Get(context.TODO(), request.NamespacedName, instance)
 			if err != nil {
 				t.Fatal(err)
@@ -199,7 +199,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 func TestEnsureDeployment(t *testing.T) {
 	tests := []struct {
 		name       string
-		cincinnati *cv1alpha1.Cincinnati
+		cincinnati *cv1beta1.Cincinnati
 		caCert     bool
 	}{
 		{
@@ -209,7 +209,7 @@ func TestEnsureDeployment(t *testing.T) {
 		},
 		{
 			name: "EnsureDeploymentWithGraphDataImage",
-			cincinnati: func() *cv1alpha1.Cincinnati {
+			cincinnati: func() *cv1beta1.Cincinnati {
 				cincinnati := newDefaultCincinnati()
 				cincinnati.Spec.GraphDataImage = testGraphDataImage
 				return cincinnati
@@ -311,7 +311,7 @@ func TestEnsurePolicyEngineService(t *testing.T) {
 func TestEnsurePodDisruptionBudget(t *testing.T) {
 	tests := []struct {
 		name       string
-		cincinnati *cv1alpha1.Cincinnati
+		cincinnati *cv1beta1.Cincinnati
 	}{
 		{
 			name:       "EnsurePodDisruptionBudgetReplicas1",
@@ -319,7 +319,7 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 		},
 		{
 			name: "EnsurePodDisruptionBudgetReplicas10",
-			cincinnati: func() *cv1alpha1.Cincinnati {
+			cincinnati: func() *cv1beta1.Cincinnati {
 				cincinnati := newDefaultCincinnati()
 				cincinnati.Spec.Replicas = 10
 				return cincinnati
@@ -352,7 +352,7 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 	}
 }
 
-func newRequest(cincinnati *cv1alpha1.Cincinnati) reconcile.Request {
+func newRequest(cincinnati *cv1beta1.Cincinnati) reconcile.Request {
 	namespacedName := types.NamespacedName{
 		Namespace: cincinnati.ObjectMeta.Namespace,
 		Name:      cincinnati.ObjectMeta.Name,
@@ -368,8 +368,8 @@ func newTestReconciler(initObjs ...runtime.Object) *ReconcileCincinnati {
 	}
 }
 
-func newDefaultCincinnati() *cv1alpha1.Cincinnati {
-	return &cv1alpha1.Cincinnati{
+func newDefaultCincinnati() *cv1beta1.Cincinnati {
+	return &cv1beta1.Cincinnati{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       testCincinnatiKind,
 			APIVersion: testCincinnatiAPIVersion,
@@ -378,7 +378,7 @@ func newDefaultCincinnati() *cv1alpha1.Cincinnati {
 			Name:      testName,
 			Namespace: testNamespace,
 		},
-		Spec: cv1alpha1.CincinnatiSpec{
+		Spec: cv1beta1.CincinnatiSpec{
 			Replicas:       testReplicas,
 			Registry:       testRegistry,
 			Repository:     testRepository,
@@ -412,14 +412,14 @@ func newConfigMap() *corev1.ConfigMap {
 	}
 }
 
-func verifyConditions(t *testing.T, expectedConditions []conditionsv1.Condition, cincinnati *cv1alpha1.Cincinnati) {
+func verifyConditions(t *testing.T, expectedConditions []conditionsv1.Condition, cincinnati *cv1beta1.Cincinnati) {
 	for _, condition := range expectedConditions {
 		assert.True(t, conditionsv1.IsStatusConditionPresentAndEqual(cincinnati.Status.Conditions, condition.Type, condition.Status))
 	}
 	assert.Equal(t, len(expectedConditions), len(cincinnati.Status.Conditions))
 }
 
-func verifyOwnerReference(t *testing.T, ownerReference metav1.OwnerReference, cincinnati *cv1alpha1.Cincinnati) {
+func verifyOwnerReference(t *testing.T, ownerReference metav1.OwnerReference, cincinnati *cv1beta1.Cincinnati) {
 	assert.Equal(t, ownerReference.Name, cincinnati.Name)
 	//Note: These properties seem to be derived from runtime object and do not seem to match the expected values.
 	//assert.Equal(t, ownerReference.Kind, cincinnati.Kind)
