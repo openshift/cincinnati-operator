@@ -14,7 +14,7 @@ metadata:
             "registry": "quay.io",
             "replicas": 1,
             "repository": "openshift-release-dev/ocp-release",
-            "graphDataImage": "quay.io/cincinnati/demo-graph-data:for-testing-only",
+            "graphDataImage": "quay.io/cincinnati/demo-graph-data:for-testing-only"
           }
         }
       ]
@@ -32,6 +32,7 @@ spec:
   customresourcedefinitions:
     owned:
     - description: Cincinnati is the Schema for a Cincinnati service.
+      displayName: Cincinnati Operator Deployment
       kind: Cincinnati
       name: cincinnatis.cincinnati.openshift.io
       version: v1beta1
@@ -208,7 +209,8 @@ spec:
   - Cincinnati
   - Updates
   maintainers:
-  - {}
+  - email: lmohanty@redhat.com
+    name: Cincinnati maintainers
   links:
   - name: Cincinnati
     url: https://github.com/openshift/cincinnati
@@ -217,5 +219,6 @@ spec:
   - name: OpenShift Graph Data
     url: https://github.com/openshift/cincinnati-graph-data/
   maturity: alpha
-  provider: {}
+  provider:
+    name: Cincinnati maintainers
   version: 0.0.1

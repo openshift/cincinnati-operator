@@ -1,0 +1,94 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: cincinnatis.cincinnati.openshift.io
+spec:
+  group: cincinnati.openshift.io
+  names:
+    kind: Cincinnati
+    listKind: CincinnatiList
+    plural: cincinnatis
+    singular: cincinnati
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: Cincinnati is the Schema for a Cincinnati service.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: CincinnatiSpec defines the desired state of Cincinnati
+          properties:
+            graphDataImage:
+              description: GraphDataImage is a container image that contains the Cincinnati
+                graph data. The data is copied to /var/lib/cincinnati/graph-data.
+              type: string
+            registry:
+              description: Registry is the container registry to use, such as "quay.io".
+              type: string
+            replicas:
+              description: Replicas is the number of pods to run. When >=2, a PodDisruptionBudget
+                will ensure that voluntary disruption leaves at least one Pod running
+                at all times.
+              format: int32
+              minimum: 1
+              type: integer
+            repository:
+              description: Repository is the repository to use in the Registry, such
+                as "openshift-release-dev/ocp-release"
+              type: string
+          required:
+          - graphDataImage
+          - registry
+          - replicas
+          - repository
+          type: object
+        status:
+          description: CincinnatiStatus defines the observed state of Cincinnati
+          properties:
+            conditions:
+              description: Conditions describe the state of the Cincinnati resource.
+              items:
+                description: Condition represents the state of the operator's reconciliation
+                  functionality.
+                properties:
+                  lastHeartbeatTime:
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    description: ConditionType is the state of the operator's reconciliation
+                      functionality.
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
