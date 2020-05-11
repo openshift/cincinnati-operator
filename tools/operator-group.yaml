@@ -1,0 +1,8 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: cincinnati-operatorgroup
+  namespace: openshift-cincinnati
+spec:
+  targetNamespaces:
+  - openshift-cincinnati
