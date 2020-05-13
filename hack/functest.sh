@@ -8,6 +8,7 @@ if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	echo "Openshift CI detected, deploying using image $CATALOG_FULL_IMAGE_NAME"
 fi
 
+export GOFLAGS=""
 GOBIN="${GOBIN:-$GOPATH/bin}"
 GINKGO=$GOBIN/ginkgo
 
