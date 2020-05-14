@@ -3,7 +3,6 @@ module github.com/openshift/cincinnati-operator
 go 1.13
 
 require (
-	github.com/coreos/prometheus-operator v0.35.0 // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.10.0
@@ -11,14 +10,17 @@ require (
 	github.com/openshift/cluster-image-registry-operator v0.0.0-20200415091009-99c06ee64540
 	github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
 	github.com/operator-framework/operator-sdk v0.16.0
-	github.com/prometheus/common v0.7.0
+	github.com/prometheus/common v0.9.1 // indirect
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	k8s.io/api v0.18.0
+	k8s.io/apiextensions-apiserver v0.18.0
 	k8s.io/apimachinery v0.18.0
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20200204173128-addea2498afe
-	sigs.k8s.io/controller-runtime v0.5.1
+	k8s.io/kubectl v0.0.0
+	sigs.k8s.io/controller-runtime v0.5.2
 )
 
 // Pinned to kubernetes-1.16.2
