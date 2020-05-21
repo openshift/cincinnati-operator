@@ -2,6 +2,7 @@ package cincinnati
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -93,7 +94,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	//Watch for all ConfigMap changes, only Reconcile when name == Image.Spec.AdditionalTrustedCA.Name
 	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}},
 		&handler.EnqueueRequestsFromMapFunc{ToRequests: &mapper{mgr.GetClient()}},
-		)
+	)
 	if err != nil {
 		log.Error(err, "Error watching ConfigMap API")
 		return err
@@ -145,6 +146,13 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, err
 	}
 
+	conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
+		Type:    cv1beta1.ConditionReconcileCompleted,
+		Status:  corev1.ConditionFalse,
+		Reason:  "Reconcile started",
+		Message: "",
+	})
+
 	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
 		r.ensureConfig,
 		r.ensureEnvConfig,
@@ -192,18 +200,33 @@ func handleErr(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus, reason 
 	reqLogger.Error(e, reason)
 }
 
+// handleCACertStatus logs the message and sets an appropriate Condition on the ConditionRegistryCACertFound status.
+func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus, reason string, message string) {
+	conditionsv1.SetStatusCondition(&status.Conditions, conditionsv1.Condition{
+		Type:    cv1beta1.ConditionRegistryCACertFound,
+		Status:  corev1.ConditionFalse,
+		Reason:  reason,
+		Message: message,
+	})
+	reqLogger.Info(message)
+}
+
 func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
 	// Check if the Cluster is aware of a registry requiring an
 	// AdditionalTrustedCA
 	image := &apicfgv1.Image{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
 	if err != nil && errors.IsNotFound(err) {
+		m := fmt.Sprintf("image.config.openshift.io not found for (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
+		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
 		return nil
 	} else if err != nil {
 		return err
 	}
 
 	if image.Spec.AdditionalTrustedCA.Name == "" {
+		m := fmt.Sprintf("image.config.openshift.io.Spec.AdditionalTrustedCA.Name not found for image (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
+		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
 		return nil
 	}
 
@@ -211,16 +234,25 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 	sourceCM := &corev1.ConfigMap{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: openshiftConfigNamespace}, sourceCM)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", openshiftConfigNamespace)
+		m := fmt.Sprintf("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
+		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
 		return err
 	} else if err != nil {
 		return err
 	}
 
 	if _, ok := sourceCM.Data[NameCertConfigMapKey]; !ok {
-		reqLogger.Info("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert.", "Name", image.Spec.AdditionalTrustedCA.Name, "Namespace", openshiftConfigNamespace)
+		m := fmt.Sprintf("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
+		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
 		return nil
 	}
+
+	conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
+		Type:    cv1beta1.ConditionRegistryCACertFound,
+		Status:  corev1.ConditionTrue,
+		Reason:  "CACertFound",
+		Message: "",
+	})
 
 	localCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

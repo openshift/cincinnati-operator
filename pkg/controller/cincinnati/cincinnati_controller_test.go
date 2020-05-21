@@ -53,7 +53,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func TestReconcileComplete(t *testing.T) {
+func TestReconcile(t *testing.T) {
 	tests := []struct {
 		name               string
 		cincinnati         *cv1beta1.Cincinnati
@@ -66,6 +66,10 @@ func TestReconcileComplete(t *testing.T) {
 				{
 					Type:   cv1beta1.ConditionReconcileCompleted,
 					Status: corev1.ConditionTrue,
+				},
+				{
+					Type:   cv1beta1.ConditionRegistryCACertFound,
+					Status: corev1.ConditionFalse,
 				},
 			},
 		},

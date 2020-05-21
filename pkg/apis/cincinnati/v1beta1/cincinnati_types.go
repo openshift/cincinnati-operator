@@ -41,6 +41,9 @@ const (
 	// ConditionReconcileCompleted reports whether all required resources have been created
 	// in the cluster and reflect the specified state.
 	ConditionReconcileCompleted conditionsv1.ConditionType = "ReconcileCompleted"
+
+	// ConditionRegistryCACertFound reports whether the cincinnati registry CA cert had been found
+	ConditionRegistryCACertFound conditionsv1.ConditionType = "RegistryCACertFound"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
