@@ -230,8 +230,7 @@ func TestEnsureDeployment(t *testing.T) {
 			resources, err := newKubeResources(cincinnati, testOperandImage)
 
 			if test.caCert {
-				resources.graphBuilderContainer = resources.newGraphBuilderContainer(cincinnati, testOperandImage, test.caCert)
-				resources.deployment = resources.newDeployment(cincinnati, test.caCert)
+				resources.addExternalCACert(cincinnati)
 			}
 			err = r.ensureDeployment(context.TODO(), log, cincinnati, resources)
 			if err != nil {
