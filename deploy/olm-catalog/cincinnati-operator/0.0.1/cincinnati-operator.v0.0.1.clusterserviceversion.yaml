@@ -90,9 +90,7 @@ spec:
                 - cincinnati-operator
                 env:
                 - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.namespace
+                  value: ""
                 - name: POD_NAME
                   valueFrom:
                     fieldRef:
@@ -115,6 +113,17 @@ spec:
           verbs:
           - get
           - list
+          - watch
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
+          verbs:
+          - create
+          - get
+          - list
+          - patch
+          - update
           - watch
         - apiGroups:
           - ""

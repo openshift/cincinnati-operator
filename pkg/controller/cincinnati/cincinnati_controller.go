@@ -493,11 +493,19 @@ func (r *ReconcileCincinnati) ensurePolicyEngineRoute(ctx context.Context, reqLo
 		return err
 	}
 
+	updated := found.DeepCopy()
+	// Keep found tls for later use
+	tls := updated.Spec.TLS
+	// This is just so we compare the Spec on the two objects but make an exception for Spec.TLS
+	updated.Spec.TLS = route.Spec.TLS
+
 	// found existing resource; let's compare and update if needed
-	if !reflect.DeepEqual(found.Spec, route.Spec) {
+	if !reflect.DeepEqual(updated.Spec, route.Spec) {
 		reqLogger.Info("Updating Route", "Namespace", route.Namespace, "Name", route.Name)
-		updated := found.DeepCopy()
 		updated.Spec = route.Spec
+		// We want to allow user to update the TLS cert/key manually on the route and we don't want to override that change.
+		// Keep the existing tls on the route
+		updated.Spec.TLS = tls
 		err = r.client.Update(ctx, updated)
 		if err != nil {
 			handleErr(reqLogger, &instance.Status, "UpdateRouteFailed", err)
