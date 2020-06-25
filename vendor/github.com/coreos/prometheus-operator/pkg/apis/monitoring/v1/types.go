@@ -49,7 +49,10 @@ const (
 // +genclient
 // +k8s:openapi-gen=true
 type Prometheus struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// Standard object’s metadata. More info:
+	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the desired behavior of the Prometheus cluster. More info:
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
@@ -128,8 +131,6 @@ type PrometheusSpec struct {
 	Retention string `json:"retention,omitempty"`
 	// Maximum amount of disk space used by blocks.
 	RetentionSize string `json:"retentionSize,omitempty"`
-	// Disable prometheus compaction.
-	DisableCompaction bool `json:"disableCompaction,omitempty"`
 	// Enable compression of the write-ahead log using Snappy. This flag is
 	// only available in versions of Prometheus >= 2.11.0.
 	WALCompression *bool `json:"walCompression,omitempty"`
@@ -477,7 +478,7 @@ type RelabelConfig struct {
 	//Label to which the resulting value is written in a replace action.
 	//It is mandatory for replace actions. Regex capture groups are available.
 	TargetLabel string `json:"targetLabel,omitempty"`
-	//Regular expression against which the extracted value is matched. Default is '(.*)'
+	//Regular expression against which the extracted value is matched. defailt is '(.*)'
 	Regex string `json:"regex,omitempty"`
 	// Modulus to take of the hash of the source label values.
 	Modulus uint64 `json:"modulus,omitempty"`
@@ -524,18 +525,18 @@ type AlertmanagerEndpoints struct {
 	// BearerTokenFile to read from filesystem to use when authenticating to
 	// Alertmanager.
 	BearerTokenFile string `json:"bearerTokenFile,omitempty"`
-	// Version of the Alertmanager API that Prometheus uses to send alerts. It
-	// can be "v1" or "v2".
-	APIVersion string `json:"apiVersion,omitempty"`
 }
 
 // ServiceMonitor defines monitoring for a set of services.
 // +genclient
 // +k8s:openapi-gen=true
 type ServiceMonitor struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// Standard object’s metadata. More info:
+	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// Specification of desired Service selection for target discovery by
+	// Specification of desired Service selection for target discrovery by
 	// Prometheus.
 	Spec ServiceMonitorSpec `json:"spec"`
 }
@@ -604,7 +605,10 @@ type Endpoint struct {
 // +genclient
 // +k8s:openapi-gen=true
 type PodMonitor struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// Standard object’s metadata. More info:
+	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of desired Pod selection for target discovery by Prometheus.
 	Spec PodMonitorSpec `json:"spec"`
@@ -796,7 +800,9 @@ type PrometheusRuleList struct {
 // +genclient
 // +k8s:openapi-gen=true
 type PrometheusRule struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// Standard object’s metadata. More info:
+	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of desired alerting rule definitions for Prometheus.
 	Spec PrometheusRuleSpec `json:"spec"`
@@ -835,7 +841,10 @@ type Rule struct {
 // +genclient
 // +k8s:openapi-gen=true
 type Alertmanager struct {
-	metav1.TypeMeta   `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
+	// Standard object’s metadata. More info:
+	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +k8s:openapi-gen=false
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// Specification of the desired behavior of the Alertmanager cluster. More info:
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
