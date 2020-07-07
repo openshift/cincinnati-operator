@@ -25,6 +25,9 @@ type CincinnatiSpec struct {
 	// GraphDataImage is a container image that contains the Cincinnati graph
 	// data. The data is copied to /var/lib/cincinnati/graph-data.
 	GraphDataImage string `json:"graphDataImage"`
+
+	// Address defines which address should be used when services bind to the network
+	Address string `json:"address,omitempty"`
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati

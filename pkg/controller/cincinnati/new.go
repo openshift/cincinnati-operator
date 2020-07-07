@@ -36,11 +36,11 @@ const graphBuilderTOML string = `verbosity = "vvv"
 
 [service]
 pause_secs = 300
-address = "0.0.0.0"
+address = "{{.Address}}"
 port = 8080
 
 [status]
-address = "0.0.0.0"
+address = "{{.Address}}"
 port = 9080
 
 [[plugin_settings]]
@@ -225,6 +225,11 @@ func (k *kubeResources) newPolicyEngineRoute(instance *cv1beta1.Cincinnati) *rou
 }
 
 func (k *kubeResources) newEnvConfig(instance *cv1beta1.Cincinnati) *corev1.ConfigMap {
+	// If no value is provided in the spec for the bind address
+	// we default to all IPv4 addresses
+	if instance.Spec.Address == "" {
+		instance.Spec.Address = "0.0.0.0"
+	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameEnvConfig(instance),
@@ -232,11 +237,11 @@ func (k *kubeResources) newEnvConfig(instance *cv1beta1.Cincinnati) *corev1.Conf
 		},
 		Data: map[string]string{
 			"gb.rust_backtrace":              "0",
-			"pe.address":                     "0.0.0.0",
+			"pe.address":                     instance.Spec.Address,
 			"pe.log.verbosity":               "vv",
 			"pe.mandatory_client_parameters": "channel",
 			"pe.rust_backtrace":              "0",
-			"pe.status.address":              "0.0.0.0",
+			"pe.status.address":              instance.Spec.Address,
 			"pe.upstream":                    "http://localhost:8080/v1/graph",
 		},
 	}
@@ -248,6 +253,11 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1beta1.Cincinnati) (*c
 		return nil, err
 	}
 	builder := strings.Builder{}
+	// If no value is provided in the spec for the bind address
+	// we default to all IPv4 addresses
+	if instance.Spec.Address == "" {
+		instance.Spec.Address = "0.0.0.0"
+	}
 	if err = tmpl.Execute(&builder, instance.Spec); err != nil {
 		return nil, err
 	}
