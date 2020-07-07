@@ -26,8 +26,12 @@ type CincinnatiSpec struct {
 	// data. The data is copied to /var/lib/cincinnati/graph-data.
 	GraphDataImage string `json:"graphDataImage"`
 
-	// Address defines which address should be used when services bind to the network
-	Address string `json:"address,omitempty"`
+	// IPv6 defines whether the services bind to "0.0.0.0" or to "::"
+	IPv6 bool `json:"ipv6,omitempty"`
+
+	// Address internally used for configuring the ConfigMap templates based on
+	// the IPv6 property
+	Address string
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati

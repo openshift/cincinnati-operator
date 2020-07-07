@@ -225,10 +225,11 @@ func (k *kubeResources) newPolicyEngineRoute(instance *cv1beta1.Cincinnati) *rou
 }
 
 func (k *kubeResources) newEnvConfig(instance *cv1beta1.Cincinnati) *corev1.ConfigMap {
-	// If no value is provided in the spec for the bind address
-	// we default to all IPv4 addresses
-	if instance.Spec.Address == "" {
-		instance.Spec.Address = "0.0.0.0"
+	// If IPv6 boolean property is not configured in the Spec
+	// or is set to false we default to all IPv4 addresses
+	instance.Spec.Address = "0.0.0.0"
+	if instance.Spec.IPv6 {
+		instance.Spec.Address = "::"
 	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -253,10 +254,11 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1beta1.Cincinnati) (*c
 		return nil, err
 	}
 	builder := strings.Builder{}
-	// If no value is provided in the spec for the bind address
-	// we default to all IPv4 addresses
-	if instance.Spec.Address == "" {
-		instance.Spec.Address = "0.0.0.0"
+	// If IPv6 boolean property is not configured in the Spec
+	// or is set to false we default to all IPv4 addresses
+	instance.Spec.Address = "0.0.0.0"
+	if instance.Spec.IPv6 {
+		instance.Spec.Address = "::"
 	}
 	if err = tmpl.Execute(&builder, instance.Spec); err != nil {
 		return nil, err
