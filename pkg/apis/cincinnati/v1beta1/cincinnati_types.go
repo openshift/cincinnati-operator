@@ -25,13 +25,6 @@ type CincinnatiSpec struct {
 	// GraphDataImage is a container image that contains the Cincinnati graph
 	// data. The data is copied to /var/lib/cincinnati/graph-data.
 	GraphDataImage string `json:"graphDataImage"`
-
-	// IPv6 defines whether the services bind to "0.0.0.0" or to "::"
-	IPv6 bool `json:"ipv6,omitempty"`
-
-	// Address internally used for configuring the ConfigMap templates based on
-	// the IPv6 property
-	Address string
 }
 
 // CincinnatiStatus defines the observed state of Cincinnati
