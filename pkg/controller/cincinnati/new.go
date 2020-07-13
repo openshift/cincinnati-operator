@@ -36,11 +36,11 @@ const graphBuilderTOML string = `verbosity = "vvv"
 
 [service]
 pause_secs = 300
-address = "0.0.0.0"
+address = "::"
 port = 8080
 
 [status]
-address = "0.0.0.0"
+address = "::"
 port = 9080
 
 [[plugin_settings]]
@@ -232,11 +232,11 @@ func (k *kubeResources) newEnvConfig(instance *cv1beta1.Cincinnati) *corev1.Conf
 		},
 		Data: map[string]string{
 			"gb.rust_backtrace":              "0",
-			"pe.address":                     "0.0.0.0",
+			"pe.address":                     "::",
 			"pe.log.verbosity":               "vv",
 			"pe.mandatory_client_parameters": "channel",
 			"pe.rust_backtrace":              "0",
-			"pe.status.address":              "0.0.0.0",
+			"pe.status.address":              "::",
 			"pe.upstream":                    "http://localhost:8080/v1/graph",
 		},
 	}
