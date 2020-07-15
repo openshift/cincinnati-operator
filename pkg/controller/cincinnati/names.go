@@ -18,6 +18,8 @@ const (
 	NameTrustedCAVolume = "trusted-ca"
 	// NameCertConfigMapKey is the ConfigMap key name where the operator expects the external registry CA Cert
 	NameCertConfigMapKey = "cincinnati-registry"
+	// NamePullSecret is the OpenShift pull secret name
+	NamePullSecret = "pull-secret"
 )
 
 func nameDeployment(instance *cv1beta1.Cincinnati) string {
