@@ -48,6 +48,7 @@ name = "release-scrape-dockerv2"
 registry = "{{.Registry}}"
 repository = "{{.Repository}}"
 fetch_concurrency = 16
+credentials_path = "/var/lib/cincinnati/registry-credentials"
 
 [[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
@@ -331,6 +332,31 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 		}
 	}
 	return dep
+}
+
+func (k *kubeResources) addPullSecret(instance *cv1beta1.Cincinnati) {
+	mode := int32(420) // 0644
+
+	// Add the volumeMount to the graph builder container
+	k.graphBuilderContainer.VolumeMounts = append(k.graphBuilderContainer.VolumeMounts, corev1.VolumeMount{
+			Name:      NamePullSecret,
+			ReadOnly:  true,
+			MountPath: "/var/lib/cincinnati/registry-credentials",
+	})
+
+	// Rebuild the deployment since we modified the container definition
+	k.deployment = k.newDeployment(instance)
+
+	// Add the volume for the graph builder container
+	k.deployment.Spec.Template.Spec.Volumes = append(k.deployment.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: NamePullSecret,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: NamePullSecret,
+					DefaultMode: &mode,
+				},
+			},
+	})
 }
 
 func (k *kubeResources) addExternalCACert(instance *cv1beta1.Cincinnati) {

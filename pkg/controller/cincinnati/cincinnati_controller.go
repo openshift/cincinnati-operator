@@ -157,6 +157,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 
 	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
 		r.ensureConfig,
+		r.ensurePullSecret,
 		r.ensureEnvConfig,
 		r.ensureAdditionalTrustedCA,
 		r.ensureDeployment,
@@ -212,6 +213,42 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus
 		Message: message,
 	})
 	reqLogger.Info(message)
+}
+
+func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+
+	// Search for the the pull-secret in openshift-config
+	pullSecret := &corev1.Secret{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: NamePullSecret, Namespace: openshiftConfigNamespace}, pullSecret)
+	if err != nil && errors.IsNotFound(err) {
+		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	localPS := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      NamePullSecret,
+			Namespace: instance.Namespace,
+		},
+		Data: pullSecret.Data,
+	}
+
+	// Set Cincinnati instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, localPS, r.scheme); err != nil {
+		return err
+	}
+
+	if err := r.ensureSecret(ctx, reqLogger, localPS); err != nil {
+		handleErr(reqLogger, &instance.Status, "EnsureSecretFailed", err)
+		return err
+	}
+
+	// Mount in Secret data from the cincinnati-registry key
+	resources.addPullSecret(instance)
+
+	return nil
 }
 
 func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
@@ -553,6 +590,28 @@ func (r *ReconcileCincinnati) ensureConfigMap(ctx context.Context, reqLogger log
 	// found existing configmap; let's compare and update if needed
 	if !reflect.DeepEqual(found.Data, cm.Data) {
 		reqLogger.Info("Updating ConfigMap", "Namespace", cm.Namespace, "Name", cm.Name)
+		updated := found.DeepCopy()
+		updated.Data = cm.Data
+		return r.client.Update(ctx, updated)
+	}
+
+	return nil
+}
+
+func (r *ReconcileCincinnati) ensureSecret(ctx context.Context, reqLogger logr.Logger, cm *corev1.Secret) error {
+	// Check if this secret already exists
+	found := &corev1.Secret{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: cm.Name, Namespace: cm.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating Secret", "Namespace", cm.Namespace, "Name", cm.Name)
+		return r.client.Create(ctx, cm)
+	} else if err != nil {
+		return err
+	}
+
+	// found existing secret; let's compare and update if needed
+	if !reflect.DeepEqual(found.Data, cm.Data) {
+		reqLogger.Info("Updating Secret", "Namespace", cm.Namespace, "Name", cm.Name)
 		updated := found.DeepCopy()
 		updated.Data = cm.Data
 		return r.client.Update(ctx, updated)
