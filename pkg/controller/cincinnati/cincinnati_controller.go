@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -120,6 +119,13 @@ type ReconcileCincinnati struct {
 // Reconcile reads that state of the cluster for a Cincinnati object and makes changes based on the state read
 // and what is in the Cincinnati.Spec
 func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	/*    **Reconcile Pattern**
+	  1. Cache all the kubeResources
+	  2. Make a few modifications to the kubeResources
+	  3. Create all kubeResource
+	  4. Ensure all the kubeResources are correct
+	*/
+
 	ctx := context.TODO()
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Cincinnati")
@@ -146,6 +152,17 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	if err != nil {
 		reqLogger.Error(err, "Failed to render resources")
 		return reconcile.Result{}, err
+	}
+
+	// Supplemental kube resources changes
+	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
+		r.postAddPullSecret,
+		r.postAddExternalCACert,
+	} {
+		err = f(ctx, reqLogger, instanceCopy, resources)
+		if err != nil {
+			break
+		}
 	}
 
 	conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
@@ -215,59 +232,68 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus
 	reqLogger.Info(message)
 }
 
-func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
-
-	// Search for the the pull-secret in openshift-config
-	pullSecret := &corev1.Secret{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: NamePullSecret, Namespace: openshiftConfigNamespace}, pullSecret)
-	if err != nil && errors.IsNotFound(err) {
-		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
-		return nil
-	} else if err != nil {
-		return err
+func (r *ReconcileCincinnati) postAddPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	sourcePS, err := r.findPullSecret(ctx, reqLogger, instance, resources)
+	if err != nil {
+	   return err
+	} else if sourcePS == nil {
+	   return nil
 	}
 
-	localPS := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      NamePullSecret,
-			Namespace: instance.Namespace,
-		},
-		Data: pullSecret.Data,
-	}
-
-	// Set Cincinnati instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, localPS, r.scheme); err != nil {
-		return err
-	}
-
-	if err := r.ensureSecret(ctx, reqLogger, localPS); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureSecretFailed", err)
-		return err
-	}
-
-	// Mount in Secret data from the cincinnati-registry key
+	resources.newPullSecret(instance, sourcePS)
 	resources.addPullSecret(instance)
 
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *ReconcileCincinnati) postAddExternalCACert(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	// Search for the the pull-secret in openshift-config
+	sourceCM, err := r.findTrustedCAConfig(ctx, reqLogger, instance, resources)
+	if err != nil {
+	   return err
+	} else if sourceCM == nil {
+	   return nil
+	}
+
+	resources.newTrustedCAConfig(instance, sourceCM)
+	resources.addExternalCACert(instance)
+
+	return nil
+}
+
+// findPullSecret - Locate the pull secret in openshift-config and return it
+func (r *ReconcileCincinnati) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) (*corev1.Secret, error) {
+	// Search for the the pull-secret in openshift-config
+	pullSecret := &corev1.Secret{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: NamePullSecret, Namespace: openshiftConfigNamespace}, pullSecret)
+	if err != nil && errors.IsNotFound(err) {
+		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return pullSecret, nil
+}
+
+// findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
+func (r *ReconcileCincinnati) findTrustedCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) (*corev1.ConfigMap, error) {
+
 	// Check if the Cluster is aware of a registry requiring an
 	// AdditionalTrustedCA
 	image := &apicfgv1.Image{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
 	if err != nil && errors.IsNotFound(err) {
 		m := fmt.Sprintf("image.config.openshift.io not found for (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
-		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
-		return nil
+		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
+		return nil, nil
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 
 	if image.Spec.AdditionalTrustedCA.Name == "" {
 		m := fmt.Sprintf("image.config.openshift.io.Spec.AdditionalTrustedCA.Name not found for image (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
-		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
-		return nil
+		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
+		return nil, nil
 	}
 
 	// Search for the ConfigMap in openshift-config
@@ -275,16 +301,48 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: openshiftConfigNamespace}, sourceCM)
 	if err != nil && errors.IsNotFound(err) {
 		m := fmt.Sprintf("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
-		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
-		return err
+		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
+		return nil, err
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 
 	if _, ok := sourceCM.Data[NameCertConfigMapKey]; !ok {
 		m := fmt.Sprintf("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
 		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
-		return nil
+		return nil, nil
+	}
+
+	return sourceCM, nil
+}
+
+func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	sourcePS, err := r.findPullSecret(ctx, reqLogger, instance, resources)
+	if err != nil {
+	   return err
+	} else if sourcePS == nil {
+	   return nil
+	}
+
+	// Set Cincinnati instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, resources.pullSecret, r.scheme); err != nil {
+		return err
+	}
+
+	if err := r.ensureSecret(ctx, reqLogger, resources.pullSecret); err != nil {
+		handleErr(reqLogger, &instance.Status, "EnsureSecretFailed", err)
+		return err
+	}
+
+	return nil
+}
+
+func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	sourceCM, err := r.findTrustedCAConfig(ctx, reqLogger, instance, resources)
+	if err != nil {
+	   return err
+	} else if sourceCM == nil {
+	   return nil
 	}
 
 	conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
@@ -294,20 +352,12 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		Message: "",
 	})
 
-	localCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nameAdditionalTrustedCA(instance),
-			Namespace: instance.Namespace,
-		},
-		Data: sourceCM.Data,
-	}
-
 	// Set Cincinnati instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, localCM, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, resources.trustedCAConfig, r.scheme); err != nil {
 		return err
 	}
 
-	if err := r.ensureConfigMap(ctx, reqLogger, localCM); err != nil {
+	if err := r.ensureConfigMap(ctx, reqLogger, resources.trustedCAConfig); err != nil {
 		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
 		return err
 	}
@@ -598,22 +648,22 @@ func (r *ReconcileCincinnati) ensureConfigMap(ctx context.Context, reqLogger log
 	return nil
 }
 
-func (r *ReconcileCincinnati) ensureSecret(ctx context.Context, reqLogger logr.Logger, cm *corev1.Secret) error {
+func (r *ReconcileCincinnati) ensureSecret(ctx context.Context, reqLogger logr.Logger, secret *corev1.Secret) error {
 	// Check if this secret already exists
 	found := &corev1.Secret{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: cm.Name, Namespace: cm.Namespace}, found)
+	err := r.client.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating Secret", "Namespace", cm.Namespace, "Name", cm.Name)
-		return r.client.Create(ctx, cm)
+		reqLogger.Info("Creating Secret", "Namespace", secret.Namespace, "Name", secret.Name)
+		return r.client.Create(ctx, secret)
 	} else if err != nil {
 		return err
 	}
 
 	// found existing secret; let's compare and update if needed
-	if !reflect.DeepEqual(found.Data, cm.Data) {
-		reqLogger.Info("Updating Secret", "Namespace", cm.Namespace, "Name", cm.Name)
+	if !reflect.DeepEqual(found.Data, secret.Data) {
+		reqLogger.Info("Updating Secret", "Namespace", secret.Namespace, "Name", secret.Name)
 		updated := found.DeepCopy()
-		updated.Data = cm.Data
+		updated.Data = secret.Data
 		return r.client.Update(ctx, updated)
 	}
 
