@@ -54,6 +54,10 @@ func nameAdditionalTrustedCA(instance *cv1beta1.Cincinnati) string {
 	return instance.Name + "-trusted-ca"
 }
 
+func namePullSecretCopy(instance *cv1beta1.Cincinnati) string {
+	return instance.Name + "-" + NamePullSecret
+}
+
 // When running a single replica, allow 0 available so we don't block node
 // drains. Otherwise require 1.
 func getMinAvailablePBD(instance *cv1beta1.Cincinnati) intstr.IntOrString {

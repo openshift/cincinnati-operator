@@ -78,6 +78,8 @@ type kubeResources struct {
 	graphBuilderService    *corev1.Service
 	policyEngineService    *corev1.Service
 	policyEngineRoute      *routev1.Route
+	trustedCAConfig        *corev1.ConfigMap
+	pullSecret             *corev1.Secret
 }
 
 func newKubeResources(instance *cv1beta1.Cincinnati, image string) (*kubeResources, error) {
@@ -332,6 +334,26 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 		}
 	}
 	return dep
+}
+
+func (k *kubeResources) newTrustedCAConfig(instance *cv1beta1.Cincinnati, cm *corev1.ConfigMap) {
+	k.trustedCAConfig = &corev1.ConfigMap{
+                ObjectMeta: metav1.ObjectMeta{
+                        Name:      nameAdditionalTrustedCA(instance),
+                        Namespace: instance.Namespace,
+                },
+                Data: cm.Data,
+        }
+}
+
+func (k *kubeResources) newPullSecret(instance *cv1beta1.Cincinnati, s *corev1.Secret) {
+	k.pullSecret = &corev1.Secret{
+                ObjectMeta: metav1.ObjectMeta{
+                        Name:      namePullSecretCopy(instance),
+                        Namespace: instance.Namespace,
+                },
+                Data: s.Data,
+        }
 }
 
 func (k *kubeResources) addPullSecret(instance *cv1beta1.Cincinnati) {
