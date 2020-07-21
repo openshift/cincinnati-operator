@@ -48,7 +48,7 @@ name = "release-scrape-dockerv2"
 registry = "{{.Registry}}"
 repository = "{{.Repository}}"
 fetch_concurrency = 16
-credentials_path = "/var/lib/cincinnati/registry-credentials"
+credentials_path = "/var/lib/cincinnati/registry-credentials/.dockerconfigjson"
 
 [[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
@@ -374,7 +374,7 @@ func (k *kubeResources) addPullSecret(instance *cv1beta1.Cincinnati) {
 			Name: NamePullSecret,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: NamePullSecret,
+					SecretName: namePullSecretCopy(instance),
 					DefaultMode: &mode,
 				},
 			},
