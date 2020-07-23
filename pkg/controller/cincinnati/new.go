@@ -66,20 +66,22 @@ name = "edge-add-remove"`
 // once up-front makes it MUCH easier to access those resources as-needed
 // throughout the reconciliation code.
 type kubeResources struct {
-	envConfig              *corev1.ConfigMap
-	envConfigHash          string
-	graphBuilderConfig     *corev1.ConfigMap
-	graphBuilderConfigHash string
-	podDisruptionBudget    *policyv1beta1.PodDisruptionBudget
-	deployment             *appsv1.Deployment
-	graphBuilderContainer  *corev1.Container
-	graphDataInitContainer *corev1.Container
-	policyEngineContainer  *corev1.Container
-	graphBuilderService    *corev1.Service
-	policyEngineService    *corev1.Service
-	policyEngineRoute      *routev1.Route
-	trustedCAConfig        *corev1.ConfigMap
-	pullSecret             *corev1.Secret
+	envConfig                *corev1.ConfigMap
+	envConfigHash            string
+	graphBuilderConfig       *corev1.ConfigMap
+	graphBuilderConfigHash   string
+	podDisruptionBudget      *policyv1beta1.PodDisruptionBudget
+	deployment               *appsv1.Deployment
+	graphBuilderContainer    *corev1.Container
+	graphDataInitContainer   *corev1.Container
+	policyEngineContainer    *corev1.Container
+	graphBuilderService      *corev1.Service
+	policyEngineService      *corev1.Service
+	policyEngineRoute        *routev1.Route
+	trustedCAConfig          *corev1.ConfigMap
+	pullSecret               *corev1.Secret
+	volumes                  *[]corev1.Volume
+	graphBuilderVolumeMounts *[]corev1.VolumeMount
 }
 
 func newKubeResources(instance *cv1beta1.Cincinnati, image string) (*kubeResources, error) {
@@ -105,6 +107,8 @@ func newKubeResources(instance *cv1beta1.Cincinnati, image string) (*kubeResourc
 	}
 	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
+	k.volumes = k.newVolumes(instance)
+	k.graphBuilderVolumeMounts = k.newGraphBuilderVolumeMounts(instance)
 	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
 	k.graphDataInitContainer = k.newGraphDataInitContainer(instance)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
@@ -269,7 +273,6 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
-	mode := int32(420) // 0644
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -301,25 +304,7 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 					},
 				},
 				Spec: corev1.PodSpec{
-					Volumes: []corev1.Volume{
-						corev1.Volume{
-							Name: "configs",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									DefaultMode: &mode,
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: nameConfig(instance),
-									},
-								},
-							},
-						},
-						corev1.Volume{
-							Name: "cincinnati-graph-data",
-							VolumeSource: corev1.VolumeSource{
-								EmptyDir: &corev1.EmptyDirVolumeSource{},
-							},
-						},
-					},
+					Volumes: *k.volumes,
 					Containers: []corev1.Container{
 						*k.graphBuilderContainer,
 						*k.policyEngineContainer,
@@ -336,81 +321,105 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 	return dep
 }
 
+func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) *[]corev1.Volume {
+	mode := int32(420) // 0644
+	return &[]corev1.Volume{
+		corev1.Volume{
+			Name: "configs",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &mode,
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: nameConfig(instance),
+					},
+				},
+			},
+		},
+		corev1.Volume{
+			Name: "cincinnati-graph-data",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+}
+
 func (k *kubeResources) newTrustedCAConfig(instance *cv1beta1.Cincinnati, cm *corev1.ConfigMap) {
 	k.trustedCAConfig = &corev1.ConfigMap{
-                ObjectMeta: metav1.ObjectMeta{
-                        Name:      nameAdditionalTrustedCA(instance),
-                        Namespace: instance.Namespace,
-                },
-                Data: cm.Data,
-        }
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nameAdditionalTrustedCA(instance),
+			Namespace: instance.Namespace,
+		},
+		Data: cm.Data,
+	}
 }
 
 func (k *kubeResources) newPullSecret(instance *cv1beta1.Cincinnati, s *corev1.Secret) {
 	k.pullSecret = &corev1.Secret{
-                ObjectMeta: metav1.ObjectMeta{
-                        Name:      namePullSecretCopy(instance),
-                        Namespace: instance.Namespace,
-                },
-                Data: s.Data,
-        }
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namePullSecretCopy(instance),
+			Namespace: instance.Namespace,
+		},
+		Data: s.Data,
+	}
+}
+
+// regenerate - rebuild smaller resources to regerate the larger object
+func (k *kubeResources) regenerate(instance *cv1beta1.Cincinnati) {
+	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, k.graphBuilderContainer.Image)
+	k.deployment = k.newDeployment(instance)
 }
 
 func (k *kubeResources) addPullSecret(instance *cv1beta1.Cincinnati) {
 	mode := int32(420) // 0644
 
 	// Add the volumeMount to the graph builder container
-	k.graphBuilderContainer.VolumeMounts = append(k.graphBuilderContainer.VolumeMounts, corev1.VolumeMount{
-			Name:      NamePullSecret,
-			ReadOnly:  true,
-			MountPath: "/var/lib/cincinnati/registry-credentials",
+	*k.graphBuilderVolumeMounts = append(*k.graphBuilderVolumeMounts, corev1.VolumeMount{
+		Name:      NamePullSecret,
+		ReadOnly:  true,
+		MountPath: "/var/lib/cincinnati/registry-credentials",
 	})
-
-	// Rebuild the deployment since we modified the container definition
-	k.deployment = k.newDeployment(instance)
 
 	// Add the volume for the graph builder container
-	k.deployment.Spec.Template.Spec.Volumes = append(k.deployment.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: NamePullSecret,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: namePullSecretCopy(instance),
-					DefaultMode: &mode,
-				},
+	*k.volumes = append(*k.volumes, corev1.Volume{
+		Name: NamePullSecret,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  namePullSecretCopy(instance),
+				DefaultMode: &mode,
 			},
+		},
 	})
+
 }
 
 func (k *kubeResources) addExternalCACert(instance *cv1beta1.Cincinnati) {
 	mode := int32(420) // 0644
 
 	// Add the volumeMount to the graph builder container
-	k.graphBuilderContainer.VolumeMounts = append(k.graphBuilderContainer.VolumeMounts, corev1.VolumeMount{
-			Name:      NameTrustedCAVolume,
-			ReadOnly:  true,
-			MountPath: "/etc/pki/ca-trust/extracted/pem",
+	*k.graphBuilderVolumeMounts = append(*k.graphBuilderVolumeMounts, corev1.VolumeMount{
+		Name:      NameTrustedCAVolume,
+		ReadOnly:  true,
+		MountPath: "/etc/pki/ca-trust/extracted/pem",
 	})
 
-	// Rebuild the deployment since we modified the container definition
-	k.deployment = k.newDeployment(instance)
-
 	// Add the volume for the graph builder container
-	k.deployment.Spec.Template.Spec.Volumes = append(k.deployment.Spec.Template.Spec.Volumes, corev1.Volume{
-			Name: NameTrustedCAVolume,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					DefaultMode: &mode,
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: nameAdditionalTrustedCA(instance),
-					},
-					Items: []corev1.KeyToPath{
-						corev1.KeyToPath{
-							Path: "tls-ca-bundle.pem",
-							Key:  NameCertConfigMapKey,
-						},
+	*k.volumes = append(*k.volumes, corev1.Volume{
+		Name: NameTrustedCAVolume,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				DefaultMode: &mode,
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: nameAdditionalTrustedCA(instance),
+				},
+				Items: []corev1.KeyToPath{
+					corev1.KeyToPath{
+						Path: "tls-ca-bundle.pem",
+						Key:  NameCertConfigMapKey,
 					},
 				},
 			},
+		},
 	})
 }
 
@@ -465,17 +474,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 				corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
 			},
 		},
-		VolumeMounts: []corev1.VolumeMount{
-			corev1.VolumeMount{
-				Name:      "configs",
-				ReadOnly:  true,
-				MountPath: "/etc/configs",
-			},
-			corev1.VolumeMount{
-				Name:      "cincinnati-graph-data",
-				MountPath: "/var/lib/cincinnati/graph-data",
-			},
-		},
+		VolumeMounts: *k.graphBuilderVolumeMounts,
 		LivenessProbe: &corev1.Probe{
 			FailureThreshold:    3,
 			SuccessThreshold:    1,
@@ -506,6 +505,20 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 		},
 	}
 	return g
+}
+
+func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1beta1.Cincinnati) *[]corev1.VolumeMount {
+	return &[]corev1.VolumeMount{
+		corev1.VolumeMount{
+			Name:      "configs",
+			ReadOnly:  true,
+			MountPath: "/etc/configs",
+		},
+		corev1.VolumeMount{
+			Name:      "cincinnati-graph-data",
+			MountPath: "/var/lib/cincinnati/graph-data",
+		},
+	}
 }
 
 func (k *kubeResources) newPolicyEngineContainer(instance *cv1beta1.Cincinnati, image string) *corev1.Container {

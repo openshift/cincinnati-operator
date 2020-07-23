@@ -24,8 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apicfgv1 "github.com/openshift/api/config/v1"
-	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	routev1 "github.com/openshift/api/route/v1"
+	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 )
 
@@ -120,10 +120,10 @@ type ReconcileCincinnati struct {
 // and what is in the Cincinnati.Spec
 func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	/*    **Reconcile Pattern**
-	  1. Cache all the kubeResources
-	  2. Make a few modifications to the kubeResources
-	  3. Create all kubeResource
-	  4. Ensure all the kubeResources are correct
+	1. Create all the kubeResources
+	2. Make a few modifications to the kubeResources
+	3. Regenerate some of the kubeResources
+	4. Ensure all the kubeResources are correct in the Cluster
 	*/
 
 	ctx := context.TODO()
@@ -161,9 +161,11 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	} {
 		err = f(ctx, reqLogger, instanceCopy, resources)
 		if err != nil {
-			break
+			return reconcile.Result{}, err
 		}
 	}
+	// Regenerate resources to pickup any supplemental changes
+	resources.regenerate(instance)
 
 	conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
 		Type:    cv1beta1.ConditionReconcileCompleted,
@@ -235,9 +237,9 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus
 func (r *ReconcileCincinnati) postAddPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
 	sourcePS, err := r.findPullSecret(ctx, reqLogger, instance, resources)
 	if err != nil {
-	   return err
+		return err
 	} else if sourcePS == nil {
-	   return nil
+		return nil
 	}
 
 	resources.newPullSecret(instance, sourcePS)
@@ -250,9 +252,9 @@ func (r *ReconcileCincinnati) postAddExternalCACert(ctx context.Context, reqLogg
 	// Search for the the pull-secret in openshift-config
 	sourceCM, err := r.findTrustedCAConfig(ctx, reqLogger, instance, resources)
 	if err != nil {
-	   return err
+		return err
 	} else if sourceCM == nil {
-	   return nil
+		return nil
 	}
 
 	resources.newTrustedCAConfig(instance, sourceCM)
@@ -268,10 +270,11 @@ func (r *ReconcileCincinnati) findPullSecret(ctx context.Context, reqLogger logr
 	err := r.client.Get(ctx, types.NamespacedName{Name: NamePullSecret, Namespace: openshiftConfigNamespace}, pullSecret)
 	if err != nil && errors.IsNotFound(err) {
 		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
-		return nil, nil
+		return nil, err
 	} else if err != nil {
 		return nil, err
 	}
+
 	return pullSecret, nil
 }
 
@@ -319,9 +322,9 @@ func (r *ReconcileCincinnati) findTrustedCAConfig(ctx context.Context, reqLogger
 func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
 	sourcePS, err := r.findPullSecret(ctx, reqLogger, instance, resources)
 	if err != nil {
-	   return err
+		return err
 	} else if sourcePS == nil {
-	   return nil
+		return nil
 	}
 
 	// Set Cincinnati instance as the owner and controller
@@ -340,9 +343,9 @@ func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger lo
 func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
 	sourceCM, err := r.findTrustedCAConfig(ctx, reqLogger, instance, resources)
 	if err != nil {
-	   return err
+		return err
 	} else if sourceCM == nil {
-	   return nil
+		return nil
 	}
 
 	conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
@@ -361,10 +364,6 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
 		return err
 	}
-
-	// Mount in ConfigMap data from the cincinnati-registry key
-	resources.addExternalCACert(instance)
-
 	return nil
 }
 
@@ -373,10 +372,10 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 	if err := controllerutil.SetControllerReference(instance, deployment, r.scheme); err != nil {
 		return err
 	}
-
 	// Check if this deployment already exists
 	found := &appsv1.Deployment{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: deployment.Name, Namespace: deployment.Namespace}, found)
+
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
 		err := r.client.Create(ctx, deployment)
