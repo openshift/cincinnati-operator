@@ -17,6 +17,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -152,7 +153,7 @@ func TestEnsurePullSecret(t *testing.T) {
 			existingObjs: []runtime.Object{
 				newDefaultCincinnati(),
 			},
-			expectedError: fmt.Errorf("secrets \"%v\" not found", NamePullSecret),
+			expectedError: fmt.Errorf("secrets \"%v\" not found", namePullSecret),
 		},
 		{
 			name: "SecretCreate",
@@ -174,15 +175,18 @@ func TestEnsurePullSecret(t *testing.T) {
 
 			resources, err := newKubeResources(cincinnati, testOperandImage)
 			err = r.postAddPullSecret(context.TODO(), log, cincinnati, resources)
+
 			if err != nil {
 				assert.Error(t, err)
 			}
-			err = r.ensurePullSecret(context.TODO(), log, cincinnati, resources)
 
 			verifyError(t, err, test.expectedError)
 
+			if !errors.IsNotFound(err) {
+				err = r.ensurePullSecret(context.TODO(), log, cincinnati, resources)
+			}
 			found := &corev1.Secret{}
-			err = r.client.Get(context.TODO(), types.NamespacedName{Name: NamePullSecret, Namespace: cincinnati.Namespace}, found)
+			err = r.client.Get(context.TODO(), types.NamespacedName{Name: namePullSecret, Namespace: cincinnati.Namespace}, found)
 			if err != nil {
 				assert.Error(t, err)
 				assert.Empty(t, found)
@@ -369,8 +373,8 @@ func TestEnsureDeployment(t *testing.T) {
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Image, resources.graphBuilderContainer.Image)
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Name, resources.policyEngineContainer.Name)
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Image, resources.graphBuilderContainer.Image)
-			assert.Equal(t, found.Spec.Template.Spec.Volumes[2].Name, NamePullSecret)
-			assert.Equal(t, found.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name, NamePullSecret)
+			assert.Equal(t, found.Spec.Template.Spec.Volumes[2].Name, namePullSecret)
+			assert.Equal(t, found.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name, namePullSecret)
 
 			if test.caCert {
 				assert.Equal(t, found.Spec.Template.Spec.Volumes[3].Name, NameTrustedCAVolume)
@@ -568,7 +572,7 @@ func newConfigMap() *corev1.ConfigMap {
 func newSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      NamePullSecret,
+			Name:      namePullSecret,
 			Namespace: openshiftConfigNamespace,
 		},
 		Data: map[string][]byte{
