@@ -235,15 +235,15 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus
 }
 
 func (r *ReconcileCincinnati) postAddPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
-	sourcePS, err := r.findPullSecret(ctx, reqLogger, instance, resources)
-	if err != nil {
+	sourcePS := &corev1.Secret{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: namePullSecret, Namespace: openshiftConfigNamespace}, sourcePS)
+	if err != nil && errors.IsNotFound(err) {
+		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
 		return err
-	} else if sourcePS == nil {
-		return nil
+	} else if err != nil {
+		return err
 	}
-
-	resources.newPullSecret(instance, sourcePS)
-	resources.addPullSecret(instance)
+	resources.addPullSecret(instance, sourcePS)
 
 	return nil
 }
@@ -257,25 +257,9 @@ func (r *ReconcileCincinnati) postAddExternalCACert(ctx context.Context, reqLogg
 		return nil
 	}
 
-	resources.newTrustedCAConfig(instance, sourceCM)
-	resources.addExternalCACert(instance)
+	resources.addExternalCACert(instance, sourceCM)
 
 	return nil
-}
-
-// findPullSecret - Locate the pull secret in openshift-config and return it
-func (r *ReconcileCincinnati) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) (*corev1.Secret, error) {
-	// Search for the the pull-secret in openshift-config
-	pullSecret := &corev1.Secret{}
-	err := r.client.Get(ctx, types.NamespacedName{Name: NamePullSecret, Namespace: openshiftConfigNamespace}, pullSecret)
-	if err != nil && errors.IsNotFound(err) {
-		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
-		return nil, err
-	} else if err != nil {
-		return nil, err
-	}
-
-	return pullSecret, nil
 }
 
 // findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
@@ -320,13 +304,6 @@ func (r *ReconcileCincinnati) findTrustedCAConfig(ctx context.Context, reqLogger
 }
 
 func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
-	sourcePS, err := r.findPullSecret(ctx, reqLogger, instance, resources)
-	if err != nil {
-		return err
-	} else if sourcePS == nil {
-		return nil
-	}
-
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, resources.pullSecret, r.scheme); err != nil {
 		return err

@@ -80,8 +80,8 @@ type kubeResources struct {
 	policyEngineRoute        *routev1.Route
 	trustedCAConfig          *corev1.ConfigMap
 	pullSecret               *corev1.Secret
-	volumes                  *[]corev1.Volume
-	graphBuilderVolumeMounts *[]corev1.VolumeMount
+	volumes                  []corev1.Volume
+	graphBuilderVolumeMounts []corev1.VolumeMount
 }
 
 func newKubeResources(instance *cv1beta1.Cincinnati, image string) (*kubeResources, error) {
@@ -304,7 +304,7 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 					},
 				},
 				Spec: corev1.PodSpec{
-					Volumes: *k.volumes,
+					Volumes: k.volumes,
 					Containers: []corev1.Container{
 						*k.graphBuilderContainer,
 						*k.policyEngineContainer,
@@ -321,9 +321,9 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 	return dep
 }
 
-func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) *[]corev1.Volume {
+func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) []corev1.Volume {
 	mode := int32(420) // 0644
-	return &[]corev1.Volume{
+	return []corev1.Volume{
 		corev1.Volume{
 			Name: "configs",
 			VolumeSource: corev1.VolumeSource{
@@ -344,17 +344,13 @@ func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) *[]corev1.Volu
 	}
 }
 
-func (k *kubeResources) newTrustedCAConfig(instance *cv1beta1.Cincinnati, cm *corev1.ConfigMap) {
-	k.trustedCAConfig = &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nameAdditionalTrustedCA(instance),
-			Namespace: instance.Namespace,
-		},
-		Data: cm.Data,
-	}
+// regenerate - rebuild smaller resources to regenerate the larger object
+func (k *kubeResources) regenerate(instance *cv1beta1.Cincinnati) {
+	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, k.graphBuilderContainer.Image)
+	k.deployment = k.newDeployment(instance)
 }
 
-func (k *kubeResources) newPullSecret(instance *cv1beta1.Cincinnati, s *corev1.Secret) {
+func (k *kubeResources) addPullSecret(instance *cv1beta1.Cincinnati, s *corev1.Secret) {
 	k.pullSecret = &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namePullSecretCopy(instance),
@@ -362,27 +358,19 @@ func (k *kubeResources) newPullSecret(instance *cv1beta1.Cincinnati, s *corev1.S
 		},
 		Data: s.Data,
 	}
-}
 
-// regenerate - rebuild smaller resources to regerate the larger object
-func (k *kubeResources) regenerate(instance *cv1beta1.Cincinnati) {
-	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, k.graphBuilderContainer.Image)
-	k.deployment = k.newDeployment(instance)
-}
-
-func (k *kubeResources) addPullSecret(instance *cv1beta1.Cincinnati) {
 	mode := int32(420) // 0644
 
 	// Add the volumeMount to the graph builder container
-	*k.graphBuilderVolumeMounts = append(*k.graphBuilderVolumeMounts, corev1.VolumeMount{
-		Name:      NamePullSecret,
+	k.graphBuilderVolumeMounts = append(k.graphBuilderVolumeMounts, corev1.VolumeMount{
+		Name:      namePullSecret,
 		ReadOnly:  true,
 		MountPath: "/var/lib/cincinnati/registry-credentials",
 	})
 
 	// Add the volume for the graph builder container
-	*k.volumes = append(*k.volumes, corev1.Volume{
-		Name: NamePullSecret,
+	k.volumes = append(k.volumes, corev1.Volume{
+		Name: namePullSecret,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
 				SecretName:  namePullSecretCopy(instance),
@@ -393,18 +381,26 @@ func (k *kubeResources) addPullSecret(instance *cv1beta1.Cincinnati) {
 
 }
 
-func (k *kubeResources) addExternalCACert(instance *cv1beta1.Cincinnati) {
+func (k *kubeResources) addExternalCACert(instance *cv1beta1.Cincinnati, cm *corev1.ConfigMap) {
+	k.trustedCAConfig = &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      nameAdditionalTrustedCA(instance),
+			Namespace: instance.Namespace,
+		},
+		Data: cm.Data,
+	}
+
 	mode := int32(420) // 0644
 
 	// Add the volumeMount to the graph builder container
-	*k.graphBuilderVolumeMounts = append(*k.graphBuilderVolumeMounts, corev1.VolumeMount{
+	k.graphBuilderVolumeMounts = append(k.graphBuilderVolumeMounts, corev1.VolumeMount{
 		Name:      NameTrustedCAVolume,
 		ReadOnly:  true,
 		MountPath: "/etc/pki/ca-trust/extracted/pem",
 	})
 
 	// Add the volume for the graph builder container
-	*k.volumes = append(*k.volumes, corev1.Volume{
+	k.volumes = append(k.volumes, corev1.Volume{
 		Name: NameTrustedCAVolume,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -474,7 +470,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 				corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
 			},
 		},
-		VolumeMounts: *k.graphBuilderVolumeMounts,
+		VolumeMounts: k.graphBuilderVolumeMounts,
 		LivenessProbe: &corev1.Probe{
 			FailureThreshold:    3,
 			SuccessThreshold:    1,
@@ -507,8 +503,8 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 	return g
 }
 
-func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1beta1.Cincinnati) *[]corev1.VolumeMount {
-	return &[]corev1.VolumeMount{
+func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1beta1.Cincinnati) []corev1.VolumeMount {
+	return []corev1.VolumeMount{
 		corev1.VolumeMount{
 			Name:      "configs",
 			ReadOnly:  true,
