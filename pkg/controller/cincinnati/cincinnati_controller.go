@@ -146,15 +146,25 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	instanceCopy := instance.DeepCopy()
 	instanceCopy.Status = cv1beta1.CincinnatiStatus{}
 
-	// this object creates all the kube resources we need and then holds them as
-	// the canonical reference for those resources during reconciliation.
+	// Start construction of resources
+
+	// 1. Create all the kubeResources
+	//    'newKubeResources' creates all the kube resources we need and holds
+	//    them in 'resources' as the canonical reference for those resources
+	//    during reconciliation.
 	resources, err := newKubeResources(instanceCopy, r.operandImage)
 	if err != nil {
 		reqLogger.Error(err, "Failed to render resources")
 		return reconcile.Result{}, err
 	}
 
-	// Supplemental kube resources changes
+	// 2. Make a few modifications to the kubeResources
+	//    The supplemental kube resources changes are modifications that are
+	//    applied to resources when certain coditions are met.
+	//
+	//    Example: A user has an on-premise PKI they want to use with their
+	//             registry.  The operator will check for the expected cluster
+	//             resources and modify the deployment if conditions are met.
 	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
 		r.postAddPullSecret,
 		r.postAddExternalCACert,
@@ -164,8 +174,14 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 			return reconcile.Result{}, err
 		}
 	}
-	// Regenerate resources to pickup any supplemental changes
+
+	// 3. Regenerate some of the kubeResources
+	//    After modifiing some of the resources, we need to rebuild them.
+	//    Since the larger objects are made up of numerous smaller objects,
+	//    rebuild the smaller objects all the way up to the largest object.
 	resources.regenerate(instance)
+
+	// End construction of resources
 
 	conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
 		Type:    cv1beta1.ConditionReconcileCompleted,
@@ -174,6 +190,9 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 		Message: "",
 	})
 
+	// 4. Ensure all the kubeResources are correct in the Cluster
+	//    The ensure functions will compare the expected resources with the actual
+	//    resources and work towards making actual = expected.
 	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
 		r.ensureConfig,
 		r.ensurePullSecret,
