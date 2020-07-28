@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,8 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apicfgv1 "github.com/openshift/api/config/v1"
-	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	routev1 "github.com/openshift/api/route/v1"
+	cv1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 )
 
@@ -120,6 +119,12 @@ type ReconcileCincinnati struct {
 // Reconcile reads that state of the cluster for a Cincinnati object and makes changes based on the state read
 // and what is in the Cincinnati.Spec
 func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	/*    **Reconcile Pattern**
+	1. Gather conditions
+	2. Create all the kubeResources
+	3. Ensure all the kubeResources are correct in the Cluster
+	*/
+
 	ctx := context.TODO()
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling Cincinnati")
@@ -140,9 +145,28 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	instanceCopy := instance.DeepCopy()
 	instanceCopy.Status = cv1beta1.CincinnatiStatus{}
 
-	// this object creates all the kube resources we need and then holds them as
-	// the canonical reference for those resources during reconciliation.
-	resources, err := newKubeResources(instanceCopy, r.operandImage)
+	// 1. Gather conditions
+	//    Look at the existing cluster resources and communicate to kubeResources
+	//    how it should create resources.
+	//
+	//    Example: A user has an on-premise PKI they want to use with their
+	//             registry.  The operator will check for the expected cluster
+	//             resources and inform kubeResources how the deployment will look.
+	ps, err := r.findPullSecret(ctx, reqLogger, instanceCopy)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	cm, err := r.findTrustedCAConfig(ctx, reqLogger, instanceCopy)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// 2. Create all the kubeResources
+	//    'newKubeResources' creates all the kube resources we need and holds
+	//    them in 'resources' as the canonical reference for those resources
+	//    during reconciliation.
+	resources, err := newKubeResources(instanceCopy, r.operandImage, ps, cm)
 	if err != nil {
 		reqLogger.Error(err, "Failed to render resources")
 		return reconcile.Result{}, err
@@ -155,8 +179,12 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 		Message: "",
 	})
 
+	// 3. Ensure all the kubeResources are correct in the Cluster
+	//    The ensure functions will compare the expected resources with the actual
+	//    resources and work towards making actual = expected.
 	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
 		r.ensureConfig,
+		r.ensurePullSecret,
 		r.ensureEnvConfig,
 		r.ensureAdditionalTrustedCA,
 		r.ensureDeployment,
@@ -214,23 +242,38 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus
 	reqLogger.Info(message)
 }
 
-func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+// findPullSecet - Locate the PullSecrt in openshift-config and return it
+func (r *ReconcileCincinnati) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati) (*corev1.Secret, error) {
+	sourcePS := &corev1.Secret{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: namePullSecret, Namespace: openshiftConfigNamespace}, sourcePS)
+	if err != nil && errors.IsNotFound(err) {
+		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
+		return nil, err
+	} else if err != nil {
+		return nil, err
+	}
+	return sourcePS, nil
+}
+
+// findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
+func (r *ReconcileCincinnati) findTrustedCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati) (*corev1.ConfigMap, error) {
+
 	// Check if the Cluster is aware of a registry requiring an
 	// AdditionalTrustedCA
 	image := &apicfgv1.Image{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
 	if err != nil && errors.IsNotFound(err) {
 		m := fmt.Sprintf("image.config.openshift.io not found for (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
-		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
-		return nil
+		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
+		return nil, nil
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 
 	if image.Spec.AdditionalTrustedCA.Name == "" {
 		m := fmt.Sprintf("image.config.openshift.io.Spec.AdditionalTrustedCA.Name not found for image (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
-		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
-		return nil
+		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
+		return nil, nil
 	}
 
 	// Search for the ConfigMap in openshift-config
@@ -238,15 +281,43 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 	err = r.client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: openshiftConfigNamespace}, sourceCM)
 	if err != nil && errors.IsNotFound(err) {
 		m := fmt.Sprintf("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
-		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
-		return err
+		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
+		return nil, err
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 
 	if _, ok := sourceCM.Data[NameCertConfigMapKey]; !ok {
 		m := fmt.Sprintf("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
 		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
+		return nil, nil
+	}
+
+	return sourceCM, nil
+}
+
+func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	if resources.pullSecret == nil {
+		return nil
+	}
+
+	// Set Cincinnati instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, resources.pullSecret, r.scheme); err != nil {
+		return err
+	}
+
+	if err := r.ensureSecret(ctx, reqLogger, resources.pullSecret); err != nil {
+		handleErr(reqLogger, &instance.Status, "EnsureSecretFailed", err)
+		return err
+	}
+
+	return nil
+}
+
+func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	// Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name
+	// but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap
+	if resources.trustedCAConfig == nil {
 		return nil
 	}
 
@@ -257,27 +328,15 @@ func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, req
 		Message: "",
 	})
 
-	localCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      nameAdditionalTrustedCA(instance),
-			Namespace: instance.Namespace,
-		},
-		Data: sourceCM.Data,
-	}
-
 	// Set Cincinnati instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, localCM, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, resources.trustedCAConfig, r.scheme); err != nil {
 		return err
 	}
 
-	if err := r.ensureConfigMap(ctx, reqLogger, localCM); err != nil {
+	if err := r.ensureConfigMap(ctx, reqLogger, resources.trustedCAConfig); err != nil {
 		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
 		return err
 	}
-
-	// Mount in ConfigMap data from the cincinnati-registry key
-	resources.addExternalCACert(instance)
-
 	return nil
 }
 
@@ -286,10 +345,10 @@ func (r *ReconcileCincinnati) ensureDeployment(ctx context.Context, reqLogger lo
 	if err := controllerutil.SetControllerReference(instance, deployment, r.scheme); err != nil {
 		return err
 	}
-
 	// Check if this deployment already exists
 	found := &appsv1.Deployment{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: deployment.Name, Namespace: deployment.Namespace}, found)
+
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
 		err := r.client.Create(ctx, deployment)
@@ -555,6 +614,28 @@ func (r *ReconcileCincinnati) ensureConfigMap(ctx context.Context, reqLogger log
 		reqLogger.Info("Updating ConfigMap", "Namespace", cm.Namespace, "Name", cm.Name)
 		updated := found.DeepCopy()
 		updated.Data = cm.Data
+		return r.client.Update(ctx, updated)
+	}
+
+	return nil
+}
+
+func (r *ReconcileCincinnati) ensureSecret(ctx context.Context, reqLogger logr.Logger, secret *corev1.Secret) error {
+	// Check if this secret already exists
+	found := &corev1.Secret{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating Secret", "Namespace", secret.Namespace, "Name", secret.Name)
+		return r.client.Create(ctx, secret)
+	} else if err != nil {
+		return err
+	}
+
+	// found existing secret; let's compare and update if needed
+	if !reflect.DeepEqual(found.Data, secret.Data) {
+		reqLogger.Info("Updating Secret", "Namespace", secret.Namespace, "Name", secret.Name)
+		updated := found.DeepCopy()
+		updated.Data = secret.Data
 		return r.client.Update(ctx, updated)
 	}
 
