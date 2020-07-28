@@ -18,6 +18,8 @@ const (
 	NameTrustedCAVolume = "trusted-ca"
 	// NameCertConfigMapKey is the ConfigMap key name where the operator expects the external registry CA Cert
 	NameCertConfigMapKey = "cincinnati-registry"
+	// namePullSecret is the OpenShift pull secret name
+	namePullSecret = "pull-secret"
 )
 
 func nameDeployment(instance *cv1beta1.Cincinnati) string {
@@ -50,6 +52,10 @@ func namePolicyEngineRoute(instance *cv1beta1.Cincinnati) string {
 
 func nameAdditionalTrustedCA(instance *cv1beta1.Cincinnati) string {
 	return instance.Name + "-trusted-ca"
+}
+
+func namePullSecretCopy(instance *cv1beta1.Cincinnati) string {
+	return instance.Name + "-" + namePullSecret
 }
 
 // When running a single replica, allow 0 available so we don't block node
