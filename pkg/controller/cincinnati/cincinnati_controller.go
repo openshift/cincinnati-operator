@@ -120,10 +120,9 @@ type ReconcileCincinnati struct {
 // and what is in the Cincinnati.Spec
 func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	/*    **Reconcile Pattern**
-	1. Create all the kubeResources
-	2. Make a few modifications to the kubeResources
-	3. Regenerate some of the kubeResources
-	4. Ensure all the kubeResources are correct in the Cluster
+	1. Gather conditions
+	2. Create all the kubeResources
+	3. Ensure all the kubeResources are correct in the Cluster
 	*/
 
 	ctx := context.TODO()
@@ -146,42 +145,32 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 	instanceCopy := instance.DeepCopy()
 	instanceCopy.Status = cv1beta1.CincinnatiStatus{}
 
-	// Start construction of resources
+	// 1. Gather conditions
+	//    Look at the existing cluster resources and communicate to kubeResources
+	//    how it should create resources.
+	//
+	//    Example: A user has an on-premise PKI they want to use with their
+	//             registry.  The operator will check for the expected cluster
+	//             resources and inform kubeResources how the deployment will look.
+	ps, err := r.findPullSecret(ctx, reqLogger, instanceCopy)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
-	// 1. Create all the kubeResources
+	cm, err := r.findTrustedCAConfig(ctx, reqLogger, instanceCopy)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// 2. Create all the kubeResources
 	//    'newKubeResources' creates all the kube resources we need and holds
 	//    them in 'resources' as the canonical reference for those resources
 	//    during reconciliation.
-	resources, err := newKubeResources(instanceCopy, r.operandImage)
+	resources, err := newKubeResources(instanceCopy, r.operandImage, ps, cm)
 	if err != nil {
 		reqLogger.Error(err, "Failed to render resources")
 		return reconcile.Result{}, err
 	}
-
-	// 2. Make a few modifications to the kubeResources
-	//    The supplemental kube resources changes are modifications that are
-	//    applied to resources when certain coditions are met.
-	//
-	//    Example: A user has an on-premise PKI they want to use with their
-	//             registry.  The operator will check for the expected cluster
-	//             resources and modify the deployment if conditions are met.
-	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
-		r.postAddPullSecret,
-		r.postAddExternalCACert,
-	} {
-		err = f(ctx, reqLogger, instanceCopy, resources)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-
-	// 3. Regenerate some of the kubeResources
-	//    After modifiing some of the resources, we need to rebuild them.
-	//    Since the larger objects are made up of numerous smaller objects,
-	//    rebuild the smaller objects all the way up to the largest object.
-	resources.regenerate(instance)
-
-	// End construction of resources
 
 	conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
 		Type:    cv1beta1.ConditionReconcileCompleted,
@@ -190,7 +179,7 @@ func (r *ReconcileCincinnati) Reconcile(request reconcile.Request) (reconcile.Re
 		Message: "",
 	})
 
-	// 4. Ensure all the kubeResources are correct in the Cluster
+	// 3. Ensure all the kubeResources are correct in the Cluster
 	//    The ensure functions will compare the expected resources with the actual
 	//    resources and work towards making actual = expected.
 	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
@@ -253,36 +242,21 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus
 	reqLogger.Info(message)
 }
 
-func (r *ReconcileCincinnati) postAddPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+// findPullSecet - Locate the PullSecrt in openshift-config and return it
+func (r *ReconcileCincinnati) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati) (*corev1.Secret, error) {
 	sourcePS := &corev1.Secret{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: namePullSecret, Namespace: openshiftConfigNamespace}, sourcePS)
 	if err != nil && errors.IsNotFound(err) {
 		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
-		return err
+		return nil, err
 	} else if err != nil {
-		return err
+		return nil, err
 	}
-	resources.addPullSecret(instance, sourcePS)
-
-	return nil
-}
-
-func (r *ReconcileCincinnati) postAddExternalCACert(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
-	// Search for the the pull-secret in openshift-config
-	sourceCM, err := r.findTrustedCAConfig(ctx, reqLogger, instance, resources)
-	if err != nil {
-		return err
-	} else if sourceCM == nil {
-		return nil
-	}
-
-	resources.addExternalCACert(instance, sourceCM)
-
-	return nil
+	return sourcePS, nil
 }
 
 // findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
-func (r *ReconcileCincinnati) findTrustedCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) (*corev1.ConfigMap, error) {
+func (r *ReconcileCincinnati) findTrustedCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati) (*corev1.ConfigMap, error) {
 
 	// Check if the Cluster is aware of a registry requiring an
 	// AdditionalTrustedCA
@@ -323,6 +297,10 @@ func (r *ReconcileCincinnati) findTrustedCAConfig(ctx context.Context, reqLogger
 }
 
 func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+	if resources.pullSecret == nil {
+		return nil
+	}
+
 	// Set Cincinnati instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, resources.pullSecret, r.scheme); err != nil {
 		return err
@@ -337,10 +315,9 @@ func (r *ReconcileCincinnati) ensurePullSecret(ctx context.Context, reqLogger lo
 }
 
 func (r *ReconcileCincinnati) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
-	sourceCM, err := r.findTrustedCAConfig(ctx, reqLogger, instance, resources)
-	if err != nil {
-		return err
-	} else if sourceCM == nil {
+	// Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name
+	// but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap
+	if resources.trustedCAConfig == nil {
 		return nil
 	}
 
