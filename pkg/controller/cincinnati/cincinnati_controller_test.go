@@ -105,10 +105,11 @@ func TestReconcile(t *testing.T) {
 }
 
 func TestEnsureConfig(t *testing.T) {
+	pullSecret := newSecret()
 	cincinnati := newDefaultCincinnati()
 	r := newTestReconciler(cincinnati)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage)
+	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
 	err = r.ensureConfig(context.TODO(), log, cincinnati, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -124,10 +125,11 @@ func TestEnsureConfig(t *testing.T) {
 }
 
 func TestEnsureEnvConfig(t *testing.T) {
+	pullSecret := newSecret()
 	cincinnati := newDefaultCincinnati()
 	r := newTestReconciler(cincinnati)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage)
+	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
 	err = r.ensureEnvConfig(context.TODO(), log, cincinnati, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -173,14 +175,21 @@ func TestEnsurePullSecret(t *testing.T) {
 			cincinnati := newDefaultCincinnati()
 			r := newTestReconciler(test.existingObjs...)
 
-			resources, err := newKubeResources(cincinnati, testOperandImage)
-			err = r.postAddPullSecret(context.TODO(), log, cincinnati, resources)
-
+			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			verifyError(t, err, test.expectedError)
+			if verifyError(t, err, test.expectedError) {
+				return
+			}
+
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			if err != nil {
+				assert.Error(t, err)
+			}
+
+			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
 
 			if !errors.IsNotFound(err) {
 				err = r.ensurePullSecret(context.TODO(), log, cincinnati, resources)
@@ -209,12 +218,14 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 			name: "NoImage",
 			existingObjs: []runtime.Object{
 				newDefaultCincinnati(),
+				newSecret(),
 			},
 		},
 		{
 			name: "NoAdditionalTrustedCAName",
 			existingObjs: []runtime.Object{
 				newDefaultCincinnati(),
+				newSecret(),
 				func() *configv1.Image {
 					image := newImage()
 					image.Spec.AdditionalTrustedCA.Name = ""
@@ -226,6 +237,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 			name: "NoConfigMap",
 			existingObjs: []runtime.Object{
 				newDefaultCincinnati(),
+				newSecret(),
 				newImage(),
 			},
 			expectedError: fmt.Errorf("configmaps \"%v\" not found", newImage().Spec.AdditionalTrustedCA.Name),
@@ -234,6 +246,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 			name: "NoConfigMapKey",
 			existingObjs: []runtime.Object{
 				newDefaultCincinnati(),
+				newSecret(),
 				newImage(),
 				newConfigMap(),
 			},
@@ -247,6 +260,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 			name: "ConfigMapCreate",
 			existingObjs: []runtime.Object{
 				newDefaultCincinnati(),
+				newSecret(),
 				newImage(),
 				func() *corev1.ConfigMap {
 					localConfigMap := newConfigMap()
@@ -267,14 +281,23 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 			cincinnati := newDefaultCincinnati()
 			r := newTestReconciler(test.existingObjs...)
 
-			resources, err := newKubeResources(cincinnati, testOperandImage)
-			err = r.postAddExternalCACert(context.TODO(), log, cincinnati, resources)
+			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
 			if err != nil {
 				assert.Error(t, err)
 			}
-			err = r.ensureAdditionalTrustedCA(context.TODO(), log, cincinnati, resources)
 
-			verifyError(t, err, test.expectedError)
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			if err != nil {
+				assert.Error(t, err)
+			}
+
+			if verifyError(t, err, test.expectedError) {
+				return
+			}
+
+			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
+
+			err = r.ensureAdditionalTrustedCA(context.TODO(), log, cincinnati, resources)
 
 			found := &corev1.ConfigMap{}
 			err = r.client.Get(context.TODO(), types.NamespacedName{Name: nameAdditionalTrustedCA(cincinnati), Namespace: cincinnati.Namespace}, found)
@@ -335,21 +358,17 @@ func TestEnsureDeployment(t *testing.T) {
 			cincinnati := newDefaultCincinnati()
 			r := newTestReconciler(test.existingObjs...)
 
-			resources, err := newKubeResources(cincinnati, testOperandImage)
-
-			err = r.postAddPullSecret(context.TODO(), log, cincinnati, resources)
+			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
 			if err != nil {
-				t.Fatal(err)
+				assert.Error(t, err)
 			}
 
-			if test.caCert {
-				err = r.postAddExternalCACert(context.TODO(), log, cincinnati, resources)
-				if err != nil {
-					t.Fatal(err)
-				}
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			if err != nil {
+				assert.Error(t, err)
 			}
 
-			resources.regenerate(cincinnati)
+			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
 
 			err = r.ensureDeployment(context.TODO(), log, cincinnati, resources)
 			if err != nil {
@@ -388,10 +407,11 @@ func TestEnsureDeployment(t *testing.T) {
 }
 
 func TestEnsureGraphBuilderService(t *testing.T) {
+	pullSecret := newSecret()
 	cincinnati := newDefaultCincinnati()
 	r := newTestReconciler(cincinnati)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage)
+	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
 	err = r.ensureGraphBuilderService(context.TODO(), log, cincinnati, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -409,10 +429,11 @@ func TestEnsureGraphBuilderService(t *testing.T) {
 }
 
 func TestEnsurePolicyEngineService(t *testing.T) {
+	pullSecret := newSecret()
 	cincinnati := newDefaultCincinnati()
 	r := newTestReconciler(cincinnati)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage)
+	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
 	err = r.ensurePolicyEngineService(context.TODO(), log, cincinnati, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -431,28 +452,52 @@ func TestEnsurePolicyEngineService(t *testing.T) {
 
 func TestEnsurePodDisruptionBudget(t *testing.T) {
 	tests := []struct {
-		name       string
-		cincinnati *cv1beta1.Cincinnati
+		name         string
+		existingObjs []runtime.Object
 	}{
 		{
-			name:       "EnsurePodDisruptionBudgetReplicas1",
-			cincinnati: newDefaultCincinnati(),
+			name: "EnsurePodDisruptionBudgetReplicas1",
+			existingObjs: []runtime.Object{
+				newDefaultCincinnati(),
+				newSecret(),
+			},
 		},
 		{
 			name: "EnsurePodDisruptionBudgetReplicas10",
-			cincinnati: func() *cv1beta1.Cincinnati {
-				cincinnati := newDefaultCincinnati()
-				cincinnati.Spec.Replicas = 10
-				return cincinnati
-			}(),
+			existingObjs: []runtime.Object{
+				func() *cv1beta1.Cincinnati {
+					cincinnati := newDefaultCincinnati()
+					cincinnati.Spec.Replicas = 10
+					return cincinnati
+				}(),
+				newSecret(),
+			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cincinnati := test.cincinnati
-			r := newTestReconciler(cincinnati)
+			r := newTestReconciler(test.existingObjs...)
 
-			resources, err := newKubeResources(test.cincinnati, testOperandImage)
+			cincinnati := &cv1beta1.Cincinnati{}
+			err := r.client.Get(context.TODO(), types.NamespacedName{Name: testName, Namespace: testNamespace}, cincinnati)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					assert.Error(t, err)
+				}
+				assert.Error(t, err)
+			}
+
+			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
+			if err != nil {
+				assert.Error(t, err)
+			}
+
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			if err != nil {
+				assert.Error(t, err)
+			}
+
+			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
 			err = r.ensurePodDisruptionBudget(context.TODO(), log, cincinnati, resources)
 			if err != nil {
 				t.Fatal(err)
@@ -475,20 +520,34 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 
 func TestEnsurePolicyEngineRoute(t *testing.T) {
 	tests := []struct {
-		name       string
-		cincinnati *cv1beta1.Cincinnati
+		name         string
+		existingObjs []runtime.Object
 	}{
 		{
-			name:       "EnsurePolicyEngineRoute",
-			cincinnati: newDefaultCincinnati(),
+			name: "EnsurePolicyEngineRoute",
+			existingObjs: []runtime.Object{
+				newDefaultCincinnati(),
+				newSecret(),
+			},
 		},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cincinnati := test.cincinnati
-			r := newTestReconciler(cincinnati)
+			cincinnati := newDefaultCincinnati()
+			r := newTestReconciler(test.existingObjs...)
 
-			resources, err := newKubeResources(test.cincinnati, testOperandImage)
+			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
+			if err != nil {
+				assert.Error(t, err)
+			}
+
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			if err != nil {
+				assert.Error(t, err)
+			}
+
+			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
 			err = r.ensurePolicyEngineRoute(context.TODO(), log, cincinnati, resources)
 			if err != nil {
 				t.Fatal(err)
@@ -595,10 +654,9 @@ func verifyOwnerReference(t *testing.T, ownerReference metav1.OwnerReference, ci
 	//assert.Equal(t, ownerReference.APIVersion, cincinnati.APIVersion)
 }
 
-func verifyError(t *testing.T, err error, expectedError error) {
+func verifyError(t *testing.T, err error, expectedError error) bool {
 	if expectedError != nil {
-		assert.EqualError(t, err, expectedError.Error())
-	} else {
-		assert.NoError(t, err)
+		return assert.EqualError(t, err, expectedError.Error())
 	}
+	return false
 }
