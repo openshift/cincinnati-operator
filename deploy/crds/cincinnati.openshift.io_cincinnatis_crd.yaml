@@ -27,26 +27,28 @@ spec:
             submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
+          description: 'metadata is standard object metadata.  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
           type: object
         spec:
-          description: CincinnatiSpec defines the desired state of Cincinnati
+          description: spec is the desired state of the Cincinnati service.  The operator
+            will work to ensure that the desired configuration is applied to the cluster.
           properties:
             graphDataImage:
-              description: GraphDataImage is a container image that contains the Cincinnati
-                graph data. The data is copied to /var/lib/cincinnati/graph-data.
+              description: graphDataImage is a container image that contains the Cincinnati
+                graph data.
               type: string
             registry:
-              description: Registry is the container registry to use, such as "quay.io".
+              description: registry is the container registry to use, such as "quay.io".
               type: string
             replicas:
-              description: Replicas is the number of pods to run. When >=2, a PodDisruptionBudget
+              description: replicas is the number of pods to run. When >=2, a PodDisruptionBudget
                 will ensure that voluntary disruption leaves at least one Pod running
                 at all times.
               format: int32
               minimum: 1
               type: integer
             repository:
-              description: Repository is the repository to use in the Registry, such
+              description: repository is the repository to use in the Registry, such
                 as "openshift-release-dev/ocp-release"
               type: string
           required:
@@ -56,7 +58,8 @@ spec:
           - repository
           type: object
         status:
-          description: CincinnatiStatus defines the observed state of Cincinnati
+          description: status contains information about the current state of the
+            Cincinnati service.
           properties:
             conditions:
               description: Conditions describe the state of the Cincinnati resource.
@@ -86,6 +89,9 @@ spec:
                 type: object
               type: array
           type: object
+      required:
+      - metadata
+      - spec
       type: object
   version: v1beta1
   versions:
