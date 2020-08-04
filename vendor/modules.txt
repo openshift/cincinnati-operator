@@ -138,6 +138,15 @@ github.com/onsi/gomega/types
 # github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible => github.com/openshift/api v0.0.0-20190924102528-32369d4db2ad
 github.com/openshift/api/config/v1
 github.com/openshift/api/route/v1
+# github.com/openshift/build-machinery-go v0.0.0-20200211121458-5e3d6e570160
+github.com/openshift/build-machinery-go
+github.com/openshift/build-machinery-go/make
+github.com/openshift/build-machinery-go/make/lib
+github.com/openshift/build-machinery-go/make/targets
+github.com/openshift/build-machinery-go/make/targets/golang
+github.com/openshift/build-machinery-go/make/targets/openshift
+github.com/openshift/build-machinery-go/make/targets/openshift/operator
+github.com/openshift/build-machinery-go/scripts
 # github.com/openshift/cluster-image-registry-operator v0.0.0-20200415091009-99c06ee64540
 github.com/openshift/cluster-image-registry-operator/pkg/defaults
 github.com/openshift/cluster-image-registry-operator/pkg/version

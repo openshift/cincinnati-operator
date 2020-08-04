@@ -7,6 +7,7 @@ require (
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.10.0
 	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
+	github.com/openshift/build-machinery-go v0.0.0-20200211121458-5e3d6e570160
 	github.com/openshift/cluster-image-registry-operator v0.0.0-20200415091009-99c06ee64540
 	github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
 	github.com/operator-framework/operator-sdk v0.16.0
