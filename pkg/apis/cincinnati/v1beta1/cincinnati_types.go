@@ -9,21 +9,25 @@ import (
 
 // CincinnatiSpec defines the desired state of Cincinnati
 type CincinnatiSpec struct {
-	// +kubebuilder:validation:Minimum=1
-	// Replicas is the number of pods to run. When >=2, a PodDisruptionBudget
+	// replicas is the number of pods to run. When >=2, a PodDisruptionBudget
 	// will ensure that voluntary disruption leaves at least one Pod running at
 	// all times.
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Required
 	Replicas int32 `json:"replicas"`
 
-	// Registry is the container registry to use, such as "quay.io".
+	// registry is the container registry to use, such as "quay.io".
+	// +kubebuilder:validation:Required
 	Registry string `json:"registry"`
 
-	// Repository is the repository to use in the Registry, such as
+	// repository is the repository to use in the Registry, such as
 	// "openshift-release-dev/ocp-release"
+	// +kubebuilder:validation:Required
 	Repository string `json:"repository"`
 
-	// GraphDataImage is a container image that contains the Cincinnati graph
-	// data. The data is copied to /var/lib/cincinnati/graph-data.
+	// graphDataImage is a container image that contains the Cincinnati graph
+	// data.
+	// +kubebuilder:validation:Required
 	GraphDataImage string `json:"graphDataImage"`
 }
 
@@ -32,7 +36,7 @@ type CincinnatiStatus struct {
 	// Conditions describe the state of the Cincinnati resource.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
-	// +optional
+	// +kubebuilder:validation:Optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"  patchStrategy:"merge" patchMergeKey:"type"`
 }
 
@@ -53,10 +57,21 @@ const (
 // +kubebuilder:resource:path=cincinnatis,scope=Namespaced
 type Cincinnati struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CincinnatiSpec   `json:"spec,omitempty"`
-	Status CincinnatiStatus `json:"status,omitempty"`
+	// metadata is standard object metadata.  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +kubebuilder:validation:Required
+	metav1.ObjectMeta `json:"metadata"`
+
+	// spec is the desired state of the Cincinnati service.  The
+	// operator will work to ensure that the desired configuration is
+	// applied to the cluster.
+	// +kubebuilder:validation:Required
+	Spec   CincinnatiSpec   `json:"spec"`
+
+	// status contains information about the current state of the
+	// Cincinnati service.
+	// +kubebuilder:validation:Optional
+	Status CincinnatiStatus `json:"status"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
