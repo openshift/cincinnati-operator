@@ -152,13 +152,13 @@ func (k *kubeResources) newGraphBuilderService(instance *cv1beta1.Cincinnati) *c
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
+				{
 					Name:       "graph-builder",
 					Port:       8080,
 					TargetPort: intstr.FromInt(8080),
 					Protocol:   corev1.ProtocolTCP,
 				},
-				corev1.ServicePort{
+				{
 					Name:       "status-gb",
 					Port:       9080,
 					TargetPort: intstr.FromInt(9080),
@@ -186,13 +186,13 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1beta1.Cincinnati) *c
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Ports: []corev1.ServicePort{
-				corev1.ServicePort{
+				{
 					Name:       "policy-engine",
 					Port:       80,
 					TargetPort: intstr.FromInt(8081),
 					Protocol:   corev1.ProtocolTCP,
 				},
-				corev1.ServicePort{
+				{
 					Name:       "status-pe",
 					Port:       9081,
 					TargetPort: intstr.FromInt(9081),
@@ -326,7 +326,7 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) []corev1.Volume {
 	mode := int32(420) // 0644
 	v := []corev1.Volume{
-		corev1.Volume{
+		{
 			Name: "configs",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -337,13 +337,13 @@ func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) []corev1.Volum
 				},
 			},
 		},
-		corev1.Volume{
+		{
 			Name: "cincinnati-graph-data",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
-		corev1.Volume{
+		{
 			Name: namePullSecret,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
@@ -364,7 +364,7 @@ func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) []corev1.Volum
 						Name: nameAdditionalTrustedCA(instance),
 					},
 					Items: []corev1.KeyToPath{
-						corev1.KeyToPath{
+						{
 							Path: "tls-ca-bundle.pem",
 							Key:  NameCertConfigMapKey,
 						},
@@ -408,7 +408,7 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1beta1.Cincinnati)
 		Image:           instance.Spec.GraphDataImage,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		VolumeMounts: []corev1.VolumeMount{
-			corev1.VolumeMount{
+			{
 				Name:      "cincinnati-graph-data",
 				MountPath: "/var/lib/cincinnati/graph-data",
 			},
@@ -429,12 +429,12 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 			"/etc/configs/gb.toml",
 		},
 		Ports: []corev1.ContainerPort{
-			corev1.ContainerPort{
+			{
 				Name:          "graph-builder",
 				ContainerPort: 8080,
 				Protocol:      corev1.ProtocolTCP,
 			},
-			corev1.ContainerPort{
+			{
 				Name:          "status-gb",
 				ContainerPort: 9080,
 				Protocol:      corev1.ProtocolTCP,
@@ -488,16 +488,16 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 
 func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1beta1.Cincinnati) []corev1.VolumeMount {
 	vm := []corev1.VolumeMount{
-		corev1.VolumeMount{
+		{
 			Name:      "configs",
 			ReadOnly:  true,
 			MountPath: "/etc/configs",
 		},
-		corev1.VolumeMount{
+		{
 			Name:      "cincinnati-graph-data",
 			MountPath: "/var/lib/cincinnati/graph-data",
 		},
-		corev1.VolumeMount{
+		{
 			Name:      namePullSecret,
 			ReadOnly:  true,
 			MountPath: "/var/lib/cincinnati/registry-credentials",
@@ -542,12 +542,12 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1beta1.Cincinnati, 
 			"$(UPSTREAM)",
 		},
 		Ports: []corev1.ContainerPort{
-			corev1.ContainerPort{
+			{
 				Name:          "policy-engine",
 				ContainerPort: 8081,
 				Protocol:      corev1.ProtocolTCP,
 			},
-			corev1.ContainerPort{
+			{
 				Name:          "status-pe",
 				ContainerPort: 9081,
 				Protocol:      corev1.ProtocolTCP,

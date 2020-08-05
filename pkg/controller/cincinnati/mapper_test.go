@@ -73,7 +73,7 @@ func TestMap(t *testing.T) {
 				newDefaultCincinnati(),
 			},
 			expectedRequests: []reconcile.Request{
-				reconcile.Request{
+				{
 					NamespacedName: types.NamespacedName{
 						Name:      newDefaultCincinnati().Name,
 						Namespace: newDefaultCincinnati().Namespace,
@@ -107,7 +107,7 @@ func TestMap(t *testing.T) {
 				newImage(),
 			},
 			expectedRequests: []reconcile.Request{
-				reconcile.Request{
+				{
 					NamespacedName: types.NamespacedName{
 						Name:      newDefaultCincinnati().Name,
 						Namespace: newDefaultCincinnati().Namespace,
