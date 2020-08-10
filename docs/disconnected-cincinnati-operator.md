@@ -2,6 +2,9 @@
 
 ## Deploy Cincinnati Operator using OLM
 
+> **NOTE:** When the Cincinnati Operator makes it to the **Red Hat Operators** Catalog, the procedure below won't be required. You will be able to deploy the operator from the in-cluster OperatorHub. 
+you can follow [this doc](https://docs.openshift.com/container-platform/4.5/operators/olm-restricted-networks.html) to make the default catalogs available in a disconnected cluster.
+
 1. Clone the operator-registry repo
 
     ~~~sh
