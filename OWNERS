@@ -4,11 +4,21 @@ approvers:
 - mhrivnak
 - rthallisey
 - rwsu
+- LalatenduMohanty
+- wking
+- steveeJ
+- jottofar
+- vrutkovs
 reviewers:
 - djzager
 - mhrivnak
 - rthallisey
 - rwsu
 - sacharya
+- LalatenduMohanty
+- wking
+- steveeJ
+- jottofar
+- vrutkovs
 
 component: "Cincinnati Operator"
