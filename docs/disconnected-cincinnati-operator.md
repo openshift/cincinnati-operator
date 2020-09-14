@@ -120,7 +120,7 @@ You can follow [this doc](https://docs.openshift.com/container-platform/4.5/oper
 11. Deploy the Cincinnati Operator
 
     ~~~sh
-    NAMESPACE=cincinnati-operator
+    NAMESPACE=example-namespace
     oc create ns $NAMESPACE
     cat <<EOF | oc -n $NAMESPACE create -f - 
     apiVersion: operators.coreos.com/v1alpha1
@@ -207,11 +207,11 @@ You might want to review the documentation around disconnected registries to lea
     * Option 1: OpenShift Release Image and Release Content in different paths (release under ocp4/release, content under ocp4)
 
         ~~~sh
-        cat <<EOF | oc -n cincinnati-operator create -f -
+        cat <<EOF | oc -n "${NAMESPACE}" create -f -
         apiVersion: cincinnati.openshift.io/v1beta1
         kind: Cincinnati
         metadata:
-          name: disconnected-cincinnati
+          name: example-name
         spec:
           replicas: 1
           registry: "${DISCONNECTED_REGISTRY}"
@@ -222,11 +222,11 @@ You might want to review the documentation around disconnected registries to lea
     * Option 2: OpenShift Release Image and Release Content in the same path (ocp4), release image copied to a new namespace in the registry (openshiftreleases)
 
         ~~~sh
-        cat <<EOF | oc -n cincinnati-operator create -f -
+        cat <<EOF | oc -n "${NAMESPACE}" create -f -
         apiVersion: cincinnati.openshift.io/v1beta1
         kind: Cincinnati
         metadata:
-          name: disconnected-cincinnati
+          name: example-name
         spec:
           replicas: 1
           registry: "${DISCONNECTED_REGISTRY}"
@@ -237,7 +237,7 @@ You might want to review the documentation around disconnected registries to lea
 3. Check the cincinnati service
 
     ~~~sh
-    curl --header 'Accept:application/json' http://$(oc -n cincinnati-operator get route disconnected-cincinnati-policy-engine-route -o jsonpath='{.spec.host}')/api/upgrades_info/v1/graph\?channel=stable-4.5 | jq
+    curl --header 'Accept:application/json' http://$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath='{.spec.host}')/api/upgrades_info/v1/graph\?channel=stable-4.5 | jq
     ~~~
 
     > **OUTPUT**
@@ -281,7 +281,7 @@ You might want to review the documentation around disconnected registries to lea
 5. Patch the ClusterVersion to use our Cincinnati instance rather than the public one
 
     ~~~sh
-    CINCINNATI_ROUTE=$(oc -n cincinnati-operator get route disconnected-cincinnati-policy-engine-route -o jsonpath=http://'{.spec.host}'/api/upgrades_info/v1/graph)
+    CINCINNATI_ROUTE=$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath=http://'{.spec.host}'/api/upgrades_info/v1/graph)
     PATCH="{\"spec\":{\"upstream\":\"${CINCINNATI_ROUTE}\"}}"
     oc patch clusterversion version -p $PATCH --type merge
     ~~~
@@ -313,7 +313,7 @@ You can print the graph for a specific channel in your Cincinnati instance using
 sudo dnf install -y graphviz
 curl -O https://raw.githubusercontent.com/openshift/cincinnati/master/hack/graph.sh
 chmod +x graph.sh
-curl --header 'Accept:application/json' http://disconnected-cincinnati-policy-engine-cincinnati-operator.apps.mgmt-hub.e2e.bos.redhat.com/api/upgrades_info/v1/graph\?channel=stable-4.5 | ./graph.sh | dot -Tpng > graph.png
+curl --header 'Accept:application/json' "http://example-name-policy-engine-${NAMESPACE}.apps.mgmt-hub.e2e.bos.redhat.com/api/upgrades_info/v1/graph?channel=stable-4.5" | ./graph.sh | dot -Tpng > graph.png
 ~~~
 
 ## Mirror the release images
