@@ -227,7 +227,7 @@ func (k *kubeResources) newPolicyEngineRoute(instance *cv1beta1.Cincinnati) *rou
 			},
 			TLS: &routev1.TLSConfig{
 				Termination:                   routev1.TLSTerminationEdge,
-				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
+				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
 			},
 		},
 	}

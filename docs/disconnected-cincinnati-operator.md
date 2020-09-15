@@ -237,7 +237,7 @@ You might want to review the documentation around disconnected registries to lea
 3. Check the cincinnati service
 
     ~~~sh
-    curl --header 'Accept:application/json' http://$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath='{.spec.host}')/api/upgrades_info/v1/graph\?channel=stable-4.5 | jq
+    curl --header 'Accept:application/json' https://$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath='{.spec.host}')/api/upgrades_info/v1/graph\?channel=stable-4.5 | jq
     ~~~
 
     > **OUTPUT**
@@ -281,7 +281,7 @@ You might want to review the documentation around disconnected registries to lea
 5. Patch the ClusterVersion to use our Cincinnati instance rather than the public one
 
     ~~~sh
-    CINCINNATI_ROUTE=$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath=http://'{.spec.host}'/api/upgrades_info/v1/graph)
+    CINCINNATI_ROUTE=$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath=https://'{.spec.host}'/api/upgrades_info/v1/graph)
     PATCH="{\"spec\":{\"upstream\":\"${CINCINNATI_ROUTE}\"}}"
     oc patch clusterversion version -p $PATCH --type merge
     ~~~
@@ -313,7 +313,7 @@ You can print the graph for a specific channel in your Cincinnati instance using
 sudo dnf install -y graphviz
 curl -O https://raw.githubusercontent.com/openshift/cincinnati/master/hack/graph.sh
 chmod +x graph.sh
-curl --header 'Accept:application/json' "http://example-name-policy-engine-${NAMESPACE}.apps.mgmt-hub.e2e.bos.redhat.com/api/upgrades_info/v1/graph?channel=stable-4.5" | ./graph.sh | dot -Tpng > graph.png
+curl --header 'Accept:application/json' "https://example-name-policy-engine-${NAMESPACE}.apps.mgmt-hub.e2e.bos.redhat.com/api/upgrades_info/v1/graph?channel=stable-4.5" | ./graph.sh | dot -Tpng > graph.png
 ~~~
 
 ## Mirror the release images
