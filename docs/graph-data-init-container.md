@@ -35,7 +35,8 @@ For the example above:
 apiVersion: cincinnati.openshift.io/v1beta1
 kind: Cincinnati
 metadata:
-  name: example-cincinnati
+  name: example-name
+  namespace: example-namespace
 spec:
   replicas: 1
   registry: "quay.io"
