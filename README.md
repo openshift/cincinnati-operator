@@ -1,6 +1,6 @@
 # cincinnati-operator
 
-This operator is developed using the [operator SDK][operator-sdk], version 0.16.
+This operator is developed using the [operator SDK][operator-sdk], version 0.18.
 Installation docs are [here][operator-sdk-installation].
 
 ## Run locally
@@ -49,4 +49,4 @@ make unit-test
 ```
 
 [operator-sdk]: https://sdk.operatorframework.io/docs/
-[operator-sdk-installation]: https://sdk.operatorframework.io/docs/install-operator-sdk/
+[operator-sdk-installation]: https://v0-18-x.sdk.operatorframework.io/docs/install-operator-sdk/
