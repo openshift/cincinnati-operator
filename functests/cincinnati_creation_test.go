@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	routev1 "github.com/openshift/api/route/v1"
-	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
+	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"

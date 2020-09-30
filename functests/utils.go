@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	customResourceName = "example-cincinnati"
+	/* JVO!!! */
+	customResourceName = "disconnected-cincinnati"
 	operatorName       = "cincinnati-operator"
-	operatorNamespace  = "openshift-cincinnati"
+	operatorNamespace  = "cincinnati-operator"
 	crdName            = "cincinnatis.cincinnati.openshift.io"
 	resource           = "cincinnatis"
 	routeName          = customResourceName + "-policy-engine-route"
@@ -76,7 +77,7 @@ func getCincinnatiClient() (*rest.RESTClient, error) {
 		return nil, err
 	}
 	cincinnatiConfig.ContentType = runtime.ContentTypeJSON
-	cincinnatiConfig.GroupVersion = &cincinnativ1beta1.SchemeGroupVersion
+	cincinnatiConfig.GroupVersion = &cincinnativ1beta1.GroupVersion
 	cincinnatiConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	cincinnatiConfig.APIPath = "/apis"
 	cincinnatiConfig.ContentType = runtime.ContentTypeJSON
@@ -93,7 +94,7 @@ func getCincinnatiClient() (*rest.RESTClient, error) {
 
 // deployCR is the function to deploy a cincinnati custom resource in the cluster
 func deployCR(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "oc", "apply", "-f", "../deploy/crds/cincinnati.openshift.io_v1beta1_cincinnati_cr.yaml", "-n", operatorNamespace)
+	cmd := exec.CommandContext(ctx, "oc", "apply", "-f", "../config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml", "-n", operatorNamespace)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
