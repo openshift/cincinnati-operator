@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	routev1 "github.com/openshift/api/route/v1"
-	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
+	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -80,13 +80,13 @@ func TestCustomResource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cincinnatiClient, err := getCincinnatiClient()
+	updateServiceClient, err := getUpdateServiceClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result := &cincinnativ1beta1.Cincinnati{}
-	err = cincinnatiClient.Get().
+	result := &updateservicev1.UpdateService{}
+	err = updateServiceClient.Get().
 		Resource(resource).
 		Namespace(operatorNamespace).
 		Name(customResourceName).

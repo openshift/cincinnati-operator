@@ -1,6 +1,6 @@
 package version
 
 var (
-	Version    = "0.0.1"
+	Version    = "1.0.0"
 	SdkVersion = "v0.19.3-3-gdabb596e"
 )

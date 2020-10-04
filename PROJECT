@@ -1,10 +1,11 @@
 domain: openshift.io
 layout: go.kubebuilder.io/v2
-repo: github.com/example-inc/cincinnati-operator
+repo: github.com/openshift/cincinnati-operator
 resources:
-- group: cincinnati
-  kind: Cincinnati
-  version: v1beta1
+- group: updateservice.operator
+  kind: UpdateService
+  version: v1
 version: 3-alpha
+projectName: updateservice-operator
 plugins:
   go.operator-sdk.io/v2-alpha: {}

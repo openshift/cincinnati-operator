@@ -5,45 +5,45 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "cincinnati.openshift.io/v1beta1",
-          "kind": "Cincinnati",
+          "apiVersion": "updateservice.operator.openshift.io/v1",
+          "kind": "UpdateService",
           "metadata": {
-            "name": "cincinnati-instance"
+            "name": "updateservice-instance"
           },
           "spec": {
             "registry": "quay.io",
             "replicas": 1,
             "repository": "openshift-release-dev/ocp-release",
-            "graphDataImage": "quay.io/cincinnati/demo-graph-data:for-testing-only"
+            "graphDataImage": "quay.io/updateservice/demo-graph-data:for-testing-only"
           }
         }
       ]
     capabilities: Basic Install
-    description: Creates and maintains a Cincinnati instance
-    operatorframework.io/suggested-namespace: openshift-cincinnati
+    description: Creates and maintains a UpdateService instance
+    operatorframework.io/suggested-namespace: openshift-updateservice
     createdAt: "2020-04-08 21:10:40"
     categories: OpenShift Optional
-    containerImage: quay.io/cincinnati/cincinnati-operator:latest
+    containerImage: quay.io/updateservice/updateservice-operator:latest
     support: "true"
-  name: cincinnati-operator.v0.0.1
+  name: updateservice-operator.v1.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Cincinnati is the Schema for a Cincinnati service.
-      displayName: Cincinnati Operator Deployment
-      kind: Cincinnati
-      name: cincinnatis.cincinnati.openshift.io
-      version: v1beta1
+    - description: UpdateService is the Schema for a UpdateService service.
+      displayName: UpdateService Operator Deployment
+      kind: UpdateService
+      name: updateservices.updateservice.operator.openshift.io
+      version: v1
   description: |-
     # Use Case
-    Running a Cincinnati instance in a cluster is appealing for offline OpenShift
+    Running a UpdateService instance in a cluster is appealing for offline OpenShift
     clusters or for admins that want to provide their own graph data instead of
-    using [https://github.com/openshift/cincinnati-graph-data](https://github.com/openshift/cincinnati-graph-data/).
+    using [https://github.com/openshift/updateservice-graph-data](https://github.com/openshift/updateservice-graph-data/).
 
-    # About Cincinnati
-    **Cincinnati** is an update protocol designed to facilitate automatic updates.
+    # About UpdateService
+    **UpdateService** is an update protocol designed to facilitate automatic updates.
     It describes a particular method for representing transitions between releases
     of a project and allowing a client to perform automatic updates between these releases.
 
@@ -59,35 +59,35 @@ spec:
     Policy Engine in a chain will fetch its graph from the Graph Builder and the
     last Policy Engine in a chain will serve the modified graph to the client.
 
-    A **Cincinnati client** is the end consumer of the release payloads. The
+    A **UpdateService client** is the end consumer of the release payloads. The
     client periodically queries the Policy Engine for updates and applys them if
     available.
 
-    # Query OpenShift's Cincinnati Endpoint
+    # Query OpenShift's UpdateService Endpoint
     $ curl --silent --header 'Accept:application/json' 'https://api.openshift.com/api/upgrades_info/v1/graph?arch=amd64&channel=stable-4.2' | jq '. as $graph | $graph.nodes | map(.version == "4.2.13") | index(true) as $orig | $graph.edges | map(select(.[0] == $orig)[1]) | map($graph.nodes[.])'
 
-  displayName: Cincinnati Operator
+  displayName: UpdateService Operator
   icon:
   - base64data: PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTQ1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZpbGw6I2UwMDt9PC9zdHlsZT48L2RlZnM+PHRpdGxlPlJlZEhhdC1Mb2dvLUhhdC1Db2xvcjwvdGl0bGU+PHBhdGggZD0iTTE1Ny43Nyw2Mi42MWExNCwxNCwwLDAsMSwuMzEsMy40MmMwLDE0Ljg4LTE4LjEsMTcuNDYtMzAuNjEsMTcuNDZDNzguODMsODMuNDksNDIuNTMsNTMuMjYsNDIuNTMsNDRhNi40Myw2LjQzLDAsMCwxLC4yMi0xLjk0bC0zLjY2LDkuMDZhMTguNDUsMTguNDUsMCwwLDAtMS41MSw3LjMzYzAsMTguMTEsNDEsNDUuNDgsODcuNzQsNDUuNDgsMjAuNjksMCwzNi40My03Ljc2LDM2LjQzLTIxLjc3LDAtMS4wOCwwLTEuOTQtMS43My0xMC4xM1oiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xMjcuNDcsODMuNDljMTIuNTEsMCwzMC42MS0yLjU4LDMwLjYxLTE3LjQ2YTE0LDE0LDAsMCwwLS4zMS0zLjQybC03LjQ1LTMyLjM2Yy0xLjcyLTcuMTItMy4yMy0xMC4zNS0xNS43My0xNi42QzEyNC44OSw4LjY5LDEwMy43Ni41LDk3LjUxLjUsOTEuNjkuNSw5MCw4LDgzLjA2LDhjLTYuNjgsMC0xMS42NC01LjYtMTcuODktNS42LTYsMC05LjkxLDQuMDktMTIuOTMsMTIuNSwwLDAtOC40MSwyMy43Mi05LjQ5LDI3LjE2QTYuNDMsNi40MywwLDAsMCw0Mi41Myw0NGMwLDkuMjIsMzYuMywzOS40NSw4NC45NCwzOS40NU0xNjAsNzIuMDdjMS43Myw4LjE5LDEuNzMsOS4wNSwxLjczLDEwLjEzLDAsMTQtMTUuNzQsMjEuNzctMzYuNDMsMjEuNzdDNzguNTQsMTA0LDM3LjU4LDc2LjYsMzcuNTgsNTguNDlhMTguNDUsMTguNDUsMCwwLDEsMS41MS03LjMzQzIyLjI3LDUyLC41LDU1LC41LDc0LjIyYzAsMzEuNDgsNzQuNTksNzAuMjgsMTMzLjY1LDcwLjI4LDQ1LjI4LDAsNTYuNy0yMC40OCw1Ni43LTM2LjY1LDAtMTIuNzItMTEtMjcuMTYtMzAuODMtMzUuNzgiLz48L3N2Zz4=
     mediatype: image/svg+xml
   install:
     spec:
       deployments:
-      - name: cincinnati-operator
+      - name: updateservice-operator
         spec:
           replicas: 1
           selector:
             matchLabels:
-              name: cincinnati-operator
+              name: updateservice-operator
           strategy: {}
           template:
             metadata:
               labels:
-                name: cincinnati-operator
+                name: updateservice-operator
             spec:
               containers:
               - command:
-                - cincinnati-operator
+                - updateservice-operator
                 env:
                 - name: WATCH_NAMESPACE
                   value: ""
@@ -96,14 +96,14 @@ spec:
                     fieldRef:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
-                  value: cincinnati-operator
+                  value: updateservice-operator
                 - name: OPERAND_IMAGE
-                  value: quay.io/cincinnati/cincinnati:latest
-                image: quay.io/cincinnati/cincinnati-operator:latest
+                  value: quay.io/updateservice/updateservice:latest
+                image: quay.io/updateservice/updateservice-operator:latest
                 imagePullPolicy: Always
-                name: cincinnati-operator
+                name: updateservice-operator
                 resources: {}
-              serviceAccountName: cincinnati-operator
+              serviceAccountName: updateservice-operator
       clusterPermissions:
       - rules:
         - apiGroups:
@@ -169,7 +169,7 @@ spec:
         - apiGroups:
           - apps
           resourceNames:
-          - cincinnati-operator
+          - updateservice-operator
           resources:
           - deployments/finalizers
           verbs:
@@ -200,7 +200,7 @@ spec:
           - update
           - watch
         - apiGroups:
-          - cincinnati.openshift.io
+          - updateservice.operator.openshift.io
           resources:
           - '*'
           verbs:
@@ -211,7 +211,7 @@ spec:
           - patch
           - update
           - watch
-        serviceAccountName: cincinnati-operator
+        serviceAccountName: updateservice-operator
       permissions:
       - rules:
         - apiGroups:
@@ -258,7 +258,7 @@ spec:
         - apiGroups:
           - apps
           resourceNames:
-          - cincinnati-operator
+          - updateservice-operator
           resources:
           - deployments/finalizers
           verbs:
@@ -289,7 +289,7 @@ spec:
           - update
           - watch
         - apiGroups:
-          - cincinnati.openshift.io
+          - updateservice.operator.openshift.io
           resources:
           - '*'
           verbs:
@@ -300,7 +300,7 @@ spec:
           - patch
           - update
           - watch
-        serviceAccountName: cincinnati-operator
+        serviceAccountName: updateservice-operator
     strategy: deployment
   installModes:
   - supported: true
@@ -312,19 +312,19 @@ spec:
   - supported: true
     type: AllNamespaces
   keywords:
-  - Cincinnati
+  - UpdateService
   - Updates
   maintainers:
   - email: lmohanty@redhat.com
-    name: Cincinnati maintainers
+    name: UpdateService maintainers
   links:
-  - name: Cincinnati
-    url: https://github.com/openshift/cincinnati
-  - name: Cincinnati Operator
-    url: https://github.com/openshift/cincinnati-operator
+  - name: UpdateService
+    url: https://github.com/openshift/updateservice
+  - name: UpdateService Operator
+    url: https://github.com/openshift/updateservice-operator
   - name: OpenShift Graph Data
-    url: https://github.com/openshift/cincinnati-graph-data/
+    url: https://github.com/openshift/updateservice-graph-data/
   maturity: alpha
   provider:
-    name: Cincinnati maintainers
-  version: 0.0.1
+    name: UpdateService maintainers
+  version: 1.0.0

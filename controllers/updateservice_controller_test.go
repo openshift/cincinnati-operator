@@ -8,7 +8,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	cv1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
+	cv1 "github.com/openshift/cincinnati-operator/api/v1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/stretchr/testify/assert"
@@ -27,22 +27,22 @@ import (
 )
 
 const (
-	testName                 = "foo"
-	testNamespace            = "bar"
-	testCincinnatiKind       = "testKind"
-	testCincinnatiAPIVersion = "testAPIVersion"
-	testOperandImage         = "testOperandImage"
-	testReplicas             = 1
-	testRegistry             = "testRegistry"
-	testRepository           = "testRepository"
-	testGraphDataImage       = "testGraphDataImage"
-	testConfigMap            = "testConfigMap"
+	testName                    = "foo"
+	testNamespace               = "bar"
+	testUpdateServiceKind       = "testKind"
+	testUpdateServiceAPIVersion = "testAPIVersion"
+	testOperandImage            = "testOperandImage"
+	testReplicas                = 1
+	testRegistry                = "testRegistry"
+	testRepository              = "testRepository"
+	testGraphDataImage          = "testGraphDataImage"
+	testConfigMap               = "testConfigMap"
 )
 
-var _ reconcile.Reconciler = &CincinnatiReconciler{}
+var _ reconcile.Reconciler = &UpdateServiceReconciler{}
 
 func TestMain(m *testing.M) {
-	if err := cv1beta1.AddToScheme(scheme.Scheme); err != nil {
+	if err := cv1.AddToScheme(scheme.Scheme); err != nil {
 		log.Error(err, "Failed adding apis to scheme")
 		os.Exit(1)
 	}
@@ -69,16 +69,16 @@ func TestReconcile(t *testing.T) {
 		{
 			name: "Reconcile",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 			},
 			expectedConditions: []conditionsv1.Condition{
 				{
-					Type:   cv1beta1.ConditionReconcileCompleted,
+					Type:   cv1.ConditionReconcileCompleted,
 					Status: corev1.ConditionTrue,
 				},
 				{
-					Type:   cv1beta1.ConditionRegistryCACertFound,
+					Type:   cv1.ConditionRegistryCACertFound,
 					Status: corev1.ConditionFalse,
 				},
 			},
@@ -87,13 +87,13 @@ func TestReconcile(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			r := newTestReconciler(test.existingObjs...)
-			request := newRequest(newDefaultCincinnati())
+			request := newRequest(newDefaultUpdateService())
 
 			_, err := r.Reconcile(request)
 			if err != nil {
 				t.Fatal(err)
 			}
-			instance := &cv1beta1.Cincinnati{}
+			instance := &cv1.UpdateService{}
 			err = r.Client.Get(context.TODO(), request.NamespacedName, instance)
 			if err != nil {
 				t.Fatal(err)
@@ -105,40 +105,40 @@ func TestReconcile(t *testing.T) {
 
 func TestEnsureConfig(t *testing.T) {
 	pullSecret := newSecret()
-	cincinnati := newDefaultCincinnati()
-	r := newTestReconciler(cincinnati)
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
-	err = r.ensureConfig(context.TODO(), log, cincinnati, resources)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	err = r.ensureConfig(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameConfig(cincinnati), Namespace: cincinnati.Namespace}, found)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameConfig(updateservice), Namespace: updateservice.Namespace}, found)
 	if err != nil {
 		t.Fatal(err)
 	}
-	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
-	// TODO: check that the gb.toml is corrently rendered with cincinnati.Spec
+	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	// TODO: check that the gb.toml is corrently rendered with updateservice.Spec
 	assert.NotEmpty(t, found.Data["gb.toml"])
 }
 
 func TestEnsureEnvConfig(t *testing.T) {
 	pullSecret := newSecret()
-	cincinnati := newDefaultCincinnati()
-	r := newTestReconciler(cincinnati)
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
-	err = r.ensureEnvConfig(context.TODO(), log, cincinnati, resources)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	err = r.ensureEnvConfig(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := &corev1.ConfigMap{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameEnvConfig(cincinnati), Namespace: cincinnati.Namespace}, found)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameEnvConfig(updateservice), Namespace: updateservice.Namespace}, found)
 	if err != nil {
 		t.Fatal(err)
 	}
-	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
+	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
 	assert.NotEmpty(t, found.Data["pe.upstream"])
 }
 
@@ -152,29 +152,29 @@ func TestEnsurePullSecret(t *testing.T) {
 		{
 			name: "NoSecret",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 			},
 			expectedError: fmt.Errorf("secrets \"%v\" not found", namePullSecret),
 		},
 		{
 			name: "SecretCreate",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 			},
 			expectedSecret: func() *corev1.Secret {
 				localSecret := newSecret()
-				localSecret.Namespace = newDefaultCincinnati().Namespace
+				localSecret.Namespace = newDefaultUpdateService().Namespace
 				return localSecret
 			}(),
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cincinnati := newDefaultCincinnati()
+			updateservice := newDefaultUpdateService()
 			r := newTestReconciler(test.existingObjs...)
 
-			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
+			ps, err := r.findPullSecret(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
@@ -183,23 +183,23 @@ func TestEnsurePullSecret(t *testing.T) {
 				return
 			}
 
-			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
 
 			if !errors.IsNotFound(err) {
-				err = r.ensurePullSecret(context.TODO(), log, cincinnati, resources)
+				err = r.ensurePullSecret(context.TODO(), log, updateservice, resources)
 			}
 			found := &corev1.Secret{}
-			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePullSecret, Namespace: cincinnati.Namespace}, found)
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePullSecret, Namespace: updateservice.Namespace}, found)
 			if err != nil {
 				assert.Error(t, err)
 				assert.Empty(t, found)
 			} else {
-				verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
+				verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
 				assert.Equal(t, found.Data, test.expectedSecret.Data)
 			}
 		})
@@ -216,14 +216,14 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 		{
 			name: "NoImage",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 			},
 		},
 		{
 			name: "NoAdditionalTrustedCAName",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 				func() *configv1.Image {
 					image := newImage()
@@ -235,7 +235,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 		{
 			name: "NoConfigMap",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 				newImage(),
 			},
@@ -244,21 +244,21 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 		{
 			name: "NoConfigMapKey",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 				newImage(),
 				newConfigMap(),
 			},
 			expectedConfigMap: func() *corev1.ConfigMap {
 				localConfigMap := newConfigMap()
-				localConfigMap.Namespace = newDefaultCincinnati().Namespace
+				localConfigMap.Namespace = newDefaultUpdateService().Namespace
 				return localConfigMap
 			}(),
 		},
 		{
 			name: "ConfigMapCreate",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 				newImage(),
 				func() *corev1.ConfigMap {
@@ -269,7 +269,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 			},
 			expectedConfigMap: func() *corev1.ConfigMap {
 				localConfigMap := newConfigMap()
-				localConfigMap.Namespace = newDefaultCincinnati().Namespace
+				localConfigMap.Namespace = newDefaultUpdateService().Namespace
 				localConfigMap.Data[NameCertConfigMapKey] = "some random text"
 				return localConfigMap
 			}(),
@@ -277,15 +277,15 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cincinnati := newDefaultCincinnati()
+			updateservice := newDefaultUpdateService()
 			r := newTestReconciler(test.existingObjs...)
 
-			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
+			ps, err := r.findPullSecret(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
@@ -294,17 +294,17 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 				return
 			}
 
-			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
 
-			err = r.ensureAdditionalTrustedCA(context.TODO(), log, cincinnati, resources)
+			err = r.ensureAdditionalTrustedCA(context.TODO(), log, updateservice, resources)
 
 			found := &corev1.ConfigMap{}
-			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameAdditionalTrustedCA(cincinnati), Namespace: cincinnati.Namespace}, found)
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameAdditionalTrustedCA(updateservice), Namespace: updateservice.Namespace}, found)
 			if err != nil {
 				assert.Error(t, err)
 				assert.Empty(t, found)
 			} else {
-				verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
+				verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
 				assert.Equal(t, found.Data, test.expectedConfigMap.Data)
 			}
 		})
@@ -320,7 +320,7 @@ func TestEnsureDeployment(t *testing.T) {
 		{
 			name: "EnsureDeployment",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 			},
 			caCert: false,
@@ -328,10 +328,10 @@ func TestEnsureDeployment(t *testing.T) {
 		{
 			name: "EnsureDeploymentWithGraphDataImage",
 			existingObjs: []runtime.Object{
-				func() *cv1beta1.Cincinnati {
-					cincinnati := newDefaultCincinnati()
-					cincinnati.Spec.GraphDataImage = testGraphDataImage
-					return cincinnati
+				func() *cv1.UpdateService {
+					updateservice := newDefaultUpdateService()
+					updateservice.Spec.GraphDataImage = testGraphDataImage
+					return updateservice
 				}(),
 				newSecret(),
 			},
@@ -340,7 +340,7 @@ func TestEnsureDeployment(t *testing.T) {
 		{
 			name: "EnsureDeploymentWithCaCert",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 				newImage(),
 				func() *corev1.ConfigMap {
@@ -354,38 +354,38 @@ func TestEnsureDeployment(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cincinnati := newDefaultCincinnati()
+			updateservice := newDefaultUpdateService()
 			r := newTestReconciler(test.existingObjs...)
 
-			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
+			ps, err := r.findPullSecret(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
 
-			err = r.ensureDeployment(context.TODO(), log, cincinnati, resources)
+			err = r.ensureDeployment(context.TODO(), log, updateservice, resources)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			found := &appsv1.Deployment{}
-			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameDeployment(cincinnati), Namespace: cincinnati.Namespace}, found)
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameDeployment(updateservice), Namespace: updateservice.Namespace}, found)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
-			assert.Equal(t, found.Spec.Selector.MatchLabels["app"], nameDeployment(cincinnati))
-			assert.Equal(t, found.Spec.Replicas, &cincinnati.Spec.Replicas)
+			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+			assert.Equal(t, found.Spec.Selector.MatchLabels["app"], nameDeployment(updateservice))
+			assert.Equal(t, found.Spec.Replicas, &updateservice.Spec.Replicas)
 
 			assert.Equal(t, found.Spec.Template.Spec.Volumes[0].Name, "configs")
-			assert.Equal(t, found.Spec.Template.Spec.Volumes[1].Name, "cincinnati-graph-data")
+			assert.Equal(t, found.Spec.Template.Spec.Volumes[1].Name, "updateservice-graph-data")
 
 			assert.Equal(t, found.Spec.Template.Spec.Containers[0].Name, resources.graphBuilderContainer.Name)
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Image, resources.graphBuilderContainer.Image)
@@ -407,46 +407,46 @@ func TestEnsureDeployment(t *testing.T) {
 
 func TestEnsureGraphBuilderService(t *testing.T) {
 	pullSecret := newSecret()
-	cincinnati := newDefaultCincinnati()
-	r := newTestReconciler(cincinnati)
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
-	err = r.ensureGraphBuilderService(context.TODO(), log, cincinnati, resources)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	err = r.ensureGraphBuilderService(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	found := &corev1.Service{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameGraphBuilderService(cincinnati), Namespace: cincinnati.Namespace}, found)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameGraphBuilderService(updateservice), Namespace: updateservice.Namespace}, found)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
-	assert.Equal(t, found.ObjectMeta.Labels["app"], nameGraphBuilderService(cincinnati))
-	assert.Equal(t, found.Spec.Selector["deployment"], nameDeployment(cincinnati))
+	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	assert.Equal(t, found.ObjectMeta.Labels["app"], nameGraphBuilderService(updateservice))
+	assert.Equal(t, found.Spec.Selector["deployment"], nameDeployment(updateservice))
 }
 
 func TestEnsurePolicyEngineService(t *testing.T) {
 	pullSecret := newSecret()
-	cincinnati := newDefaultCincinnati()
-	r := newTestReconciler(cincinnati)
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(cincinnati, testOperandImage, pullSecret, nil)
-	err = r.ensurePolicyEngineService(context.TODO(), log, cincinnati, resources)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	err = r.ensurePolicyEngineService(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	found := &corev1.Service{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePolicyEngineService(cincinnati), Namespace: cincinnati.Namespace}, found)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePolicyEngineService(updateservice), Namespace: updateservice.Namespace}, found)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
-	assert.Equal(t, found.ObjectMeta.Labels["app"], namePolicyEngineService(cincinnati))
-	assert.Equal(t, found.Spec.Selector["deployment"], nameDeployment(cincinnati))
+	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	assert.Equal(t, found.ObjectMeta.Labels["app"], namePolicyEngineService(updateservice))
+	assert.Equal(t, found.Spec.Selector["deployment"], nameDeployment(updateservice))
 }
 
 func TestEnsurePodDisruptionBudget(t *testing.T) {
@@ -457,17 +457,17 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 		{
 			name: "EnsurePodDisruptionBudgetReplicas1",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 			},
 		},
 		{
 			name: "EnsurePodDisruptionBudgetReplicas10",
 			existingObjs: []runtime.Object{
-				func() *cv1beta1.Cincinnati {
-					cincinnati := newDefaultCincinnati()
-					cincinnati.Spec.Replicas = 10
-					return cincinnati
+				func() *cv1.UpdateService {
+					updateservice := newDefaultUpdateService()
+					updateservice.Spec.Replicas = 10
+					return updateservice
 				}(),
 				newSecret(),
 			},
@@ -477,8 +477,8 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			r := newTestReconciler(test.existingObjs...)
 
-			cincinnati := &cv1beta1.Cincinnati{}
-			err := r.Client.Get(context.TODO(), types.NamespacedName{Name: testName, Namespace: testNamespace}, cincinnati)
+			updateservice := &cv1.UpdateService{}
+			err := r.Client.Get(context.TODO(), types.NamespacedName{Name: testName, Namespace: testNamespace}, updateservice)
 			if err != nil {
 				if errors.IsNotFound(err) {
 					assert.Error(t, err)
@@ -486,32 +486,32 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 				assert.Error(t, err)
 			}
 
-			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
+			ps, err := r.findPullSecret(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
-			err = r.ensurePodDisruptionBudget(context.TODO(), log, cincinnati, resources)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
+			err = r.ensurePodDisruptionBudget(context.TODO(), log, updateservice, resources)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			found := &policyv1beta1.PodDisruptionBudget{}
-			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePodDisruptionBudget(cincinnati), Namespace: cincinnati.Namespace}, found)
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePodDisruptionBudget(updateservice), Namespace: updateservice.Namespace}, found)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
-			assert.Equal(t, found.Spec.Selector.MatchLabels["app"], nameDeployment(cincinnati))
+			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+			assert.Equal(t, found.Spec.Selector.MatchLabels["app"], nameDeployment(updateservice))
 
-			minAvailable := getMinAvailablePBD(cincinnati)
+			minAvailable := getMinAvailablePBD(updateservice)
 			assert.Equal(t, found.Spec.MinAvailable, &minAvailable)
 		})
 	}
@@ -525,7 +525,7 @@ func TestEnsurePolicyEngineRoute(t *testing.T) {
 		{
 			name: "EnsurePolicyEngineRoute",
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newSecret(),
 			},
 		},
@@ -533,67 +533,67 @@ func TestEnsurePolicyEngineRoute(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cincinnati := newDefaultCincinnati()
+			updateservice := newDefaultUpdateService()
 			r := newTestReconciler(test.existingObjs...)
 
-			ps, err := r.findPullSecret(context.TODO(), log, cincinnati)
+			ps, err := r.findPullSecret(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			cm, err := r.findTrustedCAConfig(context.TODO(), log, cincinnati)
+			cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
 			if err != nil {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(cincinnati, testOperandImage, ps, cm)
-			err = r.ensurePolicyEngineRoute(context.TODO(), log, cincinnati, resources)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
+			err = r.ensurePolicyEngineRoute(context.TODO(), log, updateservice, resources)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			found := &routev1.Route{}
-			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePolicyEngineRoute(cincinnati), Namespace: cincinnati.Namespace}, found)
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namePolicyEngineRoute(updateservice), Namespace: updateservice.Namespace}, found)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], cincinnati)
-			assert.Equal(t, found.ObjectMeta.Labels["app"], nameDeployment(cincinnati))
+			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+			assert.Equal(t, found.ObjectMeta.Labels["app"], nameDeployment(updateservice))
 			assert.Equal(t, found.Spec.To.Kind, "Service")
-			assert.Equal(t, found.Spec.To.Name, namePolicyEngineService(cincinnati))
+			assert.Equal(t, found.Spec.To.Name, namePolicyEngineService(updateservice))
 			assert.Equal(t, found.Spec.Port.TargetPort, intstr.FromString("policy-engine"))
 		})
 	}
 }
 
-func newRequest(cincinnati *cv1beta1.Cincinnati) reconcile.Request {
+func newRequest(updateservice *cv1.UpdateService) reconcile.Request {
 	namespacedName := types.NamespacedName{
-		Namespace: cincinnati.ObjectMeta.Namespace,
-		Name:      cincinnati.ObjectMeta.Name,
+		Namespace: updateservice.ObjectMeta.Namespace,
+		Name:      updateservice.ObjectMeta.Name,
 	}
 	return reconcile.Request{NamespacedName: namespacedName}
 }
 
-func newTestReconciler(initObjs ...runtime.Object) *CincinnatiReconciler {
+func newTestReconciler(initObjs ...runtime.Object) *UpdateServiceReconciler {
 	c := fake.NewFakeClientWithScheme(scheme.Scheme, initObjs...)
-	return &CincinnatiReconciler{
+	return &UpdateServiceReconciler{
 		Client: c,
 		Scheme: scheme.Scheme,
 	}
 }
 
-func newDefaultCincinnati() *cv1beta1.Cincinnati {
-	return &cv1beta1.Cincinnati{
+func newDefaultUpdateService() *cv1.UpdateService {
+	return &cv1.UpdateService{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       testCincinnatiKind,
-			APIVersion: testCincinnatiAPIVersion,
+			Kind:       testUpdateServiceKind,
+			APIVersion: testUpdateServiceAPIVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testName,
 			Namespace: testNamespace,
 		},
-		Spec: cv1beta1.CincinnatiSpec{
+		Spec: cv1.UpdateServiceSpec{
 			Replicas:       testReplicas,
 			Registry:       testRegistry,
 			Repository:     testRepository,
@@ -639,18 +639,18 @@ func newSecret() *corev1.Secret {
 	}
 }
 
-func verifyConditions(t *testing.T, expectedConditions []conditionsv1.Condition, cincinnati *cv1beta1.Cincinnati) {
+func verifyConditions(t *testing.T, expectedConditions []conditionsv1.Condition, updateservice *cv1.UpdateService) {
 	for _, condition := range expectedConditions {
-		assert.True(t, conditionsv1.IsStatusConditionPresentAndEqual(cincinnati.Status.Conditions, condition.Type, condition.Status))
+		assert.True(t, conditionsv1.IsStatusConditionPresentAndEqual(updateservice.Status.Conditions, condition.Type, condition.Status))
 	}
-	assert.Equal(t, len(expectedConditions), len(cincinnati.Status.Conditions))
+	assert.Equal(t, len(expectedConditions), len(updateservice.Status.Conditions))
 }
 
-func verifyOwnerReference(t *testing.T, ownerReference metav1.OwnerReference, cincinnati *cv1beta1.Cincinnati) {
-	assert.Equal(t, ownerReference.Name, cincinnati.Name)
+func verifyOwnerReference(t *testing.T, ownerReference metav1.OwnerReference, updateservice *cv1.UpdateService) {
+	assert.Equal(t, ownerReference.Name, updateservice.Name)
 	//Note: These properties seem to be derived from runtime object and do not seem to match the expected values.
-	//assert.Equal(t, ownerReference.Kind, cincinnati.Kind)
-	//assert.Equal(t, ownerReference.APIVersion, cincinnati.APIVersion)
+	//assert.Equal(t, ownerReference.Kind, updateservice.Kind)
+	//assert.Equal(t, ownerReference.APIVersion, updateservice.APIVersion)
 }
 
 func verifyError(t *testing.T, err error, expectedError error) bool {

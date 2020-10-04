@@ -1,24 +1,24 @@
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: cincinnati-operator
+  name: updateservice-operator
 subjects:
 - kind: ServiceAccount
-  name: cincinnati-operator
+  name: updateservice-operator
 roleRef:
   kind: Role
-  name: cincinnati-operator
+  name: updateservice-operator
   apiGroup: rbac.authorization.k8s.io
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: cincinnati-operator
+  name: updateservice-operator
 subjects:
 - kind: ServiceAccount
-  name: cincinnati-operator
-  namespace: cincinnati-operator
+  name: updateservice-operator
+  namespace: updateservice-operator
 roleRef:
   kind: ClusterRole
-  name: cincinnati-operator
+  name: updateservice-operator
   apiGroup: rbac.authorization.k8s.io

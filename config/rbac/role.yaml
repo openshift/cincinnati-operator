@@ -4,7 +4,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: cincinnati-operator
+  name: updateservice-operator
 rules:
 - apiGroups:
   - ""
@@ -56,13 +56,13 @@ rules:
 - apiGroups:
   - apps
   resourceNames:
-  - cincinnati-operator
+  - updateservice-operator
   resources:
   - deployments/finalizers
   verbs:
   - update
 - apiGroups:
-  - cincinnati.openshift.io
+  - updateservice.operator.openshift.io
   resources:
   - '*'
   verbs:
@@ -117,8 +117,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   creationTimestamp: null
-  name: cincinnati-operator
-  namespace: cincinnati-operator
+  name: updateservice-operator
+  namespace: updateservice-operator
 rules:
 - apiGroups:
   - ""
@@ -170,13 +170,13 @@ rules:
 - apiGroups:
   - apps
   resourceNames:
-  - cincinnati-operator
+  - updateservice-operator
   resources:
   - deployments/finalizers
   verbs:
   - update
 - apiGroups:
-  - cincinnati.openshift.io
+  - updateservice.operator.openshift.io
   resources:
   - '*'
   verbs:

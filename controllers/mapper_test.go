@@ -31,7 +31,7 @@ func TestMap(t *testing.T) {
 				},
 			},
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 			},
 			expectedRequests: []reconcile.Request{},
 		},
@@ -44,7 +44,7 @@ func TestMap(t *testing.T) {
 				},
 			},
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 			},
 			expectedRequests: []reconcile.Request{},
 		},
@@ -57,7 +57,7 @@ func TestMap(t *testing.T) {
 				},
 			},
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 			},
 			expectedRequests: []reconcile.Request{},
 		},
@@ -70,13 +70,13 @@ func TestMap(t *testing.T) {
 				},
 			},
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 			},
 			expectedRequests: []reconcile.Request{
 				{
 					NamespacedName: types.NamespacedName{
-						Name:      newDefaultCincinnati().Name,
-						Namespace: newDefaultCincinnati().Namespace,
+						Name:      newDefaultUpdateService().Name,
+						Namespace: newDefaultUpdateService().Namespace,
 					},
 				},
 			},
@@ -90,7 +90,7 @@ func TestMap(t *testing.T) {
 				},
 			},
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 			},
 			expectedRequests: []reconcile.Request{},
 		},
@@ -103,14 +103,14 @@ func TestMap(t *testing.T) {
 				},
 			},
 			existingObjs: []runtime.Object{
-				newDefaultCincinnati(),
+				newDefaultUpdateService(),
 				newImage(),
 			},
 			expectedRequests: []reconcile.Request{
 				{
 					NamespacedName: types.NamespacedName{
-						Name:      newDefaultCincinnati().Name,
-						Namespace: newDefaultCincinnati().Namespace,
+						Name:      newDefaultUpdateService().Name,
+						Namespace: newDefaultUpdateService().Namespace,
 					},
 				},
 			},

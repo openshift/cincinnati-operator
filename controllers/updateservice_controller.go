@@ -27,12 +27,11 @@ import (
 
 	apicfgv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	cv1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
+	cv1 "github.com/openshift/cincinnati-operator/api/v1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
-	//cincinnativ1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
 )
 
-var log = logf.Log.WithName("controller_cincinnati")
+var log = logf.Log.WithName("controller_updateservice")
 
 // Options holds settings for the reconciler
 type Options struct {
@@ -40,7 +39,7 @@ type Options struct {
 	OperandImage string
 }
 
-// Add creates a new Cincinnati Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new UpdateService Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, options Options) error {
 	return add(mgr, newReconciler(mgr, options))
@@ -48,7 +47,7 @@ func Add(mgr manager.Manager, options Options) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, options Options) reconcile.Reconciler {
-	return &CincinnatiReconciler{
+	return &UpdateServiceReconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
 		operandImage: options.OperandImage,
@@ -58,19 +57,19 @@ func newReconciler(mgr manager.Manager, options Options) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("cincinnati-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("updateservice-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to set metrics
-	err = c.Watch(&source.Kind{Type: &cv1beta1.Cincinnati{}}, &ophandler.InstrumentedEnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &cv1.UpdateService{}}, &ophandler.InstrumentedEnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to primary resource Cincinnati
-	err = c.Watch(&source.Kind{Type: &cv1beta1.Cincinnati{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to primary resource UpdateService
+	err = c.Watch(&source.Kind{Type: &cv1.UpdateService{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -85,7 +84,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	} {
 		err = c.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForOwner{
 			IsController: true,
-			OwnerType:    &cv1beta1.Cincinnati{},
+			OwnerType:    &cv1.UpdateService{},
 		})
 		if err != nil {
 			return err
@@ -130,25 +129,25 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// blank assignment to verify that ReconcileCincinnati implements reconcile.Reconciler
-var _ reconcile.Reconciler = &CincinnatiReconciler{}
+// blank assignment to verify that ReconcileUpdateService implements reconcile.Reconciler
+var _ reconcile.Reconciler = &UpdateServiceReconciler{}
 
-// CincinnatiReconciler reconciles a Cincinnati object
-type CincinnatiReconciler struct {
+// UpdateServiceReconciler reconciles a UpdateService object
+type UpdateServiceReconciler struct {
 	Client client.Client
 	//Log          logr.Logger
 	Scheme       *runtime.Scheme
 	operandImage string
 }
 
-// +kubebuilder:rbac:groups="",namespace="cincinnati-operator",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups="apps",namespace="cincinnati-operator",resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups="monitoring.coreos.com",namespace="cincinnati-operator",resources=servicemonitors,verbs=create;get
-// +kubebuilder:rbac:groups="apps",namespace="cincinnati-operator",resourceNames=cincinnati-operator,resources=deployments/finalizers,verbs=update
-// +kubebuilder:rbac:groups="",namespace="cincinnati-operator",resources=pods,verbs=get
-// +kubebuilder:rbac:groups="apps",namespace="cincinnati-operator",resources=replicasets;deployments,verbs=get
-// +kubebuilder:rbac:groups="policy",namespace="cincinnati-operator",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups=cincinnati.openshift.io,namespace="cincinnati-operator",resources=*,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",namespace="updateservice-operator",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="apps",namespace="updateservice-operator",resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="monitoring.coreos.com",namespace="updateservice-operator",resources=servicemonitors,verbs=create;get
+// +kubebuilder:rbac:groups="apps",namespace="updateservice-operator",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups="",namespace="updateservice-operator",resources=pods,verbs=get
+// +kubebuilder:rbac:groups="apps",namespace="updateservice-operator",resources=replicasets;deployments,verbs=get
+// +kubebuilder:rbac:groups="policy",namespace="updateservice-operator",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups=updateservice.operator.openshift.io,namespace="updateservice-operator",resources=*,verbs=create;delete;get;list;patch;update;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=images,verbs=get;list;watch
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch
 // +kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
@@ -156,11 +155,11 @@ type CincinnatiReconciler struct {
 // +kubebuilder:rbac:groups="apps",resources=replicasets;deployments,verbs=get
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=create;get
-// +kubebuilder:rbac:groups="apps",resourceNames=cincinnati-operator,resources=deployments/finalizers,verbs=update
+// +kubebuilder:rbac:groups="apps",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update
 // +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups=cincinnati.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
 
-func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *UpdateServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	/*    **Reconcile Pattern**
 	      1. Gather conditions
 	      2. Create all the kubeResources
@@ -169,10 +168,10 @@ func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 
 	ctx := context.TODO()
 	reqLogger := log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling Cincinnati")
+	reqLogger.Info("Reconciling UpdateService")
 
-	// Fetch the Cincinnati instance
-	instance := &cv1beta1.Cincinnati{}
+	// Fetch the UpdateService instance
+	instance := &cv1.UpdateService{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -185,7 +184,7 @@ func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	instanceCopy := instance.DeepCopy()
-	instanceCopy.Status = cv1beta1.CincinnatiStatus{}
+	instanceCopy.Status = cv1.UpdateServiceStatus{}
 
 	// 1. Gather conditions
 	//    Look at the existing cluster resources and communicate to kubeResources
@@ -215,7 +214,7 @@ func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	}
 
 	conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
-		Type:    cv1beta1.ConditionReconcileCompleted,
+		Type:    cv1.ConditionReconcileCompleted,
 		Status:  corev1.ConditionFalse,
 		Reason:  "Reconcile started",
 		Message: "",
@@ -224,7 +223,7 @@ func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	// 3. Ensure all the kubeResources are correct in the Cluster
 	//    The ensure functions will compare the expected resources with the actual
 	//    resources and work towards making actual = expected.
-	for _, f := range []func(context.Context, logr.Logger, *cv1beta1.Cincinnati, *kubeResources) error{
+	for _, f := range []func(context.Context, logr.Logger, *cv1.UpdateService, *kubeResources) error{
 		r.ensureConfig,
 		r.ensurePullSecret,
 		r.ensureEnvConfig,
@@ -248,7 +247,7 @@ func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	// appropriate.
 	if err == nil {
 		conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
-			Type:    cv1beta1.ConditionReconcileCompleted,
+			Type:    cv1.ConditionReconcileCompleted,
 			Status:  corev1.ConditionTrue,
 			Reason:  "Success",
 			Message: "",
@@ -263,9 +262,9 @@ func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 }
 
 // handleErr logs the error and sets an appropriate Condition on the status.
-func handleErr(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus, reason string, e error) {
+func handleErr(reqLogger logr.Logger, status *cv1.UpdateServiceStatus, reason string, e error) {
 	conditionsv1.SetStatusCondition(&status.Conditions, conditionsv1.Condition{
-		Type:    cv1beta1.ConditionReconcileCompleted,
+		Type:    cv1.ConditionReconcileCompleted,
 		Status:  corev1.ConditionFalse,
 		Reason:  reason,
 		Message: e.Error(),
@@ -274,9 +273,9 @@ func handleErr(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus, reason 
 }
 
 // handleCACertStatus logs the message and sets an appropriate Condition on the ConditionRegistryCACertFound status.
-func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus, reason string, message string) {
+func handleCACertStatus(reqLogger logr.Logger, status *cv1.UpdateServiceStatus, reason string, message string) {
 	conditionsv1.SetStatusCondition(&status.Conditions, conditionsv1.Condition{
-		Type:    cv1beta1.ConditionRegistryCACertFound,
+		Type:    cv1.ConditionRegistryCACertFound,
 		Status:  corev1.ConditionFalse,
 		Reason:  reason,
 		Message: message,
@@ -285,7 +284,7 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1beta1.CincinnatiStatus
 }
 
 // findPullSecet - Locate the PullSecrt in openshift-config and return it
-func (r *CincinnatiReconciler) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati) (*corev1.Secret, error) {
+func (r *UpdateServiceReconciler) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (*corev1.Secret, error) {
 	sourcePS := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: namePullSecret, Namespace: openshiftConfigNamespace}, sourcePS)
 	if err != nil && errors.IsNotFound(err) {
@@ -298,7 +297,7 @@ func (r *CincinnatiReconciler) findPullSecret(ctx context.Context, reqLogger log
 }
 
 // findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
-func (r *CincinnatiReconciler) findTrustedCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati) (*corev1.ConfigMap, error) {
+func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (*corev1.ConfigMap, error) {
 
 	// Check if the Cluster is aware of a registry requiring an
 	// AdditionalTrustedCA
@@ -330,7 +329,7 @@ func (r *CincinnatiReconciler) findTrustedCAConfig(ctx context.Context, reqLogge
 	}
 
 	if _, ok := sourceCM.Data[NameCertConfigMapKey]; !ok {
-		m := fmt.Sprintf("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
+		m := fmt.Sprintf("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'updateservice-registry' for registry CA cert in ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
 		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
 		return nil, nil
 	}
@@ -338,12 +337,12 @@ func (r *CincinnatiReconciler) findTrustedCAConfig(ctx context.Context, reqLogge
 	return sourceCM, nil
 }
 
-func (r *CincinnatiReconciler) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	if resources.pullSecret == nil {
 		return nil
 	}
 
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, resources.pullSecret, r.Scheme); err != nil {
 		return err
 	}
@@ -356,21 +355,21 @@ func (r *CincinnatiReconciler) ensurePullSecret(ctx context.Context, reqLogger l
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	// Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name
-	// but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap
+	// but did not find key 'updateservice-registry' for registry CA cert in ConfigMap
 	if resources.trustedCAConfig == nil {
 		return nil
 	}
 
 	conditionsv1.SetStatusCondition(&instance.Status.Conditions, conditionsv1.Condition{
-		Type:    cv1beta1.ConditionRegistryCACertFound,
+		Type:    cv1.ConditionRegistryCACertFound,
 		Status:  corev1.ConditionTrue,
 		Reason:  "CACertFound",
 		Message: "",
 	})
 
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, resources.trustedCAConfig, r.Scheme); err != nil {
 		return err
 	}
@@ -382,7 +381,7 @@ func (r *CincinnatiReconciler) ensureAdditionalTrustedCA(ctx context.Context, re
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	deployment := resources.deployment
 	if err := controllerutil.SetControllerReference(instance, deployment, r.Scheme); err != nil {
 		return err
@@ -482,9 +481,9 @@ func (r *CincinnatiReconciler) ensureDeployment(ctx context.Context, reqLogger l
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensurePodDisruptionBudget(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensurePodDisruptionBudget(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	pdb := resources.podDisruptionBudget
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, pdb, r.Scheme); err != nil {
 		return err
 	}
@@ -517,9 +516,9 @@ func (r *CincinnatiReconciler) ensurePodDisruptionBudget(ctx context.Context, re
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensureConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	config := resources.graphBuilderConfig
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, config, r.Scheme); err != nil {
 		return err
 	}
@@ -531,9 +530,9 @@ func (r *CincinnatiReconciler) ensureConfig(ctx context.Context, reqLogger logr.
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureEnvConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensureEnvConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	config := resources.envConfig
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, config, r.Scheme); err != nil {
 		return err
 	}
@@ -545,9 +544,9 @@ func (r *CincinnatiReconciler) ensureEnvConfig(ctx context.Context, reqLogger lo
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureGraphBuilderService(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensureGraphBuilderService(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	service := resources.graphBuilderService
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.Scheme); err != nil {
 		return err
 	}
@@ -559,9 +558,9 @@ func (r *CincinnatiReconciler) ensureGraphBuilderService(ctx context.Context, re
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	service := resources.policyEngineService
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, service, r.Scheme); err != nil {
 		return err
 	}
@@ -573,9 +572,9 @@ func (r *CincinnatiReconciler) ensurePolicyEngineService(ctx context.Context, re
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1beta1.Cincinnati, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	route := resources.policyEngineRoute
-	// Set Cincinnati instance as the owner and controller
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, route, r.Scheme); err != nil {
 		return err
 	}
@@ -616,7 +615,7 @@ func (r *CincinnatiReconciler) ensurePolicyEngineRoute(ctx context.Context, reqL
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureService(ctx context.Context, reqLogger logr.Logger, service *corev1.Service) error {
+func (r *UpdateServiceReconciler) ensureService(ctx context.Context, reqLogger logr.Logger, service *corev1.Service) error {
 	// Check if this Service already exists
 	found := &corev1.Service{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: service.Name, Namespace: service.Namespace}, found)
@@ -640,7 +639,7 @@ func (r *CincinnatiReconciler) ensureService(ctx context.Context, reqLogger logr
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureConfigMap(ctx context.Context, reqLogger logr.Logger, cm *corev1.ConfigMap) error {
+func (r *UpdateServiceReconciler) ensureConfigMap(ctx context.Context, reqLogger logr.Logger, cm *corev1.ConfigMap) error {
 	// Check if this configmap already exists
 	found := &corev1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: cm.Name, Namespace: cm.Namespace}, found)
@@ -662,7 +661,7 @@ func (r *CincinnatiReconciler) ensureConfigMap(ctx context.Context, reqLogger lo
 	return nil
 }
 
-func (r *CincinnatiReconciler) ensureSecret(ctx context.Context, reqLogger logr.Logger, secret *corev1.Secret) error {
+func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger logr.Logger, secret *corev1.Secret) error {
 	// Check if this secret already exists
 	found := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, found)
@@ -685,8 +684,8 @@ func (r *CincinnatiReconciler) ensureSecret(ctx context.Context, reqLogger logr.
 }
 
 /*
-func (r *CincinnatiReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return ctrl.NewControllerManagedBy(mgr).
-			For(&cincinnativ1beta1.Cincinnati{}).
+			For(&cv1.UpdateService{}).
 }
 */

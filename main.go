@@ -39,8 +39,8 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 
-	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
-	cincontroller "github.com/openshift/cincinnati-operator/controllers"
+	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
+	uscontroller "github.com/openshift/cincinnati-operator/controllers"
 	"github.com/openshift/cincinnati-operator/version"
 
 	//k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -67,7 +67,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(cincinnativ1beta1.AddToScheme(scheme))
+	utilruntime.Must(updateservicev1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 */
@@ -121,7 +121,7 @@ func main() {
 
 	ctx := context.TODO()
 	// Become the leader before proceeding
-	err = leader.Become(ctx, "cincinnati-operator-lock")
+	err = leader.Become(ctx, "updateservice-operator-lock")
 	if err != nil {
 		log.Error(err, "Could not become leader")
 		os.Exit(1)
@@ -142,12 +142,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err = (&cincontroller.CincinnatiReconciler{
+		if err = (&uscontroller.UpdateServiceReconciler{
 			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("Cincinnati"),
+			Log:    ctrl.Log.WithName("controllers").WithName("UpdateService"),
 			Scheme: mgr.GetScheme(),
 		}).SetupWithManager(mgr); err != nil {
-			log.Error(err, "unable to create controller", "controller", "Cincinnati")
+			log.Error(err, "unable to create controller", "controller", "UpdateService")
 			os.Exit(1)
 		}
 		// +kubebuilder:scaffold:builder
@@ -178,7 +178,7 @@ func main() {
 	log.Info("Registering Components.")
 
 	// Setup Scheme for all resources
-	if err := cincinnativ1beta1.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := updateservicev1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
@@ -193,7 +193,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	opts := cincontroller.Options{
+	opts := uscontroller.Options{
 		OperandImage: os.Getenv("OPERAND_IMAGE"),
 	}
 	if opts.OperandImage == "" {
@@ -202,11 +202,11 @@ func main() {
 	}
 	// Usually this is done with an init() function in the package, but since we
 	// need to provide input, we're doing it here instead.
-	cincontroller.AddToManagerFuncs = append(cincontroller.AddToManagerFuncs, func(mgr manager.Manager) error {
-		return cincontroller.Add(mgr, opts)
+	uscontroller.AddToManagerFuncs = append(uscontroller.AddToManagerFuncs, func(mgr manager.Manager) error {
+		return uscontroller.Add(mgr, opts)
 	})
-	// Setup Cincinnati controllers
-	if err := cincontroller.AddToManager(mgr); err != nil {
+	// Setup UpdateService controllers
+	if err := uscontroller.AddToManager(mgr); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}

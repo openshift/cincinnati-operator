@@ -1,25 +1,20 @@
-
----
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  annotations:
-    controller-gen.kubebuilder.io/version: v0.3.0
-  creationTimestamp: null
-  name: cincinnatis.cincinnati.openshift.io
+  name: updateservices.updateservice.operator.openshift.io
 spec:
-  group: cincinnati.openshift.io
+  group: updateservice.operator.openshift.io
   names:
-    kind: Cincinnati
-    listKind: CincinnatiList
-    plural: cincinnatis
-    singular: cincinnati
+    kind: UpdateService
+    listKind: UpdateServiceList
+    plural: updateservices
+    singular: updateservice
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: Cincinnati is the Schema for the cincinnatis API
+      description: UpdateService is the Schema for a UpdateService service.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -34,24 +29,24 @@ spec:
         metadata:
           type: object
         spec:
-          description: CincinnatiSpec defines the desired state of Cincinnati
+          description: UpdateServiceSpec defines the desired state of UpdateService
           properties:
             graphDataImage:
-              description: graphDataImage is a container image that contains the Cincinnati
-                graph data.
+              description: GraphDataImage is a container image that contains the UpdateService
+                graph data. The data is copied to /var/lib/updateservice/graph-data.
               type: string
             registry:
-              description: registry is the container registry to use, such as "quay.io".
+              description: Registry is the container registry to use, such as "quay.io".
               type: string
             replicas:
-              description: replicas is the number of pods to run. When >=2, a PodDisruptionBudget
+              description: Replicas is the number of pods to run. When >=2, a PodDisruptionBudget
                 will ensure that voluntary disruption leaves at least one Pod running
                 at all times.
               format: int32
               minimum: 1
               type: integer
             repository:
-              description: repository is the repository to use in the Registry, such
+              description: Repository is the repository to use in the Registry, such
                 as "openshift-release-dev/ocp-release"
               type: string
           required:
@@ -61,12 +56,10 @@ spec:
           - repository
           type: object
         status:
-          description: CincinnatiStatus defines the observed state of Cincinnati
+          description: UpdateServiceStatus defines the observed state of UpdateService
           properties:
             conditions:
-              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                of cluster Important: Run "make" to regenerate code after modifying
-                this file Conditions describe the state of the Cincinnati resource.'
+              description: Conditions describe the state of the UpdateService resource.
               items:
                 description: Condition represents the state of the operator's reconciliation
                   functionality.
@@ -94,14 +87,8 @@ spec:
               type: array
           type: object
       type: object
-  version: v1beta1
+  version: v1
   versions:
-  - name: v1beta1
+  - name: v1
     served: true
     storage: true
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []
