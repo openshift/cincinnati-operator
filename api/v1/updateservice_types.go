@@ -38,6 +38,12 @@ type UpdateServiceStatus struct {
 	// +patchStrategy=merge
 	// +kubebuilder:validation:Optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"  patchStrategy:"merge" patchMergeKey:"type"`
+
+	// policyEngineURI is the external URI which exposes the policy
+	// engine.  Available paths from this URI include:
+	//
+	// * /api/upgrades_info/v1/graph, with the update graph recommendations.
+	PolicyEngineURI string `json:"policyEngineURI,optional"`
 }
 
 // Condition Types

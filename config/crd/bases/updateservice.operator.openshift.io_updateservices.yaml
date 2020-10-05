@@ -94,6 +94,13 @@ spec:
                 - type
                 type: object
               type: array
+            policyEngineURI:
+              description: "policyEngineURI is the external URI which exposes the
+                policy engine.  Available paths from this URI include: \n * /api/upgrades_info/v1/graph,
+                with the update graph recommendations."
+              type: string
+          required:
+          - policyEngineURI
           type: object
       required:
       - metadata

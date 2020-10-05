@@ -29,6 +29,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	cv1 "github.com/openshift/cincinnati-operator/api/v1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
+	"github.com/openshift/library-go/pkg/route/routeapihelpers"
 )
 
 var log = logf.Log.WithName("controller_updateservice")
@@ -565,6 +566,12 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, r
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
 		return err
+	}
+
+	if uri, _, err := routeapihelpers.IngressURI(found, ""); err == nil {
+		instance.Status.PolicyEngineURI = uri.String()
+	} else {
+		handleErr(reqLogger, &instance.Status, "RouteIngressFailed", err)
 	}
 
 	updated := found.DeepCopy()

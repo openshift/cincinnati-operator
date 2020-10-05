@@ -5,33 +5,14 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
 
-	routev1 "github.com/openshift/api/route/v1"
 	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/klog"
-	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// TestMain will perform test setup, exec each test, and perform test tear down.
-func TestMain(m *testing.M) {
-	setUp()
-	retCode := m.Run()
-	os.Exit(retCode)
-}
-
-// setUp performs test setup.
-func setUp() {
-	if err := routev1.AddToScheme(scheme.Scheme); err != nil {
-		klog.Fatalf("Failed adding route to scheme, %v", err)
-	}
-}
 
 func TestCustomResource(t *testing.T) {
 	ctx := context.Background()
@@ -152,25 +133,35 @@ func TestCustomResource(t *testing.T) {
 	}
 	t.Logf("PodDisruptionBudget %s available", operatorName)
 
-	crClient, err := getCrClient()
-	if err != nil {
+	var policyEngineURI string
+	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+		result := &updateservicev1.UpdateService{}
+		err = updateServiceClient.Get().
+			Resource(resource).
+			Namespace(operatorNamespace).
+			Name(customResourceName).
+			Do(ctx).
+			Into(result)
+		if err != nil {
+			return false, err
+		}
+		if result.Status.PolicyEngineURI != "" {
+			policyEngineURI = result.Status.PolicyEngineURI
+			return true, nil
+		}
+		return false, nil
+	}); err != nil {
 		t.Fatal(err)
 	}
-
-	route := &routev1.Route{}
-	if err := crClient.Get(ctx, client.ObjectKey{
-		Namespace: operatorNamespace,
-		Name:      routeName,
-	}, route); err != nil {
-		t.Fatal(err)
-	}
+	t.Logf("Policy engine route available at %s", policyEngineURI)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	httpClient := &http.Client{Transport: tr}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://%s/api/upgrades_info/v1/graph?channel=stable-4.4", route.Spec.Host), nil)
+	graphURI := fmt.Sprintf("%s/api/upgrades_info/v1/graph?channel=stable-4.4", policyEngineURI)
+	req, err := http.NewRequestWithContext(ctx, "GET", graphURI, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,10 +170,10 @@ func TestCustomResource(t *testing.T) {
 		if resp, err := httpClient.Do(req); err != nil {
 			t.Fatal(err)
 		} else if resp.StatusCode > 200 {
-			t.Logf("Waiting for availability of %s route", routeName)
+			t.Logf("Waiting for availability of policy engine%s", graphURI)
 			return false, nil
 		}
-		t.Logf("Route %s available", routeName)
+		t.Logf("Policy engine %s available", graphURI)
 		return true, nil
 	}); err != nil {
 		t.Fatal(err)

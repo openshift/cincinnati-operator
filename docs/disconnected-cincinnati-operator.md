@@ -234,46 +234,13 @@ You might want to review the documentation around disconnected registries to lea
           graphDataImage: "${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-graph-data-container:latest"
         EOF
         ~~~
-3. Check the cincinnati service
+3. Wait for a public route, polling until:
 
     ~~~sh
-    curl --header 'Accept:application/json' https://$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath='{.spec.host}')/api/upgrades_info/v1/graph\?channel=stable-4.5 | jq
+    POLICY_ENGINE_GRAPH_URI="$(oc -n "${NAMESPACE}" get -o jsonpath='{.status.policyEngineURI}/api/upgrades_info/v1/graph}{"\n"}' cincinnati example-name)"
     ~~~
 
-    > **OUTPUT**
-    ~~~json
-    {
-      "nodes": [
-        {
-          "version": "4.5.3",
-          "payload": "my-disconnected-registry.example.com:5000/ocp4/release@sha256:eab93b4591699a5a4ff50ad3517892653f04fb840127895bb3609b3cc68f98f3",
-          "metadata": {
-            "description": "",
-            "io.openshift.upgrades.graph.release.channels": "candidate-4.5,fast-4.5,stable-4.5",
-            "io.openshift.upgrades.graph.release.manifestref": "sha256:eab93b4591699a5a4ff50ad3517892653f04fb840127895bb3609b3cc68f98f3",
-            "url": "https://access.redhat.com/errata/RHBA-2020:2956"
-          }
-        },
-        {
-          "version": "4.5.2",
-          "payload": "my-disconnected-registry.example.com:5000/ocp4/release@sha256:8f923b7b8efdeac619eb0e7697106c1d17dd3d262c49d8742b38600417cf7d1d",
-          "metadata": {
-            "description": "",
-            "io.openshift.upgrades.graph.previous.remove_regex": ".*",
-            "io.openshift.upgrades.graph.release.channels": "candidate-4.5,fast-4.5,stable-4.5",
-            "io.openshift.upgrades.graph.release.manifestref": "sha256:8f923b7b8efdeac619eb0e7697106c1d17dd3d262c49d8742b38600417cf7d1d",
-            "url": "https://access.redhat.com/errata/RHBA-2020:2909"
-          }
-        }
-      ],
-      "edges": [
-        [
-          1,
-          0
-        ]
-      ]
-    }
-    ~~~
+    gives a full URI.
 
 4. At this point we have Cincinnati working locally, but our cluster is still pointing to the public Cincinnati instance as we can see in the image below
 
@@ -281,8 +248,7 @@ You might want to review the documentation around disconnected registries to lea
 5. Patch the ClusterVersion to use our Cincinnati instance rather than the public one
 
     ~~~sh
-    CINCINNATI_ROUTE=$(oc -n "${NAMESPACE}" get route example-name-policy-engine-route -o jsonpath=https://'{.spec.host}'/api/upgrades_info/v1/graph)
-    PATCH="{\"spec\":{\"upstream\":\"${CINCINNATI_ROUTE}\"}}"
+    PATCH="{\"spec\":{\"upstream\":\"${POLICY_ENGINE_GRAPH_URI}\"}}"
     oc patch clusterversion version -p $PATCH --type merge
     ~~~
 6. Now that our cluster points to the local Cincinnati instance we will see the update available
@@ -313,7 +279,7 @@ You can print the graph for a specific channel in your Cincinnati instance using
 sudo dnf install -y graphviz
 curl -O https://raw.githubusercontent.com/openshift/cincinnati/master/hack/graph.sh
 chmod +x graph.sh
-curl --header 'Accept:application/json' "https://example-name-policy-engine-${NAMESPACE}.apps.mgmt-hub.e2e.bos.redhat.com/api/upgrades_info/v1/graph?channel=stable-4.5" | ./graph.sh | dot -Tpng > graph.png
+curl --header 'Accept:application/json' "${POLICY_ENGINE_GRAPH_URI}?channel=stable-4.5" | ./graph.sh | dot -Tpng > graph.png
 ~~~
 
 ## Mirror the release images
