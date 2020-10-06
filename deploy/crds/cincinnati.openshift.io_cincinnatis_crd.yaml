@@ -26,9 +26,6 @@ spec:
               object represents. Servers may infer this from the endpoint the client
               submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
-          metadata:
-            description: 'metadata is standard object metadata.  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
-            type: object
           spec:
             description: spec is the desired state of the Cincinnati service.  The
               operator will work to ensure that the desired configuration is applied
@@ -91,7 +88,6 @@ spec:
                 type: array
             type: object
         required:
-        - metadata
         - spec
         type: object
     served: true
