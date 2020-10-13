@@ -1,5 +1,5 @@
 # Adds namespace to all resources.
-namespace: updateservice-operator
+namespace: openshift-updateservice
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
@@ -7,7 +7,6 @@ namespace: updateservice-operator
 # Note that it should also match with the prefix (text before '-') of the namespace
 # field above.
 #namePrefix: updateservice-
-namePrefix:
 
 # Labels to add to all resources and selectors.
 #commonLabels:
@@ -58,6 +57,7 @@ vars:
 #    version: v1alpha2
 #    name: serving-cert # this name should match the one in certificate.yaml
 #- name: SERVICE_NAMESPACE # namespace of the service
+#  objref:
 #  objref:
 #    kind: Service
 #    version: v1

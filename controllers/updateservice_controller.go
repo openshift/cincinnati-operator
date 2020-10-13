@@ -91,15 +91,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
-	/* Changed back when didn't use operator-lib
-	mapped := &mapper{mgr.GetClient()}
-
-	// Watch for all Image changes, only Reconcile when image found is named defaults.ImageConfigName and is at cluster level
-	err = c.Watch(&source.Kind{Type: &apicfgv1.Image{}},
-		handler.EnqueueRequestsFromMapFunc(func(a handler.MapObject) []reconcile.Request {
-			return mapped.Map(a)
-		}),
-	*/
 	// Watch for all Image changes, only Reconcile when image found is named defaults.ImageConfigName and is at cluster level
 	err = c.Watch(&source.Kind{Type: &apicfgv1.Image{}},
 		&handler.EnqueueRequestsFromMapFunc{ToRequests: &mapper{mgr.GetClient()}},
@@ -109,14 +100,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	/* Changed back when didn't use operator-lib
-	   	//Watch for all ConfigMap changes, only Reconcile when name == Image.Spec.AdditionalTrustedCA.Name
-	   	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}},
-	   		handler.EnqueueRequestsFromMapFunc(func(a handler.MapObject) []reconcile.Request {
-	   			return mapped.Map(a)
-	   		}),
-	           )
-	*/
 	//Watch for all ConfigMap changes, only Reconcile when name == Image.Spec.AdditionalTrustedCA.Name
 	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}},
 		&handler.EnqueueRequestsFromMapFunc{ToRequests: &mapper{mgr.GetClient()}},
@@ -134,8 +117,7 @@ var _ reconcile.Reconciler = &UpdateServiceReconciler{}
 
 // UpdateServiceReconciler reconciles a UpdateService object
 type UpdateServiceReconciler struct {
-	Client client.Client
-	//Log          logr.Logger
+	Client       client.Client
 	Scheme       *runtime.Scheme
 	operandImage string
 }
@@ -595,8 +577,7 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, r
 
 	updated := found.DeepCopy()
 	// Keep found tls for later use
-	// !!!! JVO
-	//tls := updated.Spec.TLS
+	tls := updated.Spec.TLS
 	// This is just so we compare the Spec on the two objects but make an exception for Spec.TLS
 	updated.Spec.TLS = route.Spec.TLS
 
@@ -605,7 +586,8 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, r
 		reqLogger.Info("Updating Route", "Namespace", route.Namespace, "Name", route.Name)
 		updated.Spec = route.Spec
 		// We want to allow user to update the TLS cert/key manually on the route and we don't want to override that change.
-		// Keep the existing tls on the route                updated.Spec.TLS = tls
+		// Keep the existing tls on the route
+		updated.Spec.TLS = tls
 		err = r.Client.Update(ctx, updated)
 		if err != nil {
 			handleErr(reqLogger, &instance.Status, "UpdateRouteFailed", err)

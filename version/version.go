@@ -2,5 +2,5 @@ package version
 
 var (
 	Version    = "1.0.0"
-	SdkVersion = "v0.19.3-3-gdabb596e"
+	SdkVersion = "v1.0.0-1-gec7b61f3"
 )

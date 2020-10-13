@@ -1,10 +1,10 @@
 #!/bin/bash
 
-NAMESPACE="${NAMESPACE:-updateservice-operator}"
+NAMESPACE="${NAMESPACE:-openshift-updateservice}"
 
 oc create ns $NAMESPACE
 
-cat <<EOF | oc -n $NAMESPACE create -f - 
+cat <<EOF | oc -n $NAMESPACE create -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
@@ -13,7 +13,7 @@ spec:
   channel: v1
   name: updateservice-operator-package
   installPlanApproval: Automatic
-  source: updateservice-catalog                                                       
+  source: updateservice-catalog
   sourceNamespace: openshift-marketplace
 ---
 apiVersion: operators.coreos.com/v1

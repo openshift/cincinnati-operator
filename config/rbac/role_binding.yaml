@@ -17,7 +17,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: updateservice-operator
-  namespace: updateservice-operator
+  namespace: openshift-updateservice
 roleRef:
   kind: ClusterRole
   name: updateservice-operator

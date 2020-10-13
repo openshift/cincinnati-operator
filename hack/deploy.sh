@@ -3,7 +3,7 @@
 set -e
 
 DEFAULT_OPERATOR_IMAGE="quay.io/updateservice/updateservice-operator:latest"
-DEFAULT_OPERAND_IMAGE="quay.io/app-sre/updateservice:2873c6b"
+DEFAULT_OPERAND_IMAGE="quay.io/app-sre/cincinnati:2873c6b"
 
 OPERATOR_IMAGE="${OPERATOR_IMAGE:-${DEFAULT_OPERATOR_IMAGE}}"
 OPERAND_IMAGE="${OPERAND_IMAGE:-${DEFAULT_OPERAND_IMAGE}}"
@@ -25,15 +25,16 @@ else
 	fi
 fi
 
-sed -i "s|quay.io/updateservice/updateservice:latest|$OPERAND_IMAGE|" deploy/operator.yaml
-sed -i "s|$DEFAULT_OPERATOR_IMAGE|$OPERATOR_IMAGE|" deploy/operator.yaml
-sed -i "s|your-registry/your-repo/your-init-container|$GRAPH_DATA_IMAGE|" deploy/crds/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
+sed -i "s|quay.io/cincinnati/cincinnati:latest|$OPERAND_IMAGE|" config/manager/manager.yaml
+sed -i "s|$DEFAULT_OPERATOR_IMAGE|$OPERATOR_IMAGE|" config/manager/manager.yaml
+sed -i "s|your-registry/your-repo/your-init-container|$GRAPH_DATA_IMAGE|" config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
 
 NAMESPACE="openshift-updateservice"
 oc create namespace $NAMESPACE
 
-oc apply -f deploy/service_account.yaml -n $NAMESPACE
-oc apply -f deploy/role.yaml -n $NAMESPACE
-oc apply -f deploy/role_binding.yaml -n $NAMESPACE
-oc apply -f deploy/operator.yaml -n $NAMESPACE
-oc apply -f deploy/crds/updateservice.operator.openshift.io_updateservices_crd.yaml -n $NAMESPACE
+oc apply -f config/rbac/service_account.yaml -n $NAMESPACE
+oc apply -f config/rbac/role.yaml -n $NAMESPACE
+oc apply -f config/rbac/role_binding.yaml -n $NAMESPACE
+oc apply -f config/rbac/auth_proxy_service.yaml -n $NAMESPACE
+oc apply -f config/manager/manager.yaml -n $NAMESPACE
+oc apply -f config/crd/bases/updateservice.operator.openshift.io_updateservices_crd.yaml -n $NAMESPACE

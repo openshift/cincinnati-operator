@@ -8,4 +8,4 @@ resources:
 version: 3-alpha
 projectName: updateservice-operator
 plugins:
-  go.operator-sdk.io/v2-alpha: {}
+  go.sdk.operatorframework.io/v2-alpha: {}

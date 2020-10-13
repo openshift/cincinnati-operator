@@ -21,10 +21,9 @@ import (
 )
 
 const (
-	/* JVO!!! */
-	customResourceName = "disconnected-updateservice"
+	customResourceName = "example"
 	operatorName       = "updateservice-operator"
-	operatorNamespace  = "updateservice-operator"
+	operatorNamespace  = "openshift-updateservice"
 	crdName            = "updateservices.updateservice.operator.openshift.io"
 	resource           = "updateservices"
 	routeName          = customResourceName + "-policy-engine-route"

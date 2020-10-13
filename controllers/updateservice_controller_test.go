@@ -385,7 +385,7 @@ func TestEnsureDeployment(t *testing.T) {
 			assert.Equal(t, found.Spec.Replicas, &updateservice.Spec.Replicas)
 
 			assert.Equal(t, found.Spec.Template.Spec.Volumes[0].Name, "configs")
-			assert.Equal(t, found.Spec.Template.Spec.Volumes[1].Name, "updateservice-graph-data")
+			assert.Equal(t, found.Spec.Template.Spec.Volumes[1].Name, "cincinnati-graph-data")
 
 			assert.Equal(t, found.Spec.Template.Spec.Containers[0].Name, resources.graphBuilderContainer.Name)
 			assert.Equal(t, found.Spec.Template.Spec.Containers[1].Image, resources.graphBuilderContainer.Image)

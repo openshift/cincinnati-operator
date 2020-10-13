@@ -1,20 +1,24 @@
 #!/bin/bash
 tag="$1"
 
-[ $# -eq 0 ] && { echo "Usage: $0 <updateservice-graph-data-container image tag>"; exit 1; }
+if test 1 -ne $#
+then
+  echo "Usage: $0 GRAPH_DATA_CONTAINER_IMAGE_TAG" >&2
+  exit 1
+fi
 
-DISCONNECTED_REGISTRY="${DISCONNECTED_REGISTRY:-quay.io/jottofar}"
+REGISTRY="${REGISTRY:-quay.io/updateservice}"
 
-echo Deploying OSUS using image ${DISCONNECTED_REGISTRY}/updateservice-graph-data-container:${tag}
+echo Deploying OSUS using image ${REGISTRY}/cincinnati-graph-data-container:${tag}
 
-cat <<EOF | oc -n updateservice-operator create -f -
+cat <<EOF | oc -n openshift-updateservice create -f -
 apiVersion: updateservice.operator.openshift.io/v1
 kind: UpdateService
 metadata:
-  name: disconnected-updateservice
+  name: example
 spec:
   replicas: 1
   registry: "quay.io"
-  repository: "jottofar/updateservice-graph-data-container"
-  graphDataImage: "${DISCONNECTED_REGISTRY}/updateservice-graph-data-container:${tag}"
+  repository: "updateservice/cincinnati-graph-data-container"
+  graphDataImage: "${REGISTRY}/cincinnati-graph-data-container:${tag}"
 EOF

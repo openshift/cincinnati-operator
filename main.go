@@ -1,19 +1,3 @@
-/*
-
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package main
 
 import (
@@ -28,9 +12,6 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	//"github.com/operator-framework/operator-sdk/pkg/leader"
-	//"github.com/operator-framework/operator-sdk/pkg/log/zap"
-	//sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/operator-framework/operator-lib/leader"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -43,11 +24,9 @@ import (
 	uscontroller "github.com/openshift/cincinnati-operator/controllers"
 	"github.com/openshift/cincinnati-operator/version"
 
-	//k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	// +kubebuilder:scaffold:imports
 )
 
 // Change below variables to serve metrics on different host or port.
@@ -58,19 +37,8 @@ var (
 )
 
 var (
-	//scheme = k8sruntime.NewScheme()
-	//setupLog = ctrl.Log.WithName("setup")
 	log = ctrl.Log.WithName("cmd")
 )
-
-/*
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(updateservicev1.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
-}
-*/
 
 func printVersion() {
 	log.Info(fmt.Sprintf("Operator Version: %s", version.Version))
@@ -126,32 +94,6 @@ func main() {
 		log.Error(err, "Could not become leader")
 		os.Exit(1)
 	}
-	log.Info("1")
-	/*
-		cfg := ctrl.GetConfigOrDie()
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-			Scheme:             scheme,
-			Namespace:          namespace,
-			MetricsBindAddress: metricsAddr,
-			Port:               9443,
-			LeaderElection:     enableLeaderElection,
-			LeaderElectionID:   "4cf75da7.openshift.io",
-		})
-		if err != nil {
-			log.Error(err, "unable to start manager")
-			os.Exit(1)
-		}
-
-		if err = (&uscontroller.UpdateServiceReconciler{
-			Client: mgr.GetClient(),
-			Log:    ctrl.Log.WithName("controllers").WithName("UpdateService"),
-			Scheme: mgr.GetScheme(),
-		}).SetupWithManager(mgr); err != nil {
-			log.Error(err, "unable to create controller", "controller", "UpdateService")
-			os.Exit(1)
-		}
-		// +kubebuilder:scaffold:builder
-	*/
 
 	// Set default manager options
 	options := manager.Options{
@@ -210,9 +152,6 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
-
-	// Add the Metrics Service
-	//addMetrics(ctx, cfg)
 
 	log.Info("Starting the Cmd.")
 

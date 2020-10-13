@@ -1,19 +1,3 @@
-/*
-
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package v1
 
 import (
@@ -21,14 +5,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// UpdateServiceSpec defines the desired state of UpdateService
+// UpdateServiceSpec defines the desired state of UpdateService.
 type UpdateServiceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// replicas is the number of pods to run. When >=2, a PodDisruptionBudget
 	// will ensure that voluntary disruption leaves at least one Pod running at
 	// all times.
@@ -51,10 +31,8 @@ type UpdateServiceSpec struct {
 	GraphDataImage string `json:"graphDataImage"`
 }
 
-// UpdateServiceStatus defines the observed state of UpdateService
+// UpdateServiceStatus defines the observed state of UpdateService.
 type UpdateServiceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	// Conditions describe the state of the UpdateService resource.
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -72,22 +50,36 @@ const (
 	ConditionRegistryCACertFound conditionsv1.ConditionType = "RegistryCACertFound"
 )
 
+// replaces k8s:deepcopy-gen:interfaces= in v1.0
 // +kubebuilder:object:root=true
+
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=updateservices,scope=Namespaced
 
-// UpdateService is the Schema for the updateservices API
+// UpdateService is the Schema for the updateservices API.
 type UpdateService struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
 
-	Spec   UpdateServiceSpec   `json:"spec,omitempty"`
-	Status UpdateServiceStatus `json:"status,omitempty"`
+	// metadata is standard object metadata.  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +kubebuilder:validation:Required
+	metav1.ObjectMeta `json:"metadata"`
+
+	// spec is the desired state of the UpdateService service.  The
+	// operator will work to ensure that the desired configuration is
+	// applied to the cluster.
+	// +kubebuilder:validation:Required
+	Spec UpdateServiceSpec `json:"spec"`
+
+	// status contains information about the current state of the
+	// UpdateService service.
+	// +kubebuilder:validation:Optional
+	Status UpdateServiceStatus `json:"status"`
 }
 
+// replaces k8s:deepcopy-gen:interfaces= in v1.0
 // +kubebuilder:object:root=true
 
-// UpdateServiceList contains a list of UpdateService
+// UpdateServiceList contains a list of UpdateService.
 type UpdateServiceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
