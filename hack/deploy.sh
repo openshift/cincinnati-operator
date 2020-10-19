@@ -2,6 +2,7 @@
 
 set -e
 
+
 DEFAULT_OPERATOR_IMAGE="quay.io/cincinnati/cincinnati-operator:latest"
 DEFAULT_OPERAND_IMAGE="quay.io/app-sre/cincinnati:2873c6b"
 
