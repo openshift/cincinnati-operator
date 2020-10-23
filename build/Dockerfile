@@ -5,16 +5,14 @@ RUN go build -mod=vendor -o /cincinnati-operator github.com/openshift/cincinnati
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
-ENV OPERATOR=/usr/local/bin/cincinnati-operator \
+ENV OPERATOR=/usr/bin/cincinnati-operator \
     USER_UID=1001 \
     USER_NAME=cincinnati-operator
 
 # install operator binary
 COPY --from=builder /cincinnati-operator ${OPERATOR}
 
-COPY build/bin /usr/local/bin
-RUN  /usr/local/bin/user_setup
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
+COPY build/bin /usr/bin
+RUN  /usr/bin/user_setup
 
 USER ${USER_UID}
