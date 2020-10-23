@@ -16,8 +16,6 @@ spec:
       containers:
         - name: cincinnati-operator
           image: quay.io/cincinnati/cincinnati-operator:latest
-          command:
-          - cincinnati-operator
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
