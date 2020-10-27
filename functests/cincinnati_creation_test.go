@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -13,8 +14,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/klog"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// TestMain will perform test setup, exec each test, and perform test tear down.
+func TestMain(m *testing.M) {
+	setUp()
+	retCode := m.Run()
+	os.Exit(retCode)
+}
+
+// setUp performs test setup.
+func setUp() {
+	if err := routev1.AddToScheme(scheme.Scheme); err != nil {
+		klog.Fatalf("Failed adding route to scheme, %v", err)
+	}
+}
 
 func TestCustomResource(t *testing.T) {
 	k8sClient, err := getK8sClient()
