@@ -34,12 +34,14 @@ func setUp() {
 }
 
 func TestCustomResource(t *testing.T) {
+	ctx := context.Background()
+
 	k8sClient, err := getK8sClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := waitForDeployment(k8sClient, operatorName); err != nil {
+	if err := waitForDeployment(ctx, k8sClient, operatorName); err != nil {
 		t.Fatal(err)
 	}
 
@@ -47,7 +49,7 @@ func TestCustomResource(t *testing.T) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
 	}
-	if pod, err := k8sClient.CoreV1().Pods(operatorNamespace).List(listOptions); err != nil {
+	if pod, err := k8sClient.CoreV1().Pods(operatorNamespace).List(ctx, listOptions); err != nil {
 		t.Fatal(err)
 	} else {
 		if len(pod.Items) < 1 {
@@ -63,17 +65,18 @@ func TestCustomResource(t *testing.T) {
 		}
 	}
 
-	if err := waitForService(k8sClient, operatorName+"-metrics"); err != nil {
+	if err := waitForService(ctx, k8sClient, operatorName+"-metrics"); err != nil {
 		t.Fatal(err)
 	}
 
 	defer func() {
-		if err := deleteCR(); err != nil {
+		ctx := context.Background()
+		if err := deleteCR(ctx); err != nil {
 			t.Log(err)
 		}
 	}()
 
-	if err := deployCR(); err != nil {
+	if err := deployCR(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -87,13 +90,13 @@ func TestCustomResource(t *testing.T) {
 		Resource(resource).
 		Namespace(operatorNamespace).
 		Name(customResourceName).
-		Do().
+		Do(ctx).
 		Into(result)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := waitForDeployment(k8sClient, customResourceName); err != nil {
+	if err := waitForDeployment(ctx, k8sClient, customResourceName); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,7 +104,7 @@ func TestCustomResource(t *testing.T) {
 	listOptions = metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
 	}
-	if pod, err := k8sClient.CoreV1().Pods(operatorNamespace).List(listOptions); err != nil {
+	if pod, err := k8sClient.CoreV1().Pods(operatorNamespace).List(ctx, listOptions); err != nil {
 		t.Fatal(err)
 	} else {
 		if len(pod.Items) < 1 {
@@ -125,18 +128,18 @@ func TestCustomResource(t *testing.T) {
 		}
 	}
 
-	if err := waitForService(k8sClient, customResourceName+"-graph-builder"); err != nil {
+	if err := waitForService(ctx, k8sClient, customResourceName+"-graph-builder"); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := waitForService(k8sClient, customResourceName+"-policy-engine"); err != nil {
+	if err := waitForService(ctx, k8sClient, customResourceName+"-policy-engine"); err != nil {
 		t.Fatal(err)
 	}
 
 	// Checks to see if a given PodDisruptionBudget is available after a specified amount of time.
 	// If the PodDisruptionBudget is not available after 30 * retries seconds, the condition function returns an error.
 	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
-		if _, err := k8sClient.PolicyV1beta1().PodDisruptionBudgets(operatorNamespace).Get(customResourceName, metav1.GetOptions{}); err != nil {
+		if _, err := k8sClient.PolicyV1beta1().PodDisruptionBudgets(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
 				t.Logf("Waiting for availability of %s PodDisruptionBudget\n", operatorName)
 				return false, nil
@@ -155,7 +158,7 @@ func TestCustomResource(t *testing.T) {
 	}
 
 	route := &routev1.Route{}
-	if err := crClient.Get(context.Background(), client.ObjectKey{
+	if err := crClient.Get(ctx, client.ObjectKey{
 		Namespace: operatorNamespace,
 		Name:      routeName,
 	}, route); err != nil {
@@ -167,7 +170,7 @@ func TestCustomResource(t *testing.T) {
 	}
 	httpClient := &http.Client{Transport: tr}
 
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/api/upgrades_info/v1/graph?channel=stable-4.4", route.Spec.Host), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("https://%s/api/upgrades_info/v1/graph?channel=stable-4.4", route.Spec.Host), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
