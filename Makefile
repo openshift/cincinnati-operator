@@ -14,7 +14,7 @@ deploy:
 
 func-test: deploy
 	@echo "Running functional test suite"
-	hack/functest.sh
+	go test -v ./functests/...
 
 unit-test:
 	@echo "Executing unit tests"
