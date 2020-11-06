@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubectl/pkg/scheme"
 
-	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
+	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	customResourceName = "example-cincinnati"
-	operatorName       = "cincinnati-operator"
-	operatorNamespace  = "openshift-cincinnati"
+	customResourceName = "example"
+	operatorName       = "cincinnati-operator-controller-manager"
+	operatorNamespace  = "cincinnati-operator-system"
+	metricsServiceName = "cincinnati-operator-controller-manager-metrics-service"
 	crdName            = "cincinnatis.cincinnati.openshift.io"
 	resource           = "cincinnatis"
 	routeName          = customResourceName + "-policy-engine-route"
@@ -76,7 +77,7 @@ func getCincinnatiClient() (*rest.RESTClient, error) {
 		return nil, err
 	}
 	cincinnatiConfig.ContentType = runtime.ContentTypeJSON
-	cincinnatiConfig.GroupVersion = &cincinnativ1beta1.SchemeGroupVersion
+	cincinnatiConfig.GroupVersion = &cincinnativ1beta1.GroupVersion
 	cincinnatiConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	cincinnatiConfig.APIPath = "/apis"
 	cincinnatiConfig.ContentType = runtime.ContentTypeJSON
@@ -93,7 +94,7 @@ func getCincinnatiClient() (*rest.RESTClient, error) {
 
 // deployCR is the function to deploy a cincinnati custom resource in the cluster
 func deployCR(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "oc", "apply", "-f", "../deploy/crds/cincinnati.openshift.io_v1beta1_cincinnati_cr.yaml", "-n", operatorNamespace)
+	cmd := exec.CommandContext(ctx, "oc", "apply", "-f", "../config/samples/cincinnati_v1beta1_cincinnati.yaml", "-n", operatorNamespace)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
