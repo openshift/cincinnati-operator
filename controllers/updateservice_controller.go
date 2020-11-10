@@ -24,30 +24,30 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
+	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 )
 
-// CincinnatiReconciler reconciles a Cincinnati object
-type CincinnatiReconciler struct {
+// UpdateServiceReconciler reconciles a UpdateService object
+type UpdateServiceReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=cincinnati.openshift.io,resources=cincinnatis,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=cincinnati.openshift.io,resources=cincinnatis/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=updateservice.openshift.io,resources=updateservices,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=updateservice.openshift.io,resources=updateservices/status,verbs=get;update;patch
 
-func (r *CincinnatiReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *UpdateServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	_ = context.Background()
-	_ = r.Log.WithValues("cincinnati", req.NamespacedName)
+	_ = r.Log.WithValues("updateservice", req.NamespacedName)
 
 	// your logic here
 
 	return ctrl.Result{}, nil
 }
 
-func (r *CincinnatiReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&cincinnativ1beta1.Cincinnati{}).
+		For(&updateservicev1.UpdateService{}).
 		Complete(r)
 }

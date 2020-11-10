@@ -1,7 +1,0 @@
-apiVersion: cincinnati.openshift.io/v1beta1
-kind: Cincinnati
-metadata:
-  name: cincinnati-sample
-spec:
-  # Add fields here
-  foo: bar

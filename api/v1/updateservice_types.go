@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,17 +23,17 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// CincinnatiSpec defines the desired state of Cincinnati
-type CincinnatiSpec struct {
+// UpdateServiceSpec defines the desired state of UpdateService
+type UpdateServiceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Cincinnati. Edit Cincinnati_types.go to remove/update
+	// Foo is an example field of UpdateService. Edit UpdateService_types.go to remove/update
 	Foo string `json:"foo,omitempty"`
 }
 
-// CincinnatiStatus defines the observed state of Cincinnati
-type CincinnatiStatus struct {
+// UpdateServiceStatus defines the observed state of UpdateService
+type UpdateServiceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -41,24 +41,24 @@ type CincinnatiStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// Cincinnati is the Schema for the cincinnatis API
-type Cincinnati struct {
+// UpdateService is the Schema for the updateservices API
+type UpdateService struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CincinnatiSpec   `json:"spec,omitempty"`
-	Status CincinnatiStatus `json:"status,omitempty"`
+	Spec   UpdateServiceSpec   `json:"spec,omitempty"`
+	Status UpdateServiceStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// CincinnatiList contains a list of Cincinnati
-type CincinnatiList struct {
+// UpdateServiceList contains a list of UpdateService
+type UpdateServiceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Cincinnati `json:"items"`
+	Items           []UpdateService `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&Cincinnati{}, &CincinnatiList{})
+	SchemeBuilder.Register(&UpdateService{}, &UpdateServiceList{})
 }
