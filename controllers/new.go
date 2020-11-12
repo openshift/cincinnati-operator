@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	cv1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
+	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 )
 
 const (
@@ -84,7 +84,7 @@ type kubeResources struct {
 	graphBuilderVolumeMounts []corev1.VolumeMount
 }
 
-func newKubeResources(instance *cv1beta1.Cincinnati, image string, pullSecret *corev1.Secret, caConfigMap *corev1.ConfigMap) (*kubeResources, error) {
+func newKubeResources(instance *updateservicev1.UpdateService, image string, pullSecret *corev1.Secret, caConfigMap *corev1.ConfigMap) (*kubeResources, error) {
 	k := kubeResources{}
 
 	gbConfig, err := k.newGraphBuilderConfig(instance)
@@ -121,7 +121,7 @@ func newKubeResources(instance *cv1beta1.Cincinnati, image string, pullSecret *c
 	return &k, nil
 }
 
-func (k *kubeResources) newPodDisruptionBudget(instance *cv1beta1.Cincinnati) *policyv1beta1.PodDisruptionBudget {
+func (k *kubeResources) newPodDisruptionBudget(instance *updateservicev1.UpdateService) *policyv1beta1.PodDisruptionBudget {
 	minAvailable := getMinAvailablePBD(instance)
 	return &policyv1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
@@ -139,7 +139,7 @@ func (k *kubeResources) newPodDisruptionBudget(instance *cv1beta1.Cincinnati) *p
 	}
 }
 
-func (k *kubeResources) newGraphBuilderService(instance *cv1beta1.Cincinnati) *corev1.Service {
+func (k *kubeResources) newGraphBuilderService(instance *updateservicev1.UpdateService) *corev1.Service {
 	name := nameGraphBuilderService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -173,7 +173,7 @@ func (k *kubeResources) newGraphBuilderService(instance *cv1beta1.Cincinnati) *c
 	}
 }
 
-func (k *kubeResources) newPolicyEngineService(instance *cv1beta1.Cincinnati) *corev1.Service {
+func (k *kubeResources) newPolicyEngineService(instance *updateservicev1.UpdateService) *corev1.Service {
 	name := namePolicyEngineService(instance)
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -207,7 +207,7 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1beta1.Cincinnati) *c
 	}
 }
 
-func (k *kubeResources) newPolicyEngineRoute(instance *cv1beta1.Cincinnati) *routev1.Route {
+func (k *kubeResources) newPolicyEngineRoute(instance *updateservicev1.UpdateService) *routev1.Route {
 	name := namePolicyEngineRoute(instance)
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
@@ -233,7 +233,7 @@ func (k *kubeResources) newPolicyEngineRoute(instance *cv1beta1.Cincinnati) *rou
 	}
 }
 
-func (k *kubeResources) newEnvConfig(instance *cv1beta1.Cincinnati) *corev1.ConfigMap {
+func (k *kubeResources) newEnvConfig(instance *updateservicev1.UpdateService) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameEnvConfig(instance),
@@ -251,7 +251,7 @@ func (k *kubeResources) newEnvConfig(instance *cv1beta1.Cincinnati) *corev1.Conf
 	}
 }
 
-func (k *kubeResources) newGraphBuilderConfig(instance *cv1beta1.Cincinnati) (*corev1.ConfigMap, error) {
+func (k *kubeResources) newGraphBuilderConfig(instance *updateservicev1.UpdateService) (*corev1.ConfigMap, error) {
 	tmpl, err := template.New("gb").Parse(graphBuilderTOML)
 	if err != nil {
 		return nil, err
@@ -271,7 +271,7 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1beta1.Cincinnati) (*c
 	}, nil
 }
 
-func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Deployment {
+func (k *kubeResources) newDeployment(instance *updateservicev1.UpdateService) *appsv1.Deployment {
 	name := nameDeployment(instance)
 	maxUnavailable := intstr.FromString("50%")
 	maxSurge := intstr.FromString("100%")
@@ -323,7 +323,7 @@ func (k *kubeResources) newDeployment(instance *cv1beta1.Cincinnati) *appsv1.Dep
 	return dep
 }
 
-func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) []corev1.Volume {
+func (k *kubeResources) newVolumes(instance *updateservicev1.UpdateService) []corev1.Volume {
 	mode := int32(420) // 0644
 	v := []corev1.Volume{
 		{
@@ -338,7 +338,7 @@ func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) []corev1.Volum
 			},
 		},
 		{
-			Name: "cincinnati-graph-data",
+			Name: "update-service-graph-data",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -377,7 +377,7 @@ func (k *kubeResources) newVolumes(instance *cv1beta1.Cincinnati) []corev1.Volum
 
 }
 
-func (k *kubeResources) newPullSecret(instance *cv1beta1.Cincinnati, s *corev1.Secret) *corev1.Secret {
+func (k *kubeResources) newPullSecret(instance *updateservicev1.UpdateService, s *corev1.Secret) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namePullSecretCopy(instance),
@@ -387,7 +387,7 @@ func (k *kubeResources) newPullSecret(instance *cv1beta1.Cincinnati, s *corev1.S
 	}
 }
 
-func (k *kubeResources) newTrustedCAConfig(instance *cv1beta1.Cincinnati, cm *corev1.ConfigMap) *corev1.ConfigMap {
+func (k *kubeResources) newTrustedCAConfig(instance *updateservicev1.UpdateService, cm *corev1.ConfigMap) *corev1.ConfigMap {
 	// Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name
 	// but did not find key 'cincinnati-registry' for registry CA cert in ConfigMap
 	if cm == nil {
@@ -402,21 +402,21 @@ func (k *kubeResources) newTrustedCAConfig(instance *cv1beta1.Cincinnati, cm *co
 	}
 }
 
-func (k *kubeResources) newGraphDataInitContainer(instance *cv1beta1.Cincinnati) *corev1.Container {
+func (k *kubeResources) newGraphDataInitContainer(instance *updateservicev1.UpdateService) *corev1.Container {
 	return &corev1.Container{
 		Name:            NameInitContainerGraphData,
 		Image:           instance.Spec.GraphDataImage,
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		VolumeMounts: []corev1.VolumeMount{
 			{
-				Name:      "cincinnati-graph-data",
+				Name:      "update-service-graph-data",
 				MountPath: "/var/lib/cincinnati/graph-data",
 			},
 		},
 	}
 }
 
-func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, image string) *corev1.Container {
+func (k *kubeResources) newGraphBuilderContainer(instance *updateservicev1.UpdateService, image string) *corev1.Container {
 	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
@@ -486,7 +486,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1beta1.Cincinnati, 
 	return g
 }
 
-func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1beta1.Cincinnati) []corev1.VolumeMount {
+func (k *kubeResources) newGraphBuilderVolumeMounts(instance *updateservicev1.UpdateService) []corev1.VolumeMount {
 	vm := []corev1.VolumeMount{
 		{
 			Name:      "configs",
@@ -494,7 +494,7 @@ func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1beta1.Cincinnat
 			MountPath: "/etc/configs",
 		},
 		{
-			Name:      "cincinnati-graph-data",
+			Name:      "update-service-graph-data",
 			MountPath: "/var/lib/cincinnati/graph-data",
 		},
 		{
@@ -515,7 +515,7 @@ func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1beta1.Cincinnat
 	return vm
 }
 
-func (k *kubeResources) newPolicyEngineContainer(instance *cv1beta1.Cincinnati, image string) *corev1.Container {
+func (k *kubeResources) newPolicyEngineContainer(instance *updateservicev1.UpdateService, image string) *corev1.Container {
 	envConfigName := nameEnvConfig(instance)
 	return &corev1.Container{
 		Name:            NameContainerPolicyEngine,

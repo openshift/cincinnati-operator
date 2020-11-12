@@ -1,0 +1,20 @@
+# permissions for end users to view updateservices.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: updateservice-viewer-role
+rules:
+- apiGroups:
+  - updateservice.openshift.io
+  resources:
+  - updateservices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - updateservice.openshift.io
+  resources:
+  - updateservices/status
+  verbs:
+  - get

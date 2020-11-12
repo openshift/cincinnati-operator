@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicfgv1 "github.com/openshift/api/config/v1"
-	cv1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
+	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 )
 
@@ -18,7 +18,7 @@ type mapper struct {
 	client client.Client
 }
 
-// Map will return a reconcile request for a Cincinnati if the event is for a
+// Map will return a reconcile request for a UpdateService if the event is for a
 // ImageConfigName Image or a ConfigMap referenced by AdditionalTrustedCA.Name.
 func (m *mapper) Map(obj handler.MapObject) []reconcile.Request {
 	if cm, ok := obj.Object.(*corev1.ConfigMap); ok {
@@ -36,31 +36,31 @@ func (m *mapper) Map(obj handler.MapObject) []reconcile.Request {
 			return []reconcile.Request{}
 		}
 		if image.Spec.AdditionalTrustedCA.Name == cm.ObjectMeta.Name {
-			// If the object is configMap that we are watching, requeue all Cincinnati instances
-			return m.requeueCincinnatis()
+			// If the object is configMap that we are watching, requeue all UpdateService instances
+			return m.requeueUpdateServices()
 		}
 	} else if img, ok := obj.Object.(*apicfgv1.Image); ok {
 		// Check if this is the image we are interested in
 		if img.Name == defaults.ImageConfigName && img.Namespace == "" {
-			// Requeue all Cincinnati instances
-			return m.requeueCincinnatis()
+			// Requeue all UpdateService instances
+			return m.requeueUpdateServices()
 		}
 	}
 	return []reconcile.Request{}
 }
 
-func (m *mapper) requeueCincinnatis() []reconcile.Request {
-	cincinnatis := &cv1beta1.CincinnatiList{}
-	err := m.client.List(context.TODO(), cincinnatis)
+func (m *mapper) requeueUpdateServices() []reconcile.Request {
+	updateServices := &updateservicev1.UpdateServiceList{}
+	err := m.client.List(context.TODO(), updateServices)
 	if err != nil {
 		return []reconcile.Request{}
 	}
 	var requests []reconcile.Request
-	for _, cincinnati := range cincinnatis.Items {
+	for _, updateService := range updateServices.Items {
 		requests = append(requests, reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      cincinnati.Name,
-				Namespace: cincinnati.Namespace,
+				Name:      updateService.Name,
+				Namespace: updateService.Namespace,
 			},
 		})
 	}

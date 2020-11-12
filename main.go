@@ -32,7 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/api/v1beta1"
+	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 	"github.com/openshift/cincinnati-operator/controllers"
 	"github.com/openshift/cincinnati-operator/version"
 	// +kubebuilder:scaffold:imports
@@ -46,8 +46,8 @@ var (
 func init() {
 	utilruntime.Must(configv1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(cincinnativ1beta1.AddToScheme(scheme))
 	utilruntime.Must(routev1.AddToScheme(scheme))
+	utilruntime.Must(updateservicev1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -87,13 +87,13 @@ func main() {
 		setupLog.Error(errors.New("Must set envvar OPERAND_IMAGE"), "")
 		os.Exit(1)
 	}
-	if err = (&controllers.CincinnatiReconciler{
+	if err = (&controllers.UpdateServiceReconciler{
 		Client:       mgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("Cincinnati"),
+		Log:          ctrl.Log.WithName("controllers").WithName("UpdateService"),
 		Scheme:       mgr.GetScheme(),
 		OperandImage: operandImage,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Cincinnati")
+		setupLog.Error(err, "unable to create controller", "controller", "UpdateService")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

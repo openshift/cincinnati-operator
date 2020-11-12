@@ -1,5 +1,5 @@
-apiVersion: cincinnati.openshift.io/v1beta1
-kind: Cincinnati
+apiVersion: updateservice.openshift.io/v1
+kind: UpdateService
 metadata:
   name: example
 spec:
