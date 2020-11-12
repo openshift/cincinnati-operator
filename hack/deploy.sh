@@ -2,7 +2,9 @@
 
 set -e
 
-DEFAULT_OPERATOR_IMAGE="quay.io/updateservice/updateservice-operator:latest"
+# DEFAULT_OPERATOR_IMAGE is a placeholder for cincinnati-operator image placeholder
+# During development override this when you want to use an specific image
+DEFAULT_OPERATOR_IMAGE="controller:latest"
 DEFAULT_OPERAND_IMAGE="quay.io/app-sre/cincinnati:2873c6b"
 
 OPERATOR_IMAGE="${OPERATOR_IMAGE:-${DEFAULT_OPERATOR_IMAGE}}"

@@ -1,4 +1,4 @@
-# updateservice-operator
+# update-service-operator
 
 This operator is developed using the [operator SDK][operator-sdk], version 1.0.0.
 Installation docs are [here][operator-sdk-installation].
@@ -8,14 +8,14 @@ Installation docs are [here][operator-sdk-installation].
 To run locally, you must set the operand image as shown below.
 
 ```
-export OPERAND_IMAGE="quay.io/app-sre/updateservice:2873c6b" 
+export OPERAND_IMAGE="quay.io/app-sre/cincinnati:2873c6b"
 operator-sdk run --local
 ```
 
 ## Using an init container to load graph data
 
 The UpdateService graph data is loaded from an init container. Before deploying 
-the updateservice-operator, you will need to [build and push an init container containing the graph data](docs/graph-data-init-container.md).
+the update-service-operator, you will need to [build and push an init container containing the graph data](docs/graph-data-init-container.md).
 
 ## Deploy operator
 
@@ -23,10 +23,10 @@ the updateservice-operator, you will need to [build and push an init container c
 make deploy
 ```
 
-By default, operator will be deployed using the default operator image `quay.io/updateservice/updateservice-operator:latest`. If you want to override the default operator image with your image, set 
+By default, operator will be deployed using the default operator image `quay.io/updateservice/update-service-operator:latest`. If you want to override the default operator image with your image, set 
 
 ```
-export OPERATOR_IMAGE="your-registry/your-repo/your-updateservice-opertor-image:tag"
+export OPERATOR_IMAGE="your-registry/your-repo/your-update-service-opertor-image:tag"
 ```
 
 ## Run functional tests

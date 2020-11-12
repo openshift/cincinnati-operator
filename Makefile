@@ -6,7 +6,11 @@
 	build
 
 SOURCES := $(shell find . -name '*.go' -not -path "*/vendor/*")
-IMG ?= quay.io/updateservice/updateservice-operator:latest
+
+# This is a placeholder for cincinnati-operator image placeholder
+# During development override this when you want to use an specific image
+# Example: IMG ?= quay.io/jottofar/updateservice-operator-index:v1
+IMG ?= controller:latest
 
 clean:
 	@echo "Cleaning previous outputs"
@@ -25,4 +29,4 @@ unit-test:
 	go test -v ./controllers/...
 
 build: $(SOURCES)
-	go build -i -ldflags="-s -w" -mod=vendor -o ./updateservice-operator ./
+	go build -i -ldflags="-s -w" -mod=vendor -o ./update-service-operator ./

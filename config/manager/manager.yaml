@@ -15,7 +15,7 @@ spec:
       serviceAccountName: updateservice-operator
       containers:
         - name: updateservice-operator
-          image: quay.io/updateservice/updateservice-operator:latest
+          image: controller:latest
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
