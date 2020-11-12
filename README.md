@@ -1,15 +1,18 @@
 # cincinnati-operator
 
-This operator is developed using the [operator SDK][operator-sdk], version 0.18.
+This operator is developed using the [operator SDK][operator-sdk], version 0.19.
 Installation docs are [here][operator-sdk-installation].
 
 ## Run locally
 
 To run locally, you must set the operand image as shown below.
 
-```
+```sh
 export OPERAND_IMAGE="quay.io/app-sre/cincinnati:2873c6b" 
-operator-sdk run --local
+export IMG="example.com/you/cincinnati-operator:latest" # somewhere you can push
+make docker-build
+make docker-push
+make deploy
 ```
 
 ## Using an init container to load graph data
@@ -49,4 +52,4 @@ make unit-test
 ```
 
 [operator-sdk]: https://sdk.operatorframework.io/docs/
-[operator-sdk-installation]: https://v0-18-x.sdk.operatorframework.io/docs/install-operator-sdk/
+[operator-sdk-installation]: https://v0-19-x.sdk.operatorframework.io/docs/install-operator-sdk/

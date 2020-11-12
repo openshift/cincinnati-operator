@@ -3,25 +3,26 @@ module github.com/openshift/cincinnati-operator
 go 1.13
 
 require (
-	github.com/go-logr/logr v0.1.0
-	github.com/onsi/gomega v1.10.0 // indirect
-	github.com/openshift/api v3.9.1-0.20190924102528-32369d4db2ad+incompatible
-	github.com/openshift/cluster-image-registry-operator v0.0.0-20200415091009-99c06ee64540
-	github.com/openshift/custom-resource-status v0.0.0-20190822192428-e62f2f3b79f3
-	github.com/operator-framework/operator-sdk v0.18.0
-	github.com/spf13/pflag v1.0.5
+	github.com/go-logr/logr v0.2.1
+	github.com/go-logr/zapr v0.2.0 // indirect
+	github.com/google/go-cmp v0.5.2 // indirect
+	github.com/googleapis/gnostic v0.5.1 // indirect
+	github.com/imdario/mergo v0.3.10 // indirect
+	github.com/onsi/ginkgo v1.14.1 // indirect
+	github.com/onsi/gomega v1.10.2 // indirect
+	github.com/openshift/api v0.0.0-20200921103312-5bc599894afc
+	github.com/openshift/cluster-image-registry-operator v0.0.0-20200919005020-e202ec478417
+	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca
 	github.com/stretchr/testify v1.5.1
-	k8s.io/api v0.18.2
-	k8s.io/apiextensions-apiserver v0.18.2
-	k8s.io/apimachinery v0.18.2
-	k8s.io/client-go v12.0.0+incompatible
+	go.uber.org/zap v1.15.0 // indirect
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
+	gomodules.xyz/jsonpatch/v2 v2.1.0 // indirect
+	google.golang.org/appengine v1.6.6 // indirect
+	k8s.io/api v0.19.2
+	k8s.io/apiextensions-apiserver v0.19.2 // indirect
+	k8s.io/apimachinery v0.19.2
+	k8s.io/client-go v0.19.2
 	k8s.io/klog v1.0.0
-	k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
-	k8s.io/kubectl v0.18.2
-	sigs.k8s.io/controller-runtime v0.6.0
-)
-
-replace (
-	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.3.2+incompatible // Required by OLM
-	k8s.io/client-go => k8s.io/client-go v0.18.2 // Required by prometheus-operator
+	k8s.io/kubectl v0.19.2
+	sigs.k8s.io/controller-runtime v0.6.1
 )
