@@ -5,13 +5,19 @@ metadata:
     alm-examples: '[]'
     capabilities: Basic Install
     operatorframework.io/suggested-namespace: openshift-update-service
-    operators.operatorframework.io/builder: operator-sdk-v0.19.3
+    operators.operatorframework.io/builder: operator-sdk-v1.0.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: cincinnati-operator.v0.0.1
+  name: openshift-update-service.vX.Y.Z
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
-  customresourcedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: UpdateService is the Schema for the UpdateService API.
+      displayName: Update Service
+      kind: UpdateService
+      name: updateservice.updateservice.openshift.io
+      version: v1
   description: |-
     # Use Case
     Running an OpenShift Update Service in a cluster is appealing for offline OpenShift
@@ -47,8 +53,8 @@ spec:
     mediatype: image/svg+xml
   install:
     spec:
-      deployments: []
-    strategy: deployment
+      deployments: null
+    strategy: ""
   installModes:
   - supported: true
     type: OwnNamespace
@@ -77,4 +83,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 0.0.1
+  version: 0.0.0
