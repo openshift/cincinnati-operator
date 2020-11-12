@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
-	ophandler "github.com/operator-framework/operator-lib/handler"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -16,12 +15,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -34,85 +30,6 @@ import (
 
 var log = logf.Log.WithName("controller_updateservice")
 
-// Options holds settings for the reconciler
-type Options struct {
-	// OperandImage is the full reference to a container image for the operand.
-	OperandImage string
-}
-
-// Add creates a new UpdateService Controller and adds it to the Manager. The Manager will set fields on the Controller
-// and Start it when the Manager is Started.
-func Add(mgr manager.Manager, options Options) error {
-	return add(mgr, newReconciler(mgr, options))
-}
-
-// newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, options Options) reconcile.Reconciler {
-	return &UpdateServiceReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		operandImage: options.OperandImage,
-	}
-}
-
-// add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	// Create a new controller
-	c, err := controller.New("updateservice-controller", mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to set metrics
-	err = c.Watch(&source.Kind{Type: &cv1.UpdateService{}}, &ophandler.InstrumentedEnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to primary resource UpdateService
-	err = c.Watch(&source.Kind{Type: &cv1.UpdateService{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to secondary resources
-	for _, obj := range []runtime.Object{
-		&appsv1.Deployment{},
-		&corev1.ConfigMap{},
-		&corev1.Service{},
-		&policyv1beta1.PodDisruptionBudget{},
-		&routev1.Route{},
-	} {
-		err = c.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &cv1.UpdateService{},
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	// Watch for all Image changes, only Reconcile when image found is named defaults.ImageConfigName and is at cluster level
-	err = c.Watch(&source.Kind{Type: &apicfgv1.Image{}},
-		&handler.EnqueueRequestsFromMapFunc{ToRequests: &mapper{mgr.GetClient()}},
-		predicate.GenerationChangedPredicate{})
-	if err != nil {
-		log.Error(err, "Error watching ImageConfig API")
-		return err
-	}
-
-	//Watch for all ConfigMap changes, only Reconcile when name == Image.Spec.AdditionalTrustedCA.Name
-	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}},
-		&handler.EnqueueRequestsFromMapFunc{ToRequests: &mapper{mgr.GetClient()}},
-	)
-	if err != nil {
-		log.Error(err, "Error watching ConfigMap API")
-		return err
-	}
-
-	return nil
-}
-
 // blank assignment to verify that ReconcileUpdateService implements reconcile.Reconciler
 var _ reconcile.Reconciler = &UpdateServiceReconciler{}
 
@@ -120,7 +37,8 @@ var _ reconcile.Reconciler = &UpdateServiceReconciler{}
 type UpdateServiceReconciler struct {
 	Client       client.Client
 	Scheme       *runtime.Scheme
-	operandImage string
+	Log          logr.Logger
+	OperandImage string
 }
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get
@@ -182,7 +100,7 @@ func (r *UpdateServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 	//    'newKubeResources' creates all the kube resources we need and holds
 	//    them in 'resources' as the canonical reference for those resources
 	//    during reconciliation.
-	resources, err := newKubeResources(instanceCopy, r.operandImage, ps, cm)
+	resources, err := newKubeResources(instanceCopy, r.OperandImage, ps, cm)
 	if err != nil {
 		reqLogger.Error(err, "Failed to render resources")
 		return ctrl.Result{}, err
@@ -664,9 +582,23 @@ func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger lo
 	return nil
 }
 
-/*
 func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-		return ctrl.NewControllerManagedBy(mgr).
-			For(&cv1.UpdateService{}).
+	mapped := &mapper{mgr.GetClient()}
+
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&cv1.UpdateService{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Service{}).
+		Owns(&policyv1beta1.PodDisruptionBudget{}).
+		Owns(&routev1.Route{}).
+		Watches(
+			&source.Kind{Type: &apicfgv1.Image{}},
+			&handler.EnqueueRequestsFromMapFunc{ToRequests: mapped},
+		).
+		Watches(
+			&source.Kind{Type: &corev1.ConfigMap{}},
+			&handler.EnqueueRequestsFromMapFunc{ToRequests: mapped},
+		).
+		Complete(r)
 }
-*/
