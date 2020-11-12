@@ -56,23 +56,11 @@ rules:
 - apiGroups:
   - apps
   resourceNames:
-  - cincinnati-operator
+  - update-service-operator
   resources:
   - deployments/finalizers
   verbs:
   - update
-- apiGroups:
-  - cincinnati.openshift.io
-  resources:
-  - '*'
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - config.openshift.io
   resources:
@@ -111,6 +99,38 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - updateservice.openshift.io
+  resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - updateservice.openshift.io
+  resources:
+  - updateservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - updateservice.openshift.io
+  resources:
+  - updateservices/status
+  verbs:
+  - get
+  - patch
+  - update
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -118,7 +138,7 @@ kind: Role
 metadata:
   creationTimestamp: null
   name: manager-role
-  namespace: cincinnati-operator
+  namespace: update-service-operator
 rules:
 - apiGroups:
   - ""
@@ -170,23 +190,11 @@ rules:
 - apiGroups:
   - apps
   resourceNames:
-  - cincinnati-operator
+  - update-service-operator
   resources:
   - deployments/finalizers
   verbs:
   - update
-- apiGroups:
-  - cincinnati.openshift.io
-  resources:
-  - '*'
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:
@@ -198,6 +206,18 @@ rules:
   - policy
   resources:
   - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - updateservice.openshift.io
+  resources:
+  - '*'
   verbs:
   - create
   - delete

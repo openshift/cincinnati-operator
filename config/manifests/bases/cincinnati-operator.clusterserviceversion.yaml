@@ -4,22 +4,22 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
-    operatorframework.io/suggested-namespace: openshift-cincinnati
+    operatorframework.io/suggested-namespace: openshift-update-service
     operators.operatorframework.io/builder: operator-sdk-v0.19.3
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: cincinnati-operator.vX.Y.Z
+  name: openshift-update-service.vX.Y.Z
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: Cincinnati is the Schema for the cincinnatis API
-      kind: Cincinnati
-      name: cincinnatis.cincinnati.openshift.io
-      version: v1beta1
+    - description: UpdateService is the Schema for the UpdateService API.
+      kind: UpdateService
+      name: updateservices.updateservice.openshift.io
+      version: v1
   description: |-
     # Use Case
-    Running a Cincinnati instance in a cluster is appealing for offline OpenShift
+    Running an OpenShift Update Service in a cluster is appealing for offline OpenShift
     clusters or for admins that want to provide their own graph data instead of
     using [https://github.com/openshift/cincinnati-graph-data](https://github.com/openshift/cincinnati-graph-data/).
 
@@ -72,7 +72,7 @@ spec:
   links:
   - name: Cincinnati
     url: https://github.com/openshift/cincinnati
-  - name: Cincinnati Operator
+  - name: OpenShift Update Service Operator
     url: https://github.com/openshift/cincinnati-operator
   - name: OpenShift Graph Data
     url: https://github.com/openshift/cincinnati-graph-data/

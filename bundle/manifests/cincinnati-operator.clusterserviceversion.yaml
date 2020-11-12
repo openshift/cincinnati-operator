@@ -2,39 +2,19 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: |-
-      [
-        {
-          "apiVersion": "cincinnati.openshift.io/v1beta1",
-          "kind": "Cincinnati",
-          "metadata": {
-            "name": "example"
-          },
-          "spec": {
-            "graphDataImage": "graph-data:latest",
-            "registry": "quay.io",
-            "replicas": 1,
-            "repository": "openshift-release-dev/ocp-release"
-          }
-        }
-      ]
+    alm-examples: '[]'
     capabilities: Basic Install
-    operatorframework.io/suggested-namespace: openshift-cincinnati
+    operatorframework.io/suggested-namespace: openshift-update-service
     operators.operatorframework.io/builder: operator-sdk-v0.19.3
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
   name: cincinnati-operator.v0.0.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
-  customresourcedefinitions:
-    owned:
-    - description: Cincinnati is the Schema for the cincinnatis API
-      kind: Cincinnati
-      name: cincinnatis.cincinnati.openshift.io
-      version: v1beta1
+  customresourcedefinitions: {}
   description: |-
     # Use Case
-    Running a Cincinnati instance in a cluster is appealing for offline OpenShift
+    Running an OpenShift Update Service in a cluster is appealing for offline OpenShift
     clusters or for admins that want to provide their own graph data instead of
     using [https://github.com/openshift/cincinnati-graph-data](https://github.com/openshift/cincinnati-graph-data/).
 
@@ -67,197 +47,7 @@ spec:
     mediatype: image/svg+xml
   install:
     spec:
-      clusterPermissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - endpoints
-          - events
-          - persistentvolumeclaims
-          - pods
-          - secrets
-          - services
-          - services/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - get
-        - apiGroups:
-          - apps
-          resources:
-          - daemonsets
-          - deployments
-          - replicasets
-          - statefulsets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          - replicasets
-          verbs:
-          - get
-        - apiGroups:
-          - apps
-          resourceNames:
-          - cincinnati-operator
-          resources:
-          - deployments/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - cincinnati.openshift.io
-          resources:
-          - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - config.openshift.io
-          resources:
-          - images
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          verbs:
-          - create
-          - get
-        - apiGroups:
-          - policy
-          resources:
-          - poddisruptionbudgets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - route.openshift.io
-          resources:
-          - routes
-          verbs:
-          - create
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - authentication.k8s.io
-          resources:
-          - tokenreviews
-          verbs:
-          - create
-        - apiGroups:
-          - authorization.k8s.io
-          resources:
-          - subjectaccessreviews
-          verbs:
-          - create
-        serviceAccountName: default
-      deployments:
-      - name: cincinnati-operator-controller-manager
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              control-plane: controller-manager
-          strategy: {}
-          template:
-            metadata:
-              labels:
-                control-plane: controller-manager
-            spec:
-              containers:
-              - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=10
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                resources: {}
-              - args:
-                - --metrics-addr=127.0.0.1:8080
-                - --enable-leader-election
-                env:
-                - name: OPERAND_IMAGE
-                  value: cincinnati:latest
-                image: controller:latest
-                name: manager
-                resources:
-                  limits:
-                    cpu: 100m
-                    memory: 200Mi
-                  requests:
-                    cpu: 100m
-                    memory: 100Mi
-              terminationGracePeriodSeconds: 10
-      permissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - patch
-          - delete
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps/status
-          verbs:
-          - get
-          - update
-          - patch
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-          - patch
-        serviceAccountName: default
+      deployments: []
     strategy: deployment
   installModes:
   - supported: true
@@ -277,7 +67,7 @@ spec:
   links:
   - name: Cincinnati
     url: https://github.com/openshift/cincinnati
-  - name: Cincinnati Operator
+  - name: OpenShift Update Service Operator
     url: https://github.com/openshift/cincinnati-operator
   - name: OpenShift Graph Data
     url: https://github.com/openshift/cincinnati-graph-data/

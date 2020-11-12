@@ -1,4 +1,4 @@
-# cincinnati-operator
+# OpenShift Update Service Operator
 
 This operator is developed using the [operator SDK][operator-sdk], version 0.19.
 Installation docs are [here][operator-sdk-installation].
@@ -9,7 +9,7 @@ To run locally, you must set the operand image as shown below.
 
 ```sh
 export OPERAND_IMAGE="quay.io/app-sre/cincinnati:2873c6b" 
-export IMG="example.com/you/cincinnati-operator:latest" # somewhere you can push
+export IMG="example.com/you/update-service-operator:latest" # somewhere you can push
 make docker-build
 make docker-push
 make deploy
@@ -17,8 +17,8 @@ make deploy
 
 ## Using an init container to load graph data
 
-The Cincinnati graph data is loaded from an init container. Before deploying 
-the cincinnati-operator, you will need to [build and push an init container containing the graph data](docs/graph-data-init-container.md).
+The graph data is loaded from an init container.
+Before deploying the Update Service operator, you will need to [build and push an init container containing the graph data](docs/graph-data-init-container.md).
 
 ## Deploy operator
 
@@ -26,10 +26,10 @@ the cincinnati-operator, you will need to [build and push an init container cont
 make deploy
 ```
 
-By default, operator will be deployed using the default operator image `quay.io/cincinnati/cincinnati-operator:latest`. If you want to override the default operator image with your image, set 
+By default, operator will be deployed using the default operator image `controller:latest`. If you want to override the default operator image with your image, set 
 
 ```
-export OPERATOR_IMAGE="your-registry/your-repo/your-cincinnati-opertor-image:tag"
+export IMG="your-registry/your-repo/your-update-service-opertor-image:tag"
 ```
 
 ## Run functional tests
