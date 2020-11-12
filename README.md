@@ -1,6 +1,6 @@
 # OpenShift Update Service Operator
 
-This operator is developed using the [operator SDK][operator-sdk], version 0.19.
+This operator is developed using the [operator SDK][operator-sdk], version 1.0.
 Installation docs are [here][operator-sdk-installation].
 
 ## Run locally
@@ -52,4 +52,4 @@ make unit-test
 ```
 
 [operator-sdk]: https://sdk.operatorframework.io/docs/
-[operator-sdk-installation]: https://v0-19-x.sdk.operatorframework.io/docs/install-operator-sdk/
+[operator-sdk-installation]: https://v1-0-x.sdk.operatorframework.io/docs/installation/install-operator-sdk/
