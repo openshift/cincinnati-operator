@@ -9,7 +9,7 @@ import (
 	"k8s.io/klog"
 	"k8s.io/kubectl/pkg/scheme"
 
-	cincinnativ1beta1 "github.com/openshift/cincinnati-operator/pkg/apis/cincinnati/v1beta1"
+	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,11 +21,11 @@ import (
 )
 
 const (
-	customResourceName = "example-cincinnati"
-	operatorName       = "cincinnati-operator"
-	operatorNamespace  = "openshift-cincinnati"
-	crdName            = "cincinnatis.cincinnati.openshift.io"
-	resource           = "cincinnatis"
+	customResourceName = "example"
+	operatorName       = "updateservice-operator"
+	operatorNamespace  = "openshift-updateservice"
+	crdName            = "updateservices.updateservice.operator.openshift.io"
+	resource           = "updateservices"
 	routeName          = customResourceName + "-policy-engine-route"
 	replicas           = 1
 	retryInterval      = time.Second * 30
@@ -69,31 +69,31 @@ func getCrClient() (client.Client, error) {
 	return crClient, nil
 }
 
-// getCincinnatiClient is the function used to retrieve the cincinnati operator rest client
-func getCincinnatiClient() (*rest.RESTClient, error) {
-	cincinnatiConfig, err := getConfig()
+// getUpdateServiceClient is the function used to retrieve the updateservice operator rest client
+func getUpdateServiceClient() (*rest.RESTClient, error) {
+	updateserviceConfig, err := getConfig()
 	if err != nil {
 		return nil, err
 	}
-	cincinnatiConfig.ContentType = runtime.ContentTypeJSON
-	cincinnatiConfig.GroupVersion = &cincinnativ1beta1.SchemeGroupVersion
-	cincinnatiConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	cincinnatiConfig.APIPath = "/apis"
-	cincinnatiConfig.ContentType = runtime.ContentTypeJSON
-	if cincinnatiConfig.UserAgent == "" {
-		cincinnatiConfig.UserAgent = rest.DefaultKubernetesUserAgent()
+	updateserviceConfig.ContentType = runtime.ContentTypeJSON
+	updateserviceConfig.GroupVersion = &updateservicev1.GroupVersion
+	updateserviceConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	updateserviceConfig.APIPath = "/apis"
+	updateserviceConfig.ContentType = runtime.ContentTypeJSON
+	if updateserviceConfig.UserAgent == "" {
+		updateserviceConfig.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
-	// Cincinnati Operator rest client
-	cincinnatiClient, err := rest.RESTClientFor(cincinnatiConfig)
+	// UpdateService Operator rest client
+	updateserviceClient, err := rest.RESTClientFor(updateserviceConfig)
 	if err != nil {
 		return nil, err
 	}
-	return cincinnatiClient, nil
+	return updateserviceClient, nil
 }
 
 // deployCR is the function to deploy a cincinnati custom resource in the cluster
 func deployCR(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "oc", "apply", "-f", "../deploy/crds/cincinnati.openshift.io_v1beta1_cincinnati_cr.yaml", "-n", operatorNamespace)
+	cmd := exec.CommandContext(ctx, "oc", "apply", "-f", "../config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml", "-n", operatorNamespace)
 	output, err := cmd.Output()
 	if err != nil {
 		return err
@@ -153,8 +153,8 @@ func waitForService(ctx context.Context, k8sClient *kubernetes.Clientset, name s
 // deleteCR is the function to delete a custom resource from the cluster
 func deleteCR(ctx context.Context) error {
 	klog.Info("Deleting custom resource")
-	cincinnatiClient, _ := getCincinnatiClient()
-	err := cincinnatiClient.Delete().
+	updateserviceClient, _ := getUpdateServiceClient()
+	err := updateserviceClient.Delete().
 		Resource(resource).
 		Namespace(operatorNamespace).
 		Name(customResourceName).

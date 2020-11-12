@@ -1,0 +1,24 @@
+# permissions for end users to edit updateservices.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: updateservice-editor-role
+rules:
+- apiGroups:
+  - updateservice.operator.openshift.io
+  resources:
+  - updateservices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - updateservice.operator.openshift.io
+  resources:
+  - updateservices/status
+  verbs:
+  - get

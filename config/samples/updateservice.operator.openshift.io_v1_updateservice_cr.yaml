@@ -1,0 +1,9 @@
+apiVersion: updateservice.operator.openshift.io/v1
+kind: UpdateService
+metadata:
+  name: example
+spec:
+  replicas: 1
+  registry: "quay.io"
+  repository: "openshift-release-dev/ocp-release"
+  graphDataImage: "your-registry/your-repo/your-init-container"
