@@ -122,23 +122,15 @@ type UpdateServiceReconciler struct {
 	operandImage string
 }
 
-// +kubebuilder:rbac:groups="",namespace="updateservice-operator",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups="apps",namespace="updateservice-operator",resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups="monitoring.coreos.com",namespace="updateservice-operator",resources=servicemonitors,verbs=create;get
-// +kubebuilder:rbac:groups="apps",namespace="updateservice-operator",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update
-// +kubebuilder:rbac:groups="",namespace="updateservice-operator",resources=pods,verbs=get
-// +kubebuilder:rbac:groups="apps",namespace="updateservice-operator",resources=replicasets;deployments,verbs=get
-// +kubebuilder:rbac:groups="policy",namespace="updateservice-operator",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups=updateservice.operator.openshift.io,namespace="updateservice-operator",resources=*,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups=config.openshift.io,resources=images,verbs=get;list;watch
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get
 // +kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="apps",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update
 // +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
 // +kubebuilder:rbac:groups="apps",resources=replicasets;deployments,verbs=get
-// +kubebuilder:rbac:groups="",resources=pods,verbs=get
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=create;get
-// +kubebuilder:rbac:groups="apps",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update
 // +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups=config.openshift.io,resources=images,verbs=get;list;watch
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch
 // +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
 
 func (r *UpdateServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
