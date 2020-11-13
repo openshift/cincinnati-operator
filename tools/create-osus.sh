@@ -18,7 +18,6 @@ metadata:
   name: example
 spec:
   replicas: 1
-  registry: "quay.io"
-  repository: "updateservice/cincinnati-graph-data-container"
-  graphDataImage: "${REGISTRY}/cincinnati-graph-data-container:${tag}"
+  registry: quay.io/updateservice/cincinnati-graph-data-container
+  graphDataImage: ${REGISTRY}/cincinnati-graph-data-container:${tag}
 EOF

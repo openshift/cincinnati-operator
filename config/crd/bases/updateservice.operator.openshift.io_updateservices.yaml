@@ -43,8 +43,9 @@ spec:
               description: graphDataImage is a container image that contains the UpdateService
                 graph data.
               type: string
-            registry:
-              description: registry is the container registry to use, such as "quay.io".
+            releases:
+              description: releases is the repository in which release images are
+                tagged, such as quay.io/openshift-release-dev/ocp-release.
               type: string
             replicas:
               description: replicas is the number of pods to run. When >=2, a PodDisruptionBudget
@@ -53,15 +54,10 @@ spec:
               format: int32
               minimum: 1
               type: integer
-            repository:
-              description: repository is the repository to use in the Registry, such
-                as "openshift-release-dev/ocp-release"
-              type: string
           required:
           - graphDataImage
-          - registry
+          - releases
           - replicas
-          - repository
           type: object
         status:
           description: status contains information about the current state of the

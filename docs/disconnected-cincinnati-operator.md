@@ -214,8 +214,7 @@ You might want to review the documentation around disconnected registries to lea
           name: example-name
         spec:
           replicas: 1
-          registry: "${DISCONNECTED_REGISTRY}"
-          repository: "ocp4/release"
+          releases: "${DISCONNECTED_REGISTRY}/ocp4/release"
           graphDataImage: "${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-graph-data-container:latest"
         EOF
         ~~~
@@ -229,8 +228,7 @@ You might want to review the documentation around disconnected registries to lea
           name: example-name
         spec:
           replicas: 1
-          registry: "${DISCONNECTED_REGISTRY}"
-          repository: "openshiftreleases"
+          registry: "${DISCONNECTED_REGISTRY}/openshiftreleases"
           graphDataImage: "${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-graph-data-container:latest"
         EOF
         ~~~
