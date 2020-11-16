@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	client "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -26,7 +25,6 @@ const (
 	operatorNamespace  = "openshift-updateservice"
 	crdName            = "updateservices.updateservice.operator.openshift.io"
 	resource           = "updateservices"
-	routeName          = customResourceName + "-policy-engine-route"
 	replicas           = 1
 	retryInterval      = time.Second * 30
 	timeout            = time.Second * 600
@@ -54,19 +52,6 @@ func getK8sClient() (*kubernetes.Clientset, error) {
 		return nil, err2
 	}
 	return k8sClient, nil
-}
-
-// getCrClient is a function used to retrieve the controller runtime client
-func getCrClient() (client.Client, error) {
-	config, err := getConfig()
-	if err != nil {
-		return nil, err
-	}
-	crClient, err := client.New(config, client.Options{})
-	if err != nil {
-		return nil, err
-	}
-	return crClient, nil
 }
 
 // getUpdateServiceClient is the function used to retrieve the updateservice operator rest client

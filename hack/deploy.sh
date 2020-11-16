@@ -37,4 +37,4 @@ oc apply -f config/rbac/role.yaml -n $NAMESPACE
 oc apply -f config/rbac/role_binding.yaml -n $NAMESPACE
 oc apply -f config/rbac/auth_proxy_service.yaml -n $NAMESPACE
 oc apply -f config/manager/manager.yaml -n $NAMESPACE
-oc apply -f config/crd/bases/updateservice.operator.openshift.io_updateservices_crd.yaml -n $NAMESPACE
+oc apply -f config/crd/bases/updateservice.operator.openshift.io_updateservices.yaml -n $NAMESPACE

@@ -33,8 +33,7 @@ const (
 	testUpdateServiceAPIVersion = "testAPIVersion"
 	testOperandImage            = "testOperandImage"
 	testReplicas                = 1
-	testRegistry                = "testRegistry"
-	testRepository              = "testRepository"
+	testReleases                = "testRegistry/testRepository"
 	testGraphDataImage          = "testGraphDataImage"
 	testConfigMap               = "testConfigMap"
 )
@@ -595,8 +594,7 @@ func newDefaultUpdateService() *cv1.UpdateService {
 		},
 		Spec: cv1.UpdateServiceSpec{
 			Replicas:       testReplicas,
-			Registry:       testRegistry,
-			Repository:     testRepository,
+			Releases:       testReleases,
 			GraphDataImage: testGraphDataImage,
 		},
 	}

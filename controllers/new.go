@@ -32,6 +32,11 @@ const (
 	EnvConfigHashAnnotation string = "updateservice.operator.openshift.io/env-config-hash"
 )
 
+type graphBuilderProperties struct {
+	Registry   string
+	Repository string
+}
+
 const graphBuilderTOML string = `verbosity = "vvv"
 
 [service]
@@ -252,12 +257,23 @@ func (k *kubeResources) newEnvConfig(instance *cv1.UpdateService) *corev1.Config
 }
 
 func (k *kubeResources) newGraphBuilderConfig(instance *cv1.UpdateService) (*corev1.ConfigMap, error) {
+	var registry, repository string
+	if segments := strings.SplitN(instance.Spec.Releases, "/", 2); len(segments) != 2 {
+		return nil, fmt.Errorf("failed to split %q into registry and repository components", instance.Spec.Releases)
+	} else {
+		registry = segments[0]
+		repository = segments[1]
+	}
+
 	tmpl, err := template.New("gb").Parse(graphBuilderTOML)
 	if err != nil {
 		return nil, err
 	}
 	builder := strings.Builder{}
-	if err = tmpl.Execute(&builder, instance.Spec); err != nil {
+	if err = tmpl.Execute(&builder, &graphBuilderProperties{
+		Registry:   registry,
+		Repository: repository,
+	}); err != nil {
 		return nil, err
 	}
 	return &corev1.ConfigMap{

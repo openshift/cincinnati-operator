@@ -66,7 +66,7 @@ github.com/matttproud/golang_protobuf_extensions/pbutil
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.1
 github.com/modern-go/reflect2
-# github.com/openshift/api v0.0.0-20200921103312-5bc599894afc
+# github.com/openshift/api v0.0.0-20201019163320-c6a5ec25f267
 github.com/openshift/api/config/v1
 github.com/openshift/api/route/v1
 # github.com/openshift/cluster-image-registry-operator v0.0.0-20200919005020-e202ec478417
@@ -74,6 +74,8 @@ github.com/openshift/cluster-image-registry-operator/pkg/defaults
 github.com/openshift/cluster-image-registry-operator/pkg/version
 # github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca
 github.com/openshift/custom-resource-status/conditions/v1
+# github.com/openshift/library-go v0.0.0-20201109112824-093ad3cf6600
+github.com/openshift/library-go/pkg/route/routeapihelpers
 # github.com/operator-framework/operator-lib v0.1.0
 github.com/operator-framework/operator-lib/handler
 github.com/operator-framework/operator-lib/handler/internal/metrics

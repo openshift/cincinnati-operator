@@ -16,14 +16,10 @@ type UpdateServiceSpec struct {
 	// +kubebuilder:validation:Required
 	Replicas int32 `json:"replicas"`
 
-	// registry is the container registry to use, such as "quay.io".
+	// releases is the repository in which release images are tagged,
+	// such as quay.io/openshift-release-dev/ocp-release.
 	// +kubebuilder:validation:Required
-	Registry string `json:"registry"`
-
-	// repository is the repository to use in the Registry, such as
-	// "openshift-release-dev/ocp-release"
-	// +kubebuilder:validation:Required
-	Repository string `json:"repository"`
+	Releases string `json:"releases"`
 
 	// graphDataImage is a container image that contains the UpdateService graph
 	// data.
@@ -38,6 +34,12 @@ type UpdateServiceStatus struct {
 	// +patchStrategy=merge
 	// +kubebuilder:validation:Optional
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"  patchStrategy:"merge" patchMergeKey:"type"`
+
+	// policyEngineURI is the external URI which exposes the policy
+	// engine.  Available paths from this URI include:
+	//
+	// * /api/upgrades_info/v1/graph, with the update graph recommendations.
+	PolicyEngineURI string `json:"policyEngineURI,optional"`
 }
 
 // Condition Types

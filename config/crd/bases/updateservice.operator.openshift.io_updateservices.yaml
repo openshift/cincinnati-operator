@@ -1,6 +1,11 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
   name: updateservices.updateservice.operator.openshift.io
 spec:
   group: updateservice.operator.openshift.io
@@ -14,7 +19,7 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: UpdateService is the Schema for a UpdateService service.
+      description: UpdateService is the Schema for the updateservices API.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -27,36 +32,36 @@ spec:
             submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
+          description: 'metadata is standard object metadata.  More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata'
           type: object
         spec:
-          description: UpdateServiceSpec defines the desired state of UpdateService
+          description: spec is the desired state of the UpdateService service.  The
+            operator will work to ensure that the desired configuration is applied
+            to the cluster.
           properties:
             graphDataImage:
-              description: GraphDataImage is a container image that contains the UpdateService
-                graph data. The data is copied to /var/lib/updateservice/graph-data.
+              description: graphDataImage is a container image that contains the UpdateService
+                graph data.
               type: string
-            registry:
-              description: Registry is the container registry to use, such as "quay.io".
+            releases:
+              description: releases is the repository in which release images are
+                tagged, such as quay.io/openshift-release-dev/ocp-release.
               type: string
             replicas:
-              description: Replicas is the number of pods to run. When >=2, a PodDisruptionBudget
+              description: replicas is the number of pods to run. When >=2, a PodDisruptionBudget
                 will ensure that voluntary disruption leaves at least one Pod running
                 at all times.
               format: int32
               minimum: 1
               type: integer
-            repository:
-              description: Repository is the repository to use in the Registry, such
-                as "openshift-release-dev/ocp-release"
-              type: string
           required:
           - graphDataImage
-          - registry
+          - releases
           - replicas
-          - repository
           type: object
         status:
-          description: UpdateServiceStatus defines the observed state of UpdateService
+          description: status contains information about the current state of the
+            UpdateService service.
           properties:
             conditions:
               description: Conditions describe the state of the UpdateService resource.
@@ -85,10 +90,26 @@ spec:
                 - type
                 type: object
               type: array
+            policyEngineURI:
+              description: "policyEngineURI is the external URI which exposes the
+                policy engine.  Available paths from this URI include: \n * /api/upgrades_info/v1/graph,
+                with the update graph recommendations."
+              type: string
+          required:
+          - policyEngineURI
           type: object
+      required:
+      - metadata
+      - spec
       type: object
   version: v1
   versions:
   - name: v1
     served: true
     storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
