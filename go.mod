@@ -14,7 +14,6 @@ require (
 	github.com/openshift/cluster-image-registry-operator v0.0.0-20200919005020-e202ec478417
 	github.com/openshift/custom-resource-status v0.0.0-20200602122900-c002fd1547ca
 	github.com/openshift/library-go v0.0.0-20201109112824-093ad3cf6600
-	github.com/operator-framework/operator-lib v0.1.0
 	github.com/stretchr/testify v1.5.1
 	go.uber.org/zap v1.15.0 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect

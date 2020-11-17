@@ -410,8 +410,6 @@ github.com/openshift/library-go v0.0.0-20200731053141-ff55255233e3/go.mod h1:q7e
 github.com/openshift/library-go v0.0.0-20201109112824-093ad3cf6600 h1:BjzxCCiWcRwOq3LAKZxZWmY6wD85D5462KpG1p7zMRw=
 github.com/openshift/library-go v0.0.0-20201109112824-093ad3cf6600/go.mod h1:1xYaYQcQsn+AyCRsvOU+Qn5z6GGiCmcblXkT/RZLVfo=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
-github.com/operator-framework/operator-lib v0.1.0 h1:7Qy6v2ZccvCeFLWEkrGnN+U+DkaeIWp0gAZaBM9T3DI=
-github.com/operator-framework/operator-lib v0.1.0/go.mod h1:HLw61JTIEeq0YLeVf4dwYx/zt4DmLGZUVWI1y3Lf5Hg=
 github.com/pborman/uuid v1.2.0/go.mod h1:X/NO0urCmaxf9VXbdlT7C2Yzkj2IKimNn4k+gtPdI/k=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/peterbourgon/diskv v2.0.1+incompatible/go.mod h1:uqqh8zWWbv1HBMNONnaR/tNboyR3/BZd58JJSHlUSCU=
