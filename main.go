@@ -47,10 +47,9 @@ func init() {
 }
 
 func printVersion() {
-	log.Info(fmt.Sprintf("Operator Version: %s", version.Version))
+	log.Info(fmt.Sprintf("Operator Version: %s", version.Operator))
 	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
-	log.Info(fmt.Sprintf("Version of operator-sdk: %s", version.SdkVersion))
 }
 
 // getWatchNamespace returns the Namespace the operator should be watching for changes

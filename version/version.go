@@ -1,6 +1,7 @@
+// Package version holds constants declaring component versions.
 package version
 
 var (
-	Version    = "1.0.0"
-	SdkVersion = "v1.2.0"
+	// Operator is the version of the operator.
+	Operator = "was not built correctly"
 )
