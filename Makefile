@@ -6,6 +6,7 @@ VERSION ?= 0.0.1
 	deploy \
 	func-test \
 	unit-test \
+	tar.gz \
 	build
 
 SOURCES := $(shell find . -name '*.go' -not -path "*/vendor/*")
@@ -35,3 +36,7 @@ unit-test:
 
 build: $(SOURCES)
 	go build $(GOBUILDFLAGS) -ldflags="$(GOLDFLAGS)" -o ./update-service-operator ./
+
+tar.gz: $(SOURCES)
+	mkdir -p ./targz
+	tar -czvf ./targz/cincinnati-operator-v${VERSION}.tar.gz ${PWD}
