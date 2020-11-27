@@ -39,7 +39,6 @@ metadata:
   namespace: example-namespace
 spec:
   replicas: 1
-  registry: "quay.io"
-  repository: "openshift-release-dev/ocp-release"
-  graphDataImage: "quay.io/rwsu/cincinnati-graph-data-container:latest"
+  releases: quay.io/openshift-release-dev/ocp-release
+  graphDataImage: quay.io/rwsu/cincinnati-graph-data-container:latest
 ```

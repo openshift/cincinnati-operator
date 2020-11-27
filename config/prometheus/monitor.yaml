@@ -1,0 +1,16 @@
+
+# Prometheus Monitor Service (Metrics)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    control-plane: updateservice-operator
+  name: updateservice-operator-metrics-monitor
+  namespace: openshift-updateservice
+spec:
+  endpoints:
+    - path: /metrics
+      port: https
+  selector:
+    matchLabels:
+      control-plane: updateservice-operator

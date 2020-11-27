@@ -1,0 +1,7 @@
+apiVersion: updateservice.operator.openshift.io/v1
+kind: UpdateService
+metadata:
+  name: updateservice-sample
+spec:
+  # Add fields here
+  foo: bar

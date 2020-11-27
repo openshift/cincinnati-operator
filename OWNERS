@@ -1,24 +1,16 @@
 # See the OWNERS docs: https://git.k8s.io/community/contributors/guide/owners.md
 
 approvers:
-- mhrivnak
-- rthallisey
-- rwsu
-- LalatenduMohanty
-- wking
-- steveeJ
 - jottofar
+- LalatenduMohanty
+- steveeJ
 - vrutkovs
+- wking
 reviewers:
-- djzager
-- mhrivnak
-- rthallisey
-- rwsu
-- sacharya
-- LalatenduMohanty
-- wking
-- steveeJ
 - jottofar
+- LalatenduMohanty
+- steveeJ
 - vrutkovs
+- wking
 
-component: "Cincinnati Operator"
+component: OpenShift Update Service

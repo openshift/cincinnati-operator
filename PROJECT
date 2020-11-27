@@ -1,0 +1,11 @@
+domain: openshift.io
+layout: go.kubebuilder.io/v2
+repo: github.com/openshift/cincinnati-operator
+resources:
+- group: updateservice.operator
+  kind: UpdateService
+  version: v1
+version: 3-alpha
+projectName: update-service-operator
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}

@@ -1,5 +1,7 @@
+// Package version holds constants declaring component versions.
 package version
 
 var (
-	Version = "0.0.1"
+	// Operator is the version of the operator.
+	Operator = "was not built correctly"
 )
