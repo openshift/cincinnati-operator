@@ -6,7 +6,11 @@ VERSION ?= 0.0.1
 	deploy \
 	func-test \
 	unit-test \
-	build
+	build \
+	manifests \
+	gen-for-bundle \
+	bundle \
+	bundle-build
 
 SOURCES := $(shell find . -name '*.go' -not -path "*/vendor/*")
 GOBUILDFLAGS ?= -i -mod=vendor
@@ -14,8 +18,21 @@ GOLDFLAGS ?= -s -w -X github.com/openshift/cincinnati-operator/version.Operator=
 
 # This is a placeholder for cincinnati-operator image placeholder
 # During development override this when you want to use an specific image
-# Example: IMG ?= quay.io/jottofar/updateservice-operator-index:v1
+# Example: IMG ?= quay.io/jottofar/update-service-operator:v1
 IMG ?= controller:latest
+
+BUNDLE_IMG ?= controller-bundle:latest
+
+CHANNELS ?= v1
+BUNDLE_CHANNELS = --channels=$(CHANNELS)
+
+DEFAULT_CHANNEL ?= v1
+BUNDLE_DEFAULT_CHANNEL = --default-channel=$(DEFAULT_CHANNEL)
+
+BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 clean:
 	@echo "Cleaning previous outputs"
@@ -35,3 +52,53 @@ unit-test:
 
 build: $(SOURCES)
 	go build $(GOBUILDFLAGS) -ldflags="$(GOLDFLAGS)" -o ./update-service-operator ./
+
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen:
+ifeq (, $(shell which controller-gen))
+	@{ \
+	set -e ;\
+	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONTROLLER_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
+	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif
+
+kustomize:
+ifeq (, $(shell which kustomize))
+	@{ \
+	set -e ;\
+	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
+	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
+	}
+KUSTOMIZE=$(GOBIN)/kustomize
+else
+KUSTOMIZE=$(shell which kustomize)
+endif
+
+# Generate manifests e.g. CRD, RBAC etc.
+manifests:  controller-gen
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=updateservice-operator webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+# Generate bundle manifests
+gen-for-bundle: manifests kustomize
+	operator-sdk generate kustomize manifests -q
+
+# Generate bundle and metadata, then validate generated files.
+bundle: kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	operator-sdk bundle validate ./bundle
+
+# Build the bundle image.
+bundle-build:
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
