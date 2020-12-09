@@ -1,5 +1,6 @@
 # Current Operator version
 VERSION ?= 0.0.1
+VERSIONSDK ?= 1.2.0
 
 .PHONY: \
 	clean \
@@ -14,7 +15,8 @@ VERSION ?= 0.0.1
 
 SOURCES := $(shell find . -name '*.go' -not -path "*/vendor/*")
 GOBUILDFLAGS ?= -i -mod=vendor
-GOLDFLAGS ?= -s -w -X github.com/openshift/cincinnati-operator/version.Operator=$(VERSION)
+GOLDFLAGS ?= -s -w -X github.com/openshift/cincinnati-operator/version.versionOperator=$(VERSION) \
+			-X github.com/openshift/cincinnati-operator/version.versionSDK=$(VERSIONSDK)
 
 # This is a placeholder for cincinnati-operator image placeholder
 # During development override this when you want to use an specific image

@@ -2,6 +2,7 @@
 package version
 
 var (
+	VersionSDK = "0.0.0-unset"
 	// Operator is the version of the operator.
-	Operator = "was not built correctly"
+	VersionOperator = "0.0.0-unset"
 )
