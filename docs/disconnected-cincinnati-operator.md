@@ -23,30 +23,30 @@ You can follow [this doc](https://docs.openshift.com/container-platform/4.5/oper
 4. Copy the cincinnati package definition to the registry repo
 
     ~~~sh
-    cp -pr cincinnati-operator/deploy/olm-catalog/cincinnati-operator operator-registry/manifests/
+    cp -pr cincinnati-operator/config/olm-catalog/updateservice-operator operator-registry/manifests/
     ~~~
 5. Update the CSV to point to the local mirror instead of quay
 
     ~~~sh
     DISCONNECTED_REGISTRY="my-disconnected-registry.example.com:5000"
-    sed -i "s|quay.io/cincinnati/cincinnati-operator:latest|${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-operator:latest|g" operator-registry/manifests/cincinnati-operator/0.0.1/cincinnati-operator.v0.0.1.clusterserviceversion.yaml
-    sed -i "s|quay.io/cincinnati/cincinnati:latest|${DISCONNECTED_REGISTRY}/cincinnati/cincinnati:latest|g" operator-registry/manifests/cincinnati-operator/0.0.1/cincinnati-operator.v0.0.1.clusterserviceversion.yaml
+    sed -i "s|quay.io/updateservice/updateservice-operator:latest|${DISCONNECTED_REGISTRY}/updateservice/updateservice-operator:latest|g" operator-registry/manifests/updateservice-operator/1.0.0/updateservice-operator.v1.0.0.clusterserviceversion.yaml
+    sed -i "s|quay.io/cincinnati/cincinnati:latest|${DISCONNECTED_REGISTRY}/cincinnati/cincinnati:latest|g" operator-registry/manifests/updateservice-operator/1.0.0/updateservice-operator.v1.0.0.clusterserviceversion.yaml
     ~~~
 6. Build the catalog registry and push the image to the local registry
 
     ~~~sh
-    sudo podman build -f operator-registry/upstream-example.Dockerfile -t ${DISCONNECTED_REGISTRY}/local-operators/cincinnati-operator-registry:v1
-    sudo podman push ${DISCONNECTED_REGISTRY}/local-operators/cincinnati-operator-registry:v1 --authfile=/path/to/pull_secret.json
+    sudo podman build -f operator-registry/upstream-example.Dockerfile -t ${DISCONNECTED_REGISTRY}/local-operators/updateservice-operator-registry:v1
+    sudo podman push ${DISCONNECTED_REGISTRY}/local-operators/updateservice-operator-registry:v1 --authfile=/path/to/pull_secret.json
     ~~~
-7. Mirror the cincinnati operand and cincinnati operator image to the local registry
+7. Mirror the cincinnati operand and update-service operator image to the local registry
 
     ~~~sh
     # Operator
-    skopeo copy docker://quay.io/cincinnati/cincinnati-operator:latest docker://${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-operator:latest --authfile=/path/to/pull_secret.json
+    skopeo copy docker://quay.io/cincinnati/cincinnati-operator:latest docker://${DISCONNECTED_REGISTRY}/cincinnati/updateservice-operator:latest --authfile=/path/to/pull_secret.json
     # Cincinnati (get the tag from https://quay.io/repository/app-sre/cincinnati?tab=tags)
     skopeo copy docker://quay.io/app-sre/cincinnati:a8abb82 docker://${DISCONNECTED_REGISTRY}/cincinnati/cincinnati:latest --authfile=/path/to/pull_secret.json
     ## Check Images
-    skopeo inspect docker://${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-operator:latest --authfile=/path/to/pull_secret.json
+    skopeo inspect docker://${DISCONNECTED_REGISTRY}/updateservice/updateservice-operator:latest --authfile=/path/to/pull_secret.json
     skopeo inspect docker://${DISCONNECTED_REGISTRY}/cincinnati/cincinnati:latest --authfile=/path/to/pull_secret.json
     ~~~
 8. Create the CatalogSource
@@ -56,12 +56,12 @@ You can follow [this doc](https://docs.openshift.com/container-platform/4.5/oper
     kind: CatalogSource
     apiVersion: operators.coreos.com/v1alpha1
     metadata:
-      name: cincinnati-catalog
+      name: updateservice-catalog
     spec:
       sourceType: grpc
-      displayName: Cincinnati Operator
+      displayName: Update Service Operator
       publisher: Solutions Engineering
-      image: ${DISCONNECTED_REGISTRY}/local-operators/cincinnati-operator-registry:v1
+      image: ${DISCONNECTED_REGISTRY}/local-operators/updateservice-operator-registry:v1
     EOF
     ~~~
 9. Configure the Registry Certificate as trusted for cincinnati (Certificate to use in our env: /opt/registry/certs/domain.crt ) (docs here https://github.com/openshift/cincinnati-operator/blob/master/docs/external-registry-ca.md)
@@ -117,7 +117,7 @@ You can follow [this doc](https://docs.openshift.com/container-platform/4.5/oper
     ~~~sh
     oc patch image.config.openshift.io cluster -p '{"spec":{"additionalTrustedCA":{"name":"trusted-ca"}}}' --type merge
     ~~~
-11. Deploy the Cincinnati Operator
+11. Deploy the Update Service Operator
 
     ~~~sh
     NAMESPACE=example-namespace
@@ -126,18 +126,18 @@ You can follow [this doc](https://docs.openshift.com/container-platform/4.5/oper
     apiVersion: operators.coreos.com/v1alpha1
     kind: Subscription
     metadata:
-      name: cincinnati-subscription
+      name: updateservice-subscription
     spec:
       channel: alpha
-      name: cincinnati-operator-package
+      name: updateservice-operator-package
       installPlanApproval: Automatic
-      source: cincinnati-catalog
+      source: updateservice-catalog
       sourceNamespace: openshift-marketplace
     ---
     apiVersion: operators.coreos.com/v1
     kind: OperatorGroup
     metadata:
-      name: cincinnati-operatorgroup
+      name: updateservice-operatorgroup
     spec:
       targetNamespaces:
       - $NAMESPACE
@@ -177,13 +177,15 @@ We need to create the graph data for that.
 4. Build the graph data init container (doc https://github.com/openshift/cincinnati-operator/blob/master/docs/graph-data-init-container.md)
 
     ~~~sh
-    cp /home/kni/ipv6/cincinnati/cincinnati-graph-data.tar.gz cincinnati-operator/dev/
+    cp /path/to/cincinnati-graph-data.tar.gz cincinnati-operator/dev/
+   
     cat <<EOF > cincinnati-operator/dev/Dockerfile
     FROM registry.access.redhat.com/ubi8/ubi:8.1
     COPY cincinnati-graph-data.tar.gz /tmp/
     RUN mkdir -p /var/lib/cincinnati/graph-data/
     CMD exec /bin/bash -c "tar xvzf /tmp/cincinnati-graph-data.tar.gz -C /var/lib/cincinnati/graph-data/ --strip-components=1"
     EOF
+   
     sudo podman build -f cincinnati-operator/dev/Dockerfile -t ${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-graph-data-container:latest
     sudo podman push ${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-graph-data-container:latest --authfile=/path/to/pull_secret.json
     ~~~
@@ -208,8 +210,8 @@ You might want to review the documentation around disconnected registries to lea
 
         ~~~sh
         cat <<EOF | oc -n "${NAMESPACE}" create -f -
-        apiVersion: cincinnati.openshift.io/v1beta1
-        kind: Cincinnati
+        apiVersion: updateservice.operator.openshift.io/v1
+        kind: UpdateService
         metadata:
           name: example-name
         spec:
