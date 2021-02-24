@@ -240,6 +240,9 @@ You might want to review the documentation around disconnected registries to lea
 
     gives a full URI.
 
+    If you see `ReconcileCompleted` status as `false` with reason `CreateRouteFailed` caused by `host must conform to DNS 1123 naming convention`
+    and `must be no more than 63 characters`, try creating the Update Service with a shorter name.
+    
 4. At this point we have Cincinnati working locally, but our cluster is still pointing to the public Cincinnati instance as we can see in the image below
 
     ![Cincinnati Public URL](assets/public-cincinnati.png)
