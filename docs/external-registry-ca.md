@@ -7,7 +7,7 @@ pod.
 
 OpenShift has an external registry API, located at `image.config.openshift.io`,
 that we'll use to store the external registry CA Cert.  You can read more about
-this API in the [OpenShift documentation](https://docs.openshift.com/container-platform/4.3/registry/configuring-registry-operator.html#images-configuration-cas_configuring-registry-operator).
+this API in the [OpenShift documentation](https://docs.openshift.com/container-platform/4.6/registry/configuring-registry-operator.html#images-configuration-cas_configuring-registry-operator).
 
 Create a ConfigMap in the `openshift-config` namespace.  Fill in your CA Cert
 under the key `cincinnati-registry`, because it's how Cincinnati locates your Cert:
