@@ -13,7 +13,7 @@ the graph data from the same location.
 
 ## Build the graph data init container
 
-An example of how to build an init container can be found in ./dev/Dockerfile.
+An example Dockerfile of how to build an init container can be found in ./dev/Dockerfile.
 In the example, the image takes a tarball of the Cincinnati graph data repository.
 When the init container runs, it untars the data to /var/lib/cincinnati/graph-data.
 
@@ -23,6 +23,7 @@ Build and push the image to your own repository.
 podman build -f ./dev/Dockerfile -t quay.io/rwsu/cincinnati-graph-data-container:latest
 podman push quay.io/rwsu/cincinnati-graph-data-container:latest
 ````
+Depending upon your setup you need to make the repository public or private to make sure the operator can fetch the image from it.
 
 ## Configure the operator to use the init container
 

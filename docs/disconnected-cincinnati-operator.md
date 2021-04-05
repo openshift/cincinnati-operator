@@ -157,33 +157,24 @@ We need to create the graph data for that.
     ~~~sh
     git clone https://github.com/openshift/cincinnati-graph-data
     ~~~
-2. Since we are using stable-4.5 channel, let's add the releases to the graph data
 
-    ~~~sh
-    cat <<EOF > cincinnati-graph-data/channels/stable-4.5.yaml 
-    name: stable-4.5
-    versions:
-    
-    - 4.5.2
-
-    - 4.5.3
-    EOF
-    ~~~
-3. Create a tarball of the repository folder
+2. Create a tarball of the repository folder
 
     ~~~sh
     tar cvfz cincinnati-graph-data.tar.gz cincinnati-graph-data
     ~~~
-4. Build the graph data init container (doc https://github.com/openshift/cincinnati-operator/blob/master/docs/graph-data-init-container.md)
+3. Build the graph data init container. For details refer the [init container documentation](./graph-data-init-container.md)
 
     ~~~sh
-    cp /home/kni/ipv6/cincinnati/cincinnati-graph-data.tar.gz cincinnati-operator/dev/
+    cp cincinnati-graph-data.tar.gz cincinnati-operator/dev/
     cat <<EOF > cincinnati-operator/dev/Dockerfile
     FROM registry.access.redhat.com/ubi8/ubi:8.1
     COPY cincinnati-graph-data.tar.gz /tmp/
     RUN mkdir -p /var/lib/cincinnati/graph-data/
     CMD exec /bin/bash -c "tar xvzf /tmp/cincinnati-graph-data.tar.gz -C /var/lib/cincinnati/graph-data/ --strip-components=1"
     EOF
+    ~~~
+    ~~~sh
     sudo podman build -f cincinnati-operator/dev/Dockerfile -t ${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-graph-data-container:latest
     sudo podman push ${DISCONNECTED_REGISTRY}/cincinnati/cincinnati-graph-data-container:latest --authfile=/path/to/pull_secret.json
     ~~~
