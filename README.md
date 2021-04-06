@@ -8,7 +8,7 @@ Installation docs are [here][operator-sdk-installation].
 To run locally, you must set the operand image as shown below.
 
 ```
-export OPERAND_IMAGE="quay.io/app-sre/cincinnati:2873c6b"
+export RELATED_IMAGE_OPERAND="quay.io/app-sre/cincinnati:2873c6b"
 operator-sdk run --local
 ```
 
@@ -26,7 +26,7 @@ make deploy
 By default, operator will be deployed using the default operator image `quay.io/updateservice/update-service-operator:latest`. If you want to override the default operator image with your image, set 
 
 ```
-export OPERATOR_IMAGE="your-registry/your-repo/your-update-service-opertor-image:tag"
+export RELATED_IMAGE_OPERATOR="your-registry/your-repo/your-update-service-opertor-image:tag"
 ```
 
 ## Run functional tests
@@ -35,7 +35,7 @@ export OPERATOR_IMAGE="your-registry/your-repo/your-update-service-opertor-image
 make func-test
 ```
 
-To run the functional testcases locally, you must set below environment variables as shown below along with optional `OPERAND_IMAGE` and `OPERATOR_IMAGE`.
+To run the functional testcases locally, you must set below environment variables as shown below along with optional `RELATED_IMAGE_OPERAND` and `RELATED_IMAGE_OPERATOR`.
 
 ```
 export KUBECONFIG="path-for-kubeconfig-file"
