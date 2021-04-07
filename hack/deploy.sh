@@ -2,6 +2,8 @@
 
 set -e
 
+NAMESPACE="openshift-update-service"
+
 # DEFAULT_OPERATOR_IMAGE is a placeholder for cincinnati-operator image placeholder
 # During development override this when you want to use an specific image
 DEFAULT_OPERATOR_IMAGE="controller:latest"
@@ -31,7 +33,6 @@ sed -i "s|$DEFAULT_OPERAND_IMAGE|$RELATED_OPERAND_IMAGE|" config/manager/manager
 sed -i "s|$DEFAULT_OPERATOR_IMAGE|$RELATED_OPERATOR_IMAGE|" config/manager/manager.yaml
 sed -i "s|your-registry/your-repo/your-init-container|$GRAPH_DATA_IMAGE|" config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
 
-NAMESPACE="openshift-updateservice"
 oc create namespace $NAMESPACE
 
 oc apply -f config/rbac/service_account.yaml -n $NAMESPACE
