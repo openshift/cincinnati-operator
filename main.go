@@ -96,9 +96,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	operandImage := os.Getenv("OPERAND_IMAGE")
+	operandImage := os.Getenv("RELATED_IMAGE_OPERAND")
 	if operandImage == "" {
-		log.Error(errors.New("Must set envvar OPERAND_IMAGE"), "")
+		log.Error(errors.New("Must set envvar RELATED_IMAGE_OPERAND"), "")
 		os.Exit(1)
 	}
 	if err = (&controllers.UpdateServiceReconciler{
