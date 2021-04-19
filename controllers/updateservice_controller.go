@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -29,6 +30,11 @@ import (
 )
 
 var log = logf.Log.WithName("controller_updateservice")
+
+// createConflictSleep is the duration to sleep before trying again
+// after a GET fails with NotFound but a subsequent CREATE fails with
+// AlreadyExists.
+var createConflictSleep = time.Second
 
 // blank assignment to verify that ReconcileUpdateService implements reconcile.Reconciler
 var _ reconcile.Reconciler = &UpdateServiceReconciler{}
@@ -235,17 +241,7 @@ func (r *UpdateServiceReconciler) ensurePullSecret(ctx context.Context, reqLogge
 		return nil
 	}
 
-	// Set UpdateService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, resources.pullSecret, r.Scheme); err != nil {
-		return err
-	}
-
-	if err := r.ensureSecret(ctx, reqLogger, resources.pullSecret); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureSecretFailed", err)
-		return err
-	}
-
-	return nil
+	return r.ensureSecret(ctx, reqLogger, instance, resources.pullSecret)
 }
 
 func (r *UpdateServiceReconciler) ensureAdditionalTrustedCA(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
@@ -267,11 +263,7 @@ func (r *UpdateServiceReconciler) ensureAdditionalTrustedCA(ctx context.Context,
 		return err
 	}
 
-	if err := r.ensureConfigMap(ctx, reqLogger, resources.trustedCAConfig); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
-		return err
-	}
-	return nil
+	return r.ensureConfigMap(ctx, reqLogger, instance, resources.trustedCAConfig)
 }
 
 func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
@@ -285,11 +277,15 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
-		err := r.Client.Create(ctx, deployment)
-		if err != nil {
+		if err = r.Client.Create(ctx, deployment); err != nil && errors.IsAlreadyExists(err) {
+			reqLogger.Info("Deployment already exists, reconciling again", "Namespace", deployment.Namespace, "Name", deployment.Name)
+			time.Sleep(createConflictSleep)
+			return r.ensureDeployment(ctx, reqLogger, instance, resources)
+		} else if err != nil {
 			handleErr(reqLogger, &instance.Status, "CreateDeploymentFailed", err)
+			return err
 		}
-		return err
+		return nil
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetDeploymentFailed", err)
 		return err
@@ -364,8 +360,7 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 
 	if !reflect.DeepEqual(updated.Spec, found.Spec) {
 		reqLogger.Info("Updating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
-		err = r.Client.Update(ctx, updated)
-		if err != nil {
+		if err = r.Client.Update(ctx, updated); err != nil {
 			handleErr(reqLogger, &instance.Status, "UpdateDeploymentFailed", err)
 			return err
 		}
@@ -386,10 +381,15 @@ func (r *UpdateServiceReconciler) ensurePodDisruptionBudget(ctx context.Context,
 	err := r.Client.Get(ctx, types.NamespacedName{Name: pdb.Name, Namespace: pdb.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating PodDisruptionBudget", "Namespace", pdb.Namespace, "Name", pdb.Name)
-		if err = r.Client.Create(ctx, pdb); err != nil {
+		if err = r.Client.Create(ctx, pdb); err != nil && errors.IsAlreadyExists(err) {
+			reqLogger.Info("PodDisruptionBudget already exists, reconciling again", "Namespace", pdb.Namespace, "Name", pdb.Name)
+			time.Sleep(createConflictSleep)
+			return r.ensurePodDisruptionBudget(ctx, reqLogger, instance, resources)
+		} else if err != nil {
 			handleErr(reqLogger, &instance.Status, "CreatePDBFailed", err)
+			return err
 		}
-		return err
+		return nil
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetPDBFailed", err)
 		return err
@@ -400,9 +400,9 @@ func (r *UpdateServiceReconciler) ensurePodDisruptionBudget(ctx context.Context,
 		reqLogger.Info("Updating PodDisruptionBudget", "Namespace", pdb.Namespace, "Name", pdb.Name)
 		updated := found.DeepCopy()
 		updated.Spec = pdb.Spec
-		err = r.Client.Update(ctx, updated)
-		if err != nil {
+		if err = r.Client.Update(ctx, updated); err != nil {
 			handleErr(reqLogger, &instance.Status, "UpdatePDBFailed", err)
+			return err
 		}
 	}
 
@@ -410,59 +410,19 @@ func (r *UpdateServiceReconciler) ensurePodDisruptionBudget(ctx context.Context,
 }
 
 func (r *UpdateServiceReconciler) ensureConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
-	config := resources.graphBuilderConfig
-	// Set UpdateService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, config, r.Scheme); err != nil {
-		return err
-	}
-
-	if err := r.ensureConfigMap(ctx, reqLogger, config); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
-		return err
-	}
-	return nil
+	return r.ensureConfigMap(ctx, reqLogger, instance, resources.graphBuilderConfig)
 }
 
 func (r *UpdateServiceReconciler) ensureEnvConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
-	config := resources.envConfig
-	// Set UpdateService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, config, r.Scheme); err != nil {
-		return err
-	}
-
-	if err := r.ensureConfigMap(ctx, reqLogger, config); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailed", err)
-		return err
-	}
-	return nil
+	return r.ensureConfigMap(ctx, reqLogger, instance, resources.envConfig)
 }
 
 func (r *UpdateServiceReconciler) ensureGraphBuilderService(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
-	service := resources.graphBuilderService
-	// Set UpdateService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, service, r.Scheme); err != nil {
-		return err
-	}
-
-	if err := r.ensureService(ctx, reqLogger, service); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureServiceFailed", err)
-		return err
-	}
-	return nil
+	return r.ensureService(ctx, reqLogger, instance, resources.graphBuilderService)
 }
 
 func (r *UpdateServiceReconciler) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
-	service := resources.policyEngineService
-	// Set UpdateService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, service, r.Scheme); err != nil {
-		return err
-	}
-
-	if err := r.ensureService(ctx, reqLogger, service); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureServiceFailed", err)
-		return err
-	}
-	return nil
+	return r.ensureService(ctx, reqLogger, instance, resources.policyEngineService)
 }
 
 func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
@@ -477,10 +437,15 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, r
 	err := r.Client.Get(ctx, types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating Route", "Namespace", route.Namespace, "Name", route.Name)
-		if err = r.Client.Create(ctx, route); err != nil {
+		if err = r.Client.Create(ctx, route); err != nil && errors.IsAlreadyExists(err) {
+			reqLogger.Info("Route already exists, reconciling again", "Namespace", route.Namespace, "Name", route.Name)
+			time.Sleep(createConflictSleep)
+			return r.ensurePolicyEngineRoute(ctx, reqLogger, instance, resources)
+		} else if err != nil {
 			handleErr(reqLogger, &instance.Status, "CreateRouteFailed", err)
+			return err
 		}
-		return err
+		return nil
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
 		return err
@@ -490,6 +455,7 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, r
 		instance.Status.PolicyEngineURI = uri.String()
 	} else {
 		handleErr(reqLogger, &instance.Status, "RouteIngressFailed", err)
+		return err
 	}
 
 	updated := found.DeepCopy()
@@ -505,22 +471,35 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, r
 		// We want to allow user to update the TLS cert/key manually on the route and we don't want to override that change.
 		// Keep the existing tls on the route
 		updated.Spec.TLS = tls
-		err = r.Client.Update(ctx, updated)
-		if err != nil {
+		if err = r.Client.Update(ctx, updated); err != nil {
 			handleErr(reqLogger, &instance.Status, "UpdateRouteFailed", err)
+			return err
 		}
 	}
 
 	return nil
 }
 
-func (r *UpdateServiceReconciler) ensureService(ctx context.Context, reqLogger logr.Logger, service *corev1.Service) error {
+func (r *UpdateServiceReconciler) ensureService(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, service *corev1.Service) error {
+	// Set UpdateService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, service, r.Scheme); err != nil {
+		return err
+	}
+
 	// Check if this Service already exists
 	found := &corev1.Service{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: service.Name, Namespace: service.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating Service", "Namespace", service.Namespace, "Name", service.Name)
-		return r.Client.Create(ctx, service)
+		if err = r.Client.Create(ctx, service); err != nil && errors.IsAlreadyExists(err) {
+			reqLogger.Info("Service already exists, reconciling again", "Namespace", service.Namespace, "Name", service.Name)
+			time.Sleep(createConflictSleep)
+			return r.ensureService(ctx, reqLogger, instance, service)
+		} else if err != nil {
+			handleErr(reqLogger, &instance.Status, "CreateServiceFailed", err)
+			return err
+		}
+		return nil
 	} else if err != nil {
 		return err
 	}
@@ -532,19 +511,35 @@ func (r *UpdateServiceReconciler) ensureService(ctx context.Context, reqLogger l
 		reqLogger.Info("Updating Service", "Namespace", service.Namespace, "Name", service.Name)
 		updated := found.DeepCopy()
 		updated.Spec = service.Spec
-		return r.Client.Update(ctx, updated)
+		if err = r.Client.Update(ctx, updated); err != nil {
+			handleErr(reqLogger, &instance.Status, "UpdateServiceFailed", err)
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (r *UpdateServiceReconciler) ensureConfigMap(ctx context.Context, reqLogger logr.Logger, cm *corev1.ConfigMap) error {
+func (r *UpdateServiceReconciler) ensureConfigMap(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, cm *corev1.ConfigMap) error {
+	// Set UpdateService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, cm, r.Scheme); err != nil {
+		return err
+	}
+
 	// Check if this configmap already exists
 	found := &corev1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: cm.Name, Namespace: cm.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating ConfigMap", "Namespace", cm.Namespace, "Name", cm.Name)
-		return r.Client.Create(ctx, cm)
+		if err = r.Client.Create(ctx, cm); err != nil && errors.IsAlreadyExists(err) {
+			reqLogger.Info("ConfigMap already exists, reconciling again", "Namespace", cm.Namespace, "Name", cm.Name)
+			time.Sleep(createConflictSleep)
+			return r.ensureConfigMap(ctx, reqLogger, instance, cm)
+		} else if err != nil {
+			handleErr(reqLogger, &instance.Status, "CreateConfigMapFailed", err)
+			return err
+		}
+		return nil
 	} else if err != nil {
 		return err
 	}
@@ -554,19 +549,35 @@ func (r *UpdateServiceReconciler) ensureConfigMap(ctx context.Context, reqLogger
 		reqLogger.Info("Updating ConfigMap", "Namespace", cm.Namespace, "Name", cm.Name)
 		updated := found.DeepCopy()
 		updated.Data = cm.Data
-		return r.Client.Update(ctx, updated)
+		if err = r.Client.Update(ctx, updated); err != nil {
+			handleErr(reqLogger, &instance.Status, "UpdateConfigMapFailed", err)
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger logr.Logger, secret *corev1.Secret) error {
+func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, secret *corev1.Secret) error {
+	// Set UpdateService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, secret, r.Scheme); err != nil {
+		return err
+	}
+
 	// Check if this secret already exists
 	found := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating Secret", "Namespace", secret.Namespace, "Name", secret.Name)
-		return r.Client.Create(ctx, secret)
+		if err = r.Client.Create(ctx, secret); err != nil && errors.IsAlreadyExists(err) {
+			reqLogger.Info("Secret already exists, reconciling again", "Namespace", secret.Namespace, "Name", secret.Name)
+			time.Sleep(createConflictSleep)
+			return r.ensureSecret(ctx, reqLogger, instance, secret)
+		} else if err != nil {
+			handleErr(reqLogger, &instance.Status, "CreateSecretFailed", err)
+			return err
+		}
+		return nil
 	} else if err != nil {
 		return err
 	}
@@ -576,7 +587,10 @@ func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger lo
 		reqLogger.Info("Updating Secret", "Namespace", secret.Namespace, "Name", secret.Name)
 		updated := found.DeepCopy()
 		updated.Data = secret.Data
-		return r.Client.Update(ctx, updated)
+		if err = r.Client.Update(ctx, updated); err != nil {
+			handleErr(reqLogger, &instance.Status, "UpdateSecretFailed", err)
+			return err
+		}
 	}
 
 	return nil
