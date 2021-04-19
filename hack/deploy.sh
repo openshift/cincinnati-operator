@@ -11,8 +11,8 @@ RELATED_OPERATOR_IMAGE="${RELATED_IMAGE_OPERATOR:-${DEFAULT_OPERATOR_IMAGE}}"
 RELATED_OPERAND_IMAGE="${RELATED_IMAGE_OPERAND:-${DEFAULT_OPERAND_IMAGE}}"
 
 if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
-	RELATED_OPERATOR_IMAGE="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:updateservice-operator"
-	GRAPH_DATA_IMAGE="registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:updateservice-graph-data-container"
+	RELATED_OPERATOR_IMAGE="registry.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:updateservice-operator"
+	GRAPH_DATA_IMAGE="registry.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:updateservice-graph-data-container"
 
 	echo "Openshift CI detected, deploying using image $RELATED_OPERATOR_IMAGE and ${GRAPH_DATA_IMAGE}"
 
