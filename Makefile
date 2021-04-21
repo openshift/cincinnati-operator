@@ -53,7 +53,7 @@ deploy:
 func-test: deploy
 	@echo "Running functional test suite"
 	go clean -testcache
-	go test -v ./functests/...
+	go test -timeout 20m -v ./functests/...
 
 unit-test:
 	@echo "Executing unit tests"
