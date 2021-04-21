@@ -43,6 +43,7 @@ endif
 
 clean:
 	@echo "Cleaning previous outputs"
+	go clean -testcache
 	rm functests/functests.test
 
 deploy:
@@ -51,10 +52,12 @@ deploy:
 
 func-test: deploy
 	@echo "Running functional test suite"
+	go clean -testcache
 	go test -v ./functests/...
 
 unit-test:
 	@echo "Executing unit tests"
+	go clean -testcache
 	go test -v ./controllers/...
 
 build: $(SOURCES)
