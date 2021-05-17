@@ -1,5 +1,0 @@
-channels:
-- currentCSV: updateservice-operator.v1.0.0
-  name: v1
-defaultChannel: v1
-packageName: updateservice-operator-package
