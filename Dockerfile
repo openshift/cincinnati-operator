@@ -1,4 +1,4 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.15-openshift-4.7 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.16-openshift-4.9 AS builder
 WORKDIR /go/src/github.com/openshift/cincinnati-operator/
 COPY . .
 RUN make GOBUILDFLAGS=-mod=vendor VERSION="$(git describe --abbrev=8 --dirty --always)" build

@@ -1,11 +1,19 @@
 domain: openshift.io
-layout: go.kubebuilder.io/v2
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: update-service-operator
 repo: github.com/openshift/cincinnati-operator
 resources:
-- group: updateservice.operator
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift.io
+  group: updateservice.operator
   kind: UpdateService
+  path: github.com/openshift/cincinnati-operator/api/v1
   version: v1
-version: 3-alpha
-projectName: update-service-operator
-plugins:
-  go.sdk.operatorframework.io/v2-alpha: {}
+version: "3"
