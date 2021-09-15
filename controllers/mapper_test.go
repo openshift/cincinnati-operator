@@ -10,7 +10,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -118,17 +117,14 @@ func TestMap(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			obj := handler.MapObject{
-				Object: func() runtime.Object {
-					if test.image != nil {
-						return test.image
-					}
-					return test.configMap
-				}(),
-			}
 			r := newTestReconciler(test.existingObjs...)
 			m := mapper{r.Client}
-			reqs := m.Map(obj)
+			var reqs []reconcile.Request
+			if test.image != nil {
+				reqs = m.Map(test.image)
+			} else {
+				reqs = m.Map(test.configMap)
+			}
 			assert.Equal(t, test.expectedRequests, reqs)
 		})
 	}

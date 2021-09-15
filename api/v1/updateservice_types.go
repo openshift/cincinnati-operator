@@ -52,7 +52,6 @@ const (
 	ConditionRegistryCACertFound conditionsv1.ConditionType = "RegistryCACertFound"
 )
 
-// replaces k8s:deepcopy-gen:interfaces= in v1.0
 // +kubebuilder:object:root=true
 
 // +kubebuilder:subresource:status
@@ -78,7 +77,6 @@ type UpdateService struct {
 	Status UpdateServiceStatus `json:"status"`
 }
 
-// replaces k8s:deepcopy-gen:interfaces= in v1.0
 // +kubebuilder:object:root=true
 
 // UpdateServiceList contains a list of UpdateService.

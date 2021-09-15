@@ -88,7 +88,8 @@ func TestReconcile(t *testing.T) {
 			r := newTestReconciler(test.existingObjs...)
 			request := newRequest(newDefaultUpdateService())
 
-			_, err := r.Reconcile(request)
+			ctx := context.TODO()
+			_, err := r.Reconcile(ctx, request)
 			if err != nil {
 				t.Fatal(err)
 			}
