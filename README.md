@@ -1,6 +1,6 @@
 # update-service-operator
 
-This operator is developed using the [operator SDK][operator-sdk], version 1.2.0.
+This operator is developed using the [operator SDK][operator-sdk], version 1.9.0.
 Installation docs are [here][operator-sdk-installation].
 
 ## Run locally
@@ -49,7 +49,7 @@ make unit-test
 ```
 
 [operator-sdk]: https://sdk.operatorframework.io/docs/
-[operator-sdk-installation]: https://v1-2-x.sdk.operatorframework.io/docs/installation/install-operator-sdk/
+[operator-sdk-installation]: https://v1-9-x.sdk.operatorframework.io/docs/installation/
 
 ## Documentation
 * [Deploy disconnected Cincinnati](./docs/disconnected-cincinnati-operator.md)
