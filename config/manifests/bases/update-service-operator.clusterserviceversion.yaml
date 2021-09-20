@@ -6,8 +6,8 @@ metadata:
     capabilities: Basic Install
     description: Creates and maintains an OpenShift Update Service instance
     operatorframework.io/suggested-namespace: openshift-update-service
-    operators.operatorframework.io/builder: operator-sdk-v1.2.0
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+    operators.operatorframework.io/builder: operator-sdk-v1.9.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: update-service-operator.vX.Y.Z
   namespace: placeholder
 spec:

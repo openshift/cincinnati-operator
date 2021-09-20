@@ -52,14 +52,13 @@ type UpdateServiceReconciler struct {
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch
 // +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
 
-func (r *UpdateServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	/*    **Reconcile Pattern**
 	      1. Gather conditions
 	      2. Create all the kubeResources
 	      3. Ensure all the kubeResources are correct in the Cluster
 	*/
 
-	ctx := context.TODO()
 	reqLogger := log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.Info("Reconciling UpdateService")
 
@@ -195,9 +194,9 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	// Check if the Cluster is aware of a registry requiring an
 	// AdditionalTrustedCA
 	image := &apicfgv1.Image{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
+	err := r.Client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName}, image)
 	if err != nil && errors.IsNotFound(err) {
-		m := fmt.Sprintf("image.config.openshift.io not found for (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
+		m := fmt.Sprintf("image.config.openshift.io not found for name %s", defaults.ImageConfigName)
 		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
 		return nil, nil
 	} else if err != nil {
@@ -205,8 +204,8 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	}
 
 	if image.Spec.AdditionalTrustedCA.Name == "" {
-		m := fmt.Sprintf("image.config.openshift.io.Spec.AdditionalTrustedCA.Name not found for image (Name: %v, Namespace: %v)", defaults.ImageConfigName, "")
-		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
+		m := fmt.Sprintf("image.config.openshift.io.Spec.AdditionalTrustedCA.Name not set for image name %s", defaults.ImageConfigName)
+		handleCACertStatus(reqLogger, &instance.Status, "NotConfigured", m)
 		return nil, nil
 	}
 
@@ -582,6 +581,7 @@ func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger lo
 	return nil
 }
 
+// SetupWithManager sets up the controller with the Manager.
 func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	mapped := &mapper{mgr.GetClient()}
 
@@ -594,11 +594,11 @@ func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&routev1.Route{}).
 		Watches(
 			&source.Kind{Type: &apicfgv1.Image{}},
-			&handler.EnqueueRequestsFromMapFunc{ToRequests: mapped},
+			handler.EnqueueRequestsFromMapFunc(mapped.Map),
 		).
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
-			&handler.EnqueueRequestsFromMapFunc{ToRequests: mapped},
+			handler.EnqueueRequestsFromMapFunc(mapped.Map),
 		).
 		Complete(r)
 }

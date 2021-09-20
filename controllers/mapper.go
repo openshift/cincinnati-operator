@@ -6,7 +6,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicfgv1 "github.com/openshift/api/config/v1"
@@ -20,8 +19,8 @@ type mapper struct {
 
 // Map will return a reconcile request for a UpdateService if the event is for a
 // ImageConfigName Image or a ConfigMap referenced by AdditionalTrustedCA.Name.
-func (m *mapper) Map(obj handler.MapObject) []reconcile.Request {
-	if cm, ok := obj.Object.(*corev1.ConfigMap); ok {
+func (m *mapper) Map(obj client.Object) []reconcile.Request {
+	if cm, ok := obj.(*corev1.ConfigMap); ok {
 		// There is already a watch on local configMap as a secondary resource
 		// This watch is for the source configMap in openshift-config namespace
 		if cm.Namespace != openshiftConfigNamespace {
@@ -39,7 +38,7 @@ func (m *mapper) Map(obj handler.MapObject) []reconcile.Request {
 			// If the object is configMap that we are watching, requeue all UpdateService instances
 			return m.requeueUpdateServices()
 		}
-	} else if img, ok := obj.Object.(*apicfgv1.Image); ok {
+	} else if img, ok := obj.(*apicfgv1.Image); ok {
 		// Check if this is the image we are interested in
 		if img.Name == defaults.ImageConfigName && img.Namespace == "" {
 			// Requeue all UpdateService instances
