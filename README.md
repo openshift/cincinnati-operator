@@ -51,6 +51,21 @@ make unit-test
 [operator-sdk]: https://sdk.operatorframework.io/docs/
 [operator-sdk-installation]: https://v1-9-x.sdk.operatorframework.io/docs/installation/
 
+## Generating OLM manifests
+
+Here are the steps to generate the operator-framework manifests in the bundle format
+* Set the `VERSION` value in the shell
+* Set the `IMG` value pointing to the OSUS operator which should be part of the operator bundle.
+* Run `make bundle`.
+
+Example:
+
+```sh
+VERSION=4.9.0
+IMG=registry.com/cincinnati-openshift-update-service-operator:v4.6.0
+make bundle
+```
+
 ## Documentation
 * [Deploy disconnected Cincinnati](./docs/disconnected-cincinnati-operator.md)
 * [External registry CA injection](./docs/external-registry-ca.md)
