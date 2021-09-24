@@ -25,6 +25,6 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
-              value: "updateservice-operator"
+              value: "cincinnati-operator"
             - name: RELATED_IMAGE_OPERAND
               value: "quay.io/cincinnati/cincinnati:latest"
