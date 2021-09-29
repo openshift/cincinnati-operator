@@ -19,6 +19,12 @@ spec:
       kind: UpdateService
       name: updateservices.updateservice.operator.openshift.io
       version: v1
+      resources:
+      - kind: Service
+      specDescriptors:
+      - path: replicas
+      statusDescriptors:
+      - path: replicas
   description: |-
     # Use Case
     Running an Update Service instance in a cluster is appealing for offline OpenShift
