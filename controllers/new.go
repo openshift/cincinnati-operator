@@ -422,7 +422,7 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1.UpdateService) *
 	return &corev1.Container{
 		Name:            NameInitContainerGraphData,
 		Image:           instance.Spec.GraphDataImage,
-		ImagePullPolicy: corev1.PullIfNotPresent,
+		ImagePullPolicy: corev1.PullAlways,
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      "cincinnati-graph-data",
