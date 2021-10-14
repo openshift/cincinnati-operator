@@ -12,8 +12,8 @@ const (
 	NameContainerPolicyEngine string = "policy-engine"
 	// NameInitContainerGraphData is the Name property of the graph data container
 	NameInitContainerGraphData string = "graph-data"
-	// openshiftConfigNamespace is the name of openshift's configuration namespace
-	openshiftConfigNamespace = "openshift-config"
+	// OpenshiftConfigNamespace is the name of openshift's configuration namespace
+	OpenshiftConfigNamespace = "openshift-config"
 	// NameTrustedCAVolume is the name of the Volume used in UpdateService's deployment containing the CA Cert
 	NameTrustedCAVolume = "trusted-ca"
 	// NameCertConfigMapKey is the ConfigMap key name where the operator expects the external registry CA Cert

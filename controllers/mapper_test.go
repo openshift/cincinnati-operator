@@ -98,7 +98,7 @@ func TestMap(t *testing.T) {
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      testConfigMap,
-					Namespace: openshiftConfigNamespace,
+					Namespace: OpenshiftConfigNamespace,
 				},
 			},
 			existingObjs: []runtime.Object{
