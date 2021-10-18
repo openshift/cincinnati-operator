@@ -47,7 +47,7 @@ func nameGraphBuilderService(instance *cv1.UpdateService) string {
 }
 
 func namePolicyEngineRoute(instance *cv1.UpdateService) string {
-	return namePolicyEngineService(instance) + "-route"
+	return instance.Name + "-route"
 }
 
 func nameAdditionalTrustedCA(instance *cv1.UpdateService) string {

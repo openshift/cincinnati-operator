@@ -50,6 +50,8 @@ const (
 
 	// ConditionRegistryCACertFound reports whether the updateservice registry CA cert had been found
 	ConditionRegistryCACertFound conditionsv1.ConditionType = "RegistryCACertFound"
+
+	ConditionReconcileError conditionsv1.ConditionType = "ReconcileError"
 )
 
 // +kubebuilder:object:root=true
