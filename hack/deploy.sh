@@ -17,6 +17,7 @@ if [ -n "$OPENSHIFT_BUILD_NAMESPACE" ]; then
 	echo "Openshift CI detected, deploying using image $RELATED_OPERATOR_IMAGE and ${GRAPH_DATA_IMAGE}"
 
 else
+        echo "OPENSHIFT_BUILD_NAMESPACE not defined!"
 	if ! [ -n "$KUBECONFIG" ]; then
 		echo "KUBECONFIG environment variable must be set."
 		exit 1
