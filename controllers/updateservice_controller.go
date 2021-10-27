@@ -35,10 +35,11 @@ var _ reconcile.Reconciler = &UpdateServiceReconciler{}
 
 // UpdateServiceReconciler reconciles a UpdateService object
 type UpdateServiceReconciler struct {
-	Client       client.Client
-	Scheme       *runtime.Scheme
-	Log          logr.Logger
-	OperandImage string
+	Client            client.Client
+	Scheme            *runtime.Scheme
+	Log               logr.Logger
+	OperandImage      string
+	OperatorNamespace string
 }
 
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get
@@ -61,6 +62,12 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	reqLogger := log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	reqLogger.Info("Reconciling UpdateService")
+
+	if req.Namespace != r.OperatorNamespace {
+		reqLogger.Info(fmt.Sprintf("Ignoring reconcile request for resource outside of operator's namespace %s",
+			r.OperatorNamespace))
+		return ctrl.Result{}, nil
+	}
 
 	// Fetch the UpdateService instance
 	instance := &cv1.UpdateService{}
@@ -178,7 +185,7 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1.UpdateServiceStatus, 
 // findPullSecet - Locate the PullSecrt in openshift-config and return it
 func (r *UpdateServiceReconciler) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (*corev1.Secret, error) {
 	sourcePS := &corev1.Secret{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: namePullSecret, Namespace: openshiftConfigNamespace}, sourcePS)
+	err := r.Client.Get(ctx, types.NamespacedName{Name: namePullSecret, Namespace: OpenshiftConfigNamespace}, sourcePS)
 	if err != nil && errors.IsNotFound(err) {
 		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
 		return nil, err
@@ -211,9 +218,9 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 
 	// Search for the ConfigMap in openshift-config
 	sourceCM := &corev1.ConfigMap{}
-	err = r.Client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: openshiftConfigNamespace}, sourceCM)
+	err = r.Client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: OpenshiftConfigNamespace}, sourceCM)
 	if err != nil && errors.IsNotFound(err) {
-		m := fmt.Sprintf("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
+		m := fmt.Sprintf("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, OpenshiftConfigNamespace)
 		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
 		return nil, err
 	} else if err != nil {
@@ -221,7 +228,7 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	}
 
 	if _, ok := sourceCM.Data[NameCertConfigMapKey]; !ok {
-		m := fmt.Sprintf("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'updateservice-registry' for registry CA cert in ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, openshiftConfigNamespace)
+		m := fmt.Sprintf("Found ConfigMap referenced by ImageConfig.Spec.AdditionalTrustedCA.Name but did not find key 'updateservice-registry' for registry CA cert in ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, OpenshiftConfigNamespace)
 		handleCACertStatus(reqLogger, &instance.Status, "EnsureAdditionalTrustedCAFailed", m)
 		return nil, nil
 	}

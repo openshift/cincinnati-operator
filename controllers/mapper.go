@@ -23,7 +23,7 @@ func (m *mapper) Map(obj client.Object) []reconcile.Request {
 	if cm, ok := obj.(*corev1.ConfigMap); ok {
 		// There is already a watch on local configMap as a secondary resource
 		// This watch is for the source configMap in openshift-config namespace
-		if cm.Namespace != openshiftConfigNamespace {
+		if cm.Namespace != OpenshiftConfigNamespace {
 			return []reconcile.Request{}
 		}
 		image := &apicfgv1.Image{}

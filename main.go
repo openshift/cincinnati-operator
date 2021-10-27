@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -23,6 +22,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
@@ -53,17 +53,13 @@ func printVersion() {
 	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
 }
 
-// getWatchNamespace returns the Namespace the operator should be watching for changes
-func getWatchNamespace() (string, error) {
-	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-	// which specifies the Namespace to watch.
-	var watchNamespaceEnvVar = "WATCH_NAMESPACE"
-
-	ns, found := os.LookupEnv(watchNamespaceEnvVar)
+// getEnvVar returns the given environment variable value or an error if it is not set.
+func getEnvVar(envVarName string) (string, error) {
+	val, found := os.LookupEnv(envVarName)
 	if !found {
-		return "", fmt.Errorf("%s must be set", watchNamespaceEnvVar)
+		return "", fmt.Errorf("%s not found", envVarName)
 	}
-	return ns, nil
+	return val, nil
 }
 
 func main() {
@@ -79,41 +75,46 @@ func main() {
 
 	printVersion()
 
-	_, err := getWatchNamespace()
+	operandImage, err := getEnvVar("RELATED_IMAGE_OPERAND")
 	if err != nil {
-		log.Error(err, "unable to get WatchNamespace; unable to start manager")
+		log.Error(err, "RELATED_IMAGE_OPERAND must be set; unable to start manager")
 		os.Exit(1)
 	}
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	podNamespace, err := getEnvVar("POD_NAMESPACE")
+	if err != nil {
+		log.Error(err, "POD_NAMESPACE must be set; unable to start manager")
+		os.Exit(1)
+	}
+	options := ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
 		LeaderElectionID:   "48ad1930.openshift.io",
-	})
+		Namespace:          "",
+	}
+	nsList := []string{podNamespace, "", controllers.OpenshiftConfigNamespace}
+	options.NewCache = cache.MultiNamespacedCacheBuilder(nsList)
+	log.Info(fmt.Sprintf("list: %v", nsList))
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
 		log.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
-	operandImage := os.Getenv("RELATED_IMAGE_OPERAND")
-	if operandImage == "" {
-		log.Error(errors.New("Must set envvar RELATED_IMAGE_OPERAND"), "")
-		os.Exit(1)
-	}
 	if err = (&controllers.UpdateServiceReconciler{
-		Client:       mgr.GetClient(),
-		Log:          ctrl.Log.WithName("controllers").WithName("UpdateService"),
-		Scheme:       mgr.GetScheme(),
-		OperandImage: operandImage,
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("UpdateService"),
+		Scheme:            mgr.GetScheme(),
+		OperandImage:      operandImage,
+		OperatorNamespace: podNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		log.Error(err, "unable to create controller", "controller", "UpdateService")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
 
-	log.Info("Starting the Cmd.")
+	log.Info(fmt.Sprintf("Starting in Namespace %s...", podNamespace))
 
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Error(err, "Manager exited non-zero")

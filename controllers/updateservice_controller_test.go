@@ -578,8 +578,9 @@ func newRequest(updateservice *cv1.UpdateService) reconcile.Request {
 func newTestReconciler(initObjs ...runtime.Object) *UpdateServiceReconciler {
 	c := fake.NewFakeClientWithScheme(scheme.Scheme, initObjs...)
 	return &UpdateServiceReconciler{
-		Client: c,
-		Scheme: scheme.Scheme,
+		Client:            c,
+		Scheme:            scheme.Scheme,
+		OperatorNamespace: "bar",
 	}
 }
 
@@ -618,7 +619,7 @@ func newConfigMap() *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testConfigMap,
-			Namespace: openshiftConfigNamespace,
+			Namespace: OpenshiftConfigNamespace,
 		},
 		Data: map[string]string{
 			"testData": "some random text",
@@ -630,7 +631,7 @@ func newSecret() *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namePullSecret,
-			Namespace: openshiftConfigNamespace,
+			Namespace: OpenshiftConfigNamespace,
 		},
 		Data: map[string][]byte{
 			"testData": []byte("some random text"),
