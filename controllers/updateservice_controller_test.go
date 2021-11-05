@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -16,7 +17,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -190,7 +191,7 @@ func TestEnsurePullSecret(t *testing.T) {
 
 			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
 
-			if !errors.IsNotFound(err) {
+			if !apierrors.IsNotFound(err) {
 				err = r.ensurePullSecret(context.TODO(), log, updateservice, resources)
 			}
 			found := &corev1.Secret{}
@@ -480,7 +481,7 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 			updateservice := &cv1.UpdateService{}
 			err := r.Client.Get(context.TODO(), types.NamespacedName{Name: testName, Namespace: testNamespace}, updateservice)
 			if err != nil {
-				if errors.IsNotFound(err) {
+				if apierrors.IsNotFound(err) {
 					assert.Error(t, err)
 				}
 				assert.Error(t, err)
@@ -513,6 +514,55 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 
 			minAvailable := getMinAvailablePBD(updateservice)
 			assert.Equal(t, found.Spec.MinAvailable, &minAvailable)
+		})
+	}
+}
+
+func TestValidateRouteName(t *testing.T) {
+	tests := []struct {
+		name      string
+		appName   string
+		namespace string
+		err       error
+	}{
+		{
+			name:      "RouteNameValid",
+			appName:   "foo",
+			namespace: "openshift-update-service",
+			err:       nil,
+		},
+		{
+			name:      "RouteNameMaxLen",
+			appName:   "foo",
+			namespace: "openshift-update-service-0123456789012345678901234567",
+			err:       nil,
+		},
+		{
+			name:      "RouteNameTooLong",
+			appName:   "foo",
+			namespace: "openshift-update-service-01234567890123456789012345678",
+			err:       errors.New("UpdateService route name \"foo-route-openshift-update-service-01234567890123456789012345678\" cannot exceed RFC 1123 maximum length of 63. Shorten the application name and/or namespace."),
+		},
+		{
+			name:      "RouteNameInvalidFormat",
+			appName:   "foo",
+			namespace: "openshift-update-service-012345678901234567890123456.",
+			err:       errors.New(fmt.Sprintf("UpdateService route name \"foo-route-openshift-update-service-012345678901234567890123456.\" has invalid format; must comply with %q.", dns1123LabelFmt)),
+		},
+		{
+			name:      "RouteNameMultipleErrors",
+			appName:   "foo",
+			namespace: "openshift-update-service-0123456789012345678901234567.",
+			err: errors.New("UpdateService route name \"foo-route-openshift-update-service-0123456789012345678901234567.\" cannot exceed RFC 1123 maximum length of 63. Shorten the application name and/or namespace. " +
+				fmt.Sprintf("Route name has invalid format; must comply with %q.", dns1123LabelFmt)),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			updateservice := newDefaultUpdateService()
+			err := validateRouteName(updateservice, test.appName, test.namespace)
+			assert.Equal(t, test.err, err)
 		})
 	}
 }

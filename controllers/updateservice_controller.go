@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"regexp"
 
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -27,6 +28,13 @@ import (
 	"github.com/openshift/cluster-image-registry-operator/pkg/defaults"
 	"github.com/openshift/library-go/pkg/route/routeapihelpers"
 )
+
+const dns1123LabelFmt string = "^[a-z]([-a-z0-9]*[a-z0-9])?$"
+
+// DNS1123LabelMaxLength is a label's max length in DNS (RFC 1123)
+const DNS1123LabelMaxLength int = 63
+
+var dns1123LabelRegexp = regexp.MustCompile(dns1123LabelFmt)
 
 var log = logf.Log.WithName("controller_updateservice")
 
@@ -84,6 +92,20 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	instanceCopy := instance.DeepCopy()
 	instanceCopy.Status = cv1.UpdateServiceStatus{}
+
+	if err := validateRouteName(instanceCopy, req.Name, req.Namespace); err != nil {
+		conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
+			Type:    cv1.ConditionReconcileError,
+			Status:  corev1.ConditionTrue,
+			Reason:  "Unable to create UpdateService route",
+			Message: err.Error(),
+		})
+		if err := r.Client.Status().Update(ctx, instanceCopy); err != nil {
+			reqLogger.Error(err, "Failed to update Status")
+		}
+		reqLogger.Error(err, "Unable to create UpdateService route")
+		return ctrl.Result{}, nil
+	}
 
 	// 1. Gather conditions
 	//    Look at the existing cluster resources and communicate to kubeResources
@@ -469,6 +491,28 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineService(ctx context.Context,
 		return err
 	}
 	return nil
+}
+
+func validateRouteName(instance *cv1.UpdateService, name string, namespace string) error {
+	var errReasons []string
+	routeName := namePolicyEngineRoute(instance) + "-" + namespace
+
+	if len(routeName) > DNS1123LabelMaxLength {
+		errReasons = append(errReasons,
+			fmt.Sprintf("cannot exceed RFC 1123 maximum length of %d. Shorten the application name and/or namespace.",
+				DNS1123LabelMaxLength))
+	}
+	if !dns1123LabelRegexp.MatchString(routeName) {
+		errReasons = append(errReasons,
+			fmt.Sprintf("has invalid format; must comply with %q.", dns1123LabelFmt))
+	}
+	numErrors := len(errReasons)
+	if numErrors == 0 {
+		return nil
+	} else if numErrors == 1 {
+		return fmt.Errorf(fmt.Sprintf("UpdateService route name %q %s", routeName, errReasons[0]))
+	}
+	return fmt.Errorf(fmt.Sprintf("UpdateService route name %q %s Route name %s", routeName, errReasons[0], errReasons[1]))
 }
 
 func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
