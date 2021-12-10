@@ -17,7 +17,7 @@ kind: ConfigMap
 metadata:
   name: trusted-ca
 data:
-  cincinnati-registry: |
+  updateservice-registry: |
     -----BEGIN CERTIFICATE-----
     ...
     -----END CERTIFICATE-----
