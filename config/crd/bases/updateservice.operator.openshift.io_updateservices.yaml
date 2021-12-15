@@ -99,6 +99,31 @@ spec:
         - metadata
         - spec
         type: object
+    additionalPrinterColumns:
+    - name: Age 
+      description: The age of the UpdateService resource.
+      type: date
+      jsonPath: .metadata.creationTimestamp
+    - name: Policy Engine URI
+      description: The external URI which exposes the policy engine.
+      type: string
+      priority: 1
+      jsonPath: .status.policyEngineURI
+    - name: Releases
+      description: The repository in which release images are tagged.
+      type: string
+      priority: 1
+      jsonPath: .spec.releases
+    - name: Graph Data Image
+      description: The container image that contains the UpdateService graph data.
+      type: string
+      priority: 1
+      jsonPath: .spec.graphDataImage
+    - name: Reconcile Completed
+      description: Status reports whether all required resources have been created in the cluster and reflect the specified state.
+      type: string
+      priority: 1
+      jsonPath: .status.conditions[?(@.type=="ReconcileCompleted")].status
     served: true
     storage: true
     subresources:
