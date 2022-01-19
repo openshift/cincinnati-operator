@@ -50,13 +50,6 @@ func TestCustomResource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		ctx := context.Background()
-		if err := deleteCR(ctx); err != nil {
-			t.Log(err)
-		}
-	}()
-
 	if err := deployCR(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -178,4 +171,10 @@ func TestCustomResource(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+
+	ctx = context.Background()
+	if err := deleteCR(ctx); err != nil {
+		t.Log(err)
+	}
+
 }
