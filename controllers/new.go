@@ -594,8 +594,10 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 			PeriodSeconds:       10,
 			TimeoutSeconds:      3,
 			Handler: corev1.Handler{
-				TCPSocket: &corev1.TCPSocketAction{
-					Port: intstr.FromInt(8081),
+				HTTPGet: &corev1.HTTPGetAction{
+					Path:   "/metrics",
+					Port:   intstr.FromInt(9081),
+					Scheme: corev1.URISchemeHTTP,
 				},
 			},
 		},
