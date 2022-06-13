@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"text/template"
@@ -433,6 +434,37 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1.UpdateService) *
 }
 
 func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, image string) *corev1.Container {
+
+	gbENV := []corev1.EnvVar{
+		newCMEnvVar("RUST_BACKTRACE", "gb.rust_backtrace", nameEnvConfig(instance)),
+	}
+
+	// get the cluster proxy variables, and append to ENV var if set
+	if httpProxy := os.Getenv("HTTP_PROXY"); httpProxy != "" {
+		gbENV = append(gbENV,
+			corev1.EnvVar{
+				Name:  "HTTP_PROXY",
+				Value: httpProxy,
+			},
+		)
+	}
+	if httpsProxy := os.Getenv("HTTPS_PROXY"); httpsProxy != "" {
+		gbENV = append(gbENV,
+			corev1.EnvVar{
+				Name:  "HTTPS_PROXY",
+				Value: httpsProxy,
+			},
+		)
+	}
+	if noProxy := os.Getenv("NO_PROXY"); noProxy != "" {
+		gbENV = append(gbENV,
+			corev1.EnvVar{
+				Name:  "NO_PROXY",
+				Value: noProxy,
+			},
+		)
+	}
+
 	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
@@ -456,9 +488,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
-		Env: []corev1.EnvVar{
-			newCMEnvVar("RUST_BACKTRACE", "gb.rust_backtrace", nameEnvConfig(instance)),
-		},
+		Env: gbENV,
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
 				corev1.ResourceCPU:    *resource.NewMilliQuantity(750, resource.DecimalSI),
