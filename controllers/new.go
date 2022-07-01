@@ -84,6 +84,7 @@ type kubeResources struct {
 	graphBuilderService      *corev1.Service
 	policyEngineService      *corev1.Service
 	policyEngineRoute        *routev1.Route
+	policyEngineOldRoute     *routev1.Route
 	trustedCAConfig          *corev1.ConfigMap
 	pullSecret               *corev1.Secret
 	volumes                  []corev1.Volume
@@ -124,6 +125,7 @@ func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *cor
 	k.graphBuilderService = k.newGraphBuilderService(instance)
 	k.policyEngineService = k.newPolicyEngineService(instance)
 	k.policyEngineRoute = k.newPolicyEngineRoute(instance)
+	k.policyEngineOldRoute = k.oldPolicyEngineRoute(instance)
 	return &k, nil
 }
 
@@ -215,6 +217,32 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1.UpdateService) *cor
 
 func (k *kubeResources) newPolicyEngineRoute(instance *cv1.UpdateService) *routev1.Route {
 	name := namePolicyEngineRoute(instance)
+	return &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				"app": nameDeployment(instance),
+			},
+		},
+		Spec: routev1.RouteSpec{
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString("policy-engine"),
+			},
+			To: routev1.RouteTargetReference{
+				Kind: "Service",
+				Name: namePolicyEngineService(instance),
+			},
+			TLS: &routev1.TLSConfig{
+				Termination:                   routev1.TLSTerminationEdge,
+				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
+			},
+		},
+	}
+}
+
+func (k *kubeResources) oldPolicyEngineRoute(instance *cv1.UpdateService) *routev1.Route {
+	name := oldPolicyEngineRouteName(instance)
 	return &routev1.Route{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
