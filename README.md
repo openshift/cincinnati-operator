@@ -67,6 +67,6 @@ make bundle
 ```
 
 ## Documentation
-* [Deploy disconnected Cincinnati](./docs/disconnected-cincinnati-operator.md)
+* [Deploy disconnected update service](./docs/disconnected-updateservice-operator.md)
 * [External registry CA injection](./docs/external-registry-ca.md)
 * [Using graph data init container](./docs/graph-data-init-container.md)
