@@ -50,6 +50,10 @@ func namePolicyEngineRoute(instance *cv1.UpdateService) string {
 	return instance.Name + "-route"
 }
 
+func oldPolicyEngineRouteName(instance *cv1.UpdateService) string {
+	return namePolicyEngineService(instance) + "-route"
+}
+
 func nameAdditionalTrustedCA(instance *cv1.UpdateService) string {
 	return instance.Name + "-trusted-ca"
 }

@@ -516,33 +516,32 @@ func validateRouteName(instance *cv1.UpdateService, name string, namespace strin
 }
 
 func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
-	route := resources.policyEngineRoute
-	// Set UpdateService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, route, r.Scheme); err != nil {
-		return err
-	}
 
-	// Check if it already exists
-	found := &routev1.Route{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
+	route := resources.policyEngineRoute
+	foundRoute, err := r.findExistingRoute(ctx, reqLogger, instance, resources)
+	if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
+		return err
+	} else if foundRoute == nil {
+
+		// Set UpdateService instance as the owner and controller
+		if err = controllerutil.SetControllerReference(instance, route, r.Scheme); err != nil {
+			return err
+		}
 		reqLogger.Info("Creating Route", "Namespace", route.Namespace, "Name", route.Name)
 		if err = r.Client.Create(ctx, route); err != nil {
 			handleErr(reqLogger, &instance.Status, "CreateRouteFailed", err)
 		}
 		return err
-	} else if err != nil {
-		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
-		return err
 	}
 
-	if uri, _, err := routeapihelpers.IngressURI(found, ""); err == nil {
+	if uri, _, err := routeapihelpers.IngressURI(foundRoute, ""); err == nil {
 		instance.Status.PolicyEngineURI = uri.String()
 	} else {
 		handleErr(reqLogger, &instance.Status, "RouteIngressFailed", err)
 	}
 
-	updated := found.DeepCopy()
+	updated := foundRoute.DeepCopy()
 	// Keep found tls for later use
 	tls := updated.Spec.TLS
 	// This is just so we compare the Spec on the two objects but make an exception for Spec.TLS
@@ -562,6 +561,35 @@ func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, r
 	}
 
 	return nil
+}
+
+// Returns the route object if there are existing route and returns error when get route fails.
+func (r *UpdateServiceReconciler) findExistingRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) (*routev1.Route, error) {
+	oldRoute := resources.policyEngineOldRoute
+	route := resources.policyEngineRoute
+
+	foundRoute := &routev1.Route{}
+	foundOldRoute := &routev1.Route{}
+	oldRoutePresent := true
+
+	err := r.Client.Get(ctx, types.NamespacedName{Name: oldRoute.Name, Namespace: oldRoute.Namespace}, foundOldRoute)
+	if err != nil && errors.IsNotFound(err) {
+		oldRoutePresent = false
+	} else if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
+		return nil, err
+	}
+	if oldRoutePresent {
+		return foundOldRoute, nil
+	}
+	err = r.Client.Get(ctx, types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, foundRoute)
+	if err != nil && errors.IsNotFound(err) {
+		return nil, nil
+	} else if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
+		return nil, err
+	}
+	return foundRoute, nil
 }
 
 func (r *UpdateServiceReconciler) ensureService(ctx context.Context, reqLogger logr.Logger, service *corev1.Service) error {
