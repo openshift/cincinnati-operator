@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -11,7 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -81,7 +82,7 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	instance := &cv1.UpdateService{}
 	err := r.Client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apiErrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Return and don't requeue
 			return ctrl.Result{}, nil
@@ -208,7 +209,7 @@ func handleCACertStatus(reqLogger logr.Logger, status *cv1.UpdateServiceStatus, 
 func (r *UpdateServiceReconciler) findPullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (*corev1.Secret, error) {
 	sourcePS := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: namePullSecret, Namespace: OpenshiftConfigNamespace}, sourcePS)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		handleErr(reqLogger, &instance.Status, "PullSecretNotFound", err)
 		return nil, err
 	} else if err != nil {
@@ -224,7 +225,7 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	// AdditionalTrustedCA
 	image := &apicfgv1.Image{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName}, image)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		m := fmt.Sprintf("image.config.openshift.io not found for name %s", defaults.ImageConfigName)
 		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
 		return nil, nil
@@ -241,7 +242,7 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	// Search for the ConfigMap in openshift-config
 	sourceCM := &corev1.ConfigMap{}
 	err = r.Client.Get(ctx, types.NamespacedName{Name: image.Spec.AdditionalTrustedCA.Name, Namespace: OpenshiftConfigNamespace}, sourceCM)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		m := fmt.Sprintf("Found image.config.openshift.io.Spec.AdditionalTrustedCA.Name but did not find expected ConfigMap (Name: %v, Namespace: %v)", image.Spec.AdditionalTrustedCA.Name, OpenshiftConfigNamespace)
 		handleCACertStatus(reqLogger, &instance.Status, "FindAdditionalTrustedCAFailed", m)
 		return nil, err
@@ -302,7 +303,9 @@ func (r *UpdateServiceReconciler) ensureAdditionalTrustedCA(ctx context.Context,
 	return nil
 }
 
-func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
+func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService,
+	resources *kubeResources) error {
+
 	deployment := resources.deployment
 	if err := controllerutil.SetControllerReference(instance, deployment, r.Scheme); err != nil {
 		return err
@@ -311,7 +314,7 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 	found := &appsv1.Deployment{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: deployment.Name, Namespace: deployment.Namespace}, found)
 
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		reqLogger.Info("Creating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
 		err := r.Client.Create(ctx, deployment)
 		if err != nil {
@@ -390,6 +393,33 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 		containers[i].ReadinessProbe = original.ReadinessProbe
 	}
 
+	graphDataInitContainerIdx := -1
+	removeUnexpected := false
+	initContainers := updated.Spec.Template.Spec.InitContainers
+	for i := range initContainers {
+		var original *corev1.Container
+		if initContainers[i].Name == "graph-data" {
+			graphDataInitContainerIdx = i
+			original = resources.graphDataInitContainer
+		} else {
+			reqLogger.Info("Unexpected init container in pod will be removed", "Container.Name", initContainers[i].Name)
+			removeUnexpected = true
+			continue
+		}
+		initContainers[i].Image = original.Image
+		initContainers[i].ImagePullPolicy = original.ImagePullPolicy
+		initContainers[i].VolumeMounts = original.VolumeMounts
+	}
+
+	if graphDataInitContainerIdx == -1 {
+		handleErr(reqLogger, &instance.Status, "UpdateDeploymentFailed", errors.New("Graph data init container not found"))
+		return err
+	}
+
+	if removeUnexpected {
+		initContainers = append([]corev1.Container(nil), initContainers[graphDataInitContainerIdx])
+	}
+
 	if !reflect.DeepEqual(updated.Spec, found.Spec) {
 		reqLogger.Info("Updating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
 		err = r.Client.Update(ctx, updated)
@@ -412,7 +442,7 @@ func (r *UpdateServiceReconciler) ensurePodDisruptionBudget(ctx context.Context,
 	// Check if it already exists
 	found := &policyv1beta1.PodDisruptionBudget{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: pdb.Name, Namespace: pdb.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		reqLogger.Info("Creating PodDisruptionBudget", "Namespace", pdb.Namespace, "Name", pdb.Name)
 		if err = r.Client.Create(ctx, pdb); err != nil {
 			handleErr(reqLogger, &instance.Status, "CreatePDBFailed", err)
@@ -573,7 +603,7 @@ func (r *UpdateServiceReconciler) findExistingRoute(ctx context.Context, reqLogg
 	oldRoutePresent := true
 
 	err := r.Client.Get(ctx, types.NamespacedName{Name: oldRoute.Name, Namespace: oldRoute.Namespace}, foundOldRoute)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		oldRoutePresent = false
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
@@ -583,7 +613,7 @@ func (r *UpdateServiceReconciler) findExistingRoute(ctx context.Context, reqLogg
 		return foundOldRoute, nil
 	}
 	err = r.Client.Get(ctx, types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, foundRoute)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		return nil, nil
 	} else if err != nil {
 		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
@@ -596,7 +626,7 @@ func (r *UpdateServiceReconciler) ensureService(ctx context.Context, reqLogger l
 	// Check if this Service already exists
 	found := &corev1.Service{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: service.Name, Namespace: service.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		reqLogger.Info("Creating Service", "Namespace", service.Namespace, "Name", service.Name)
 		return r.Client.Create(ctx, service)
 	} else if err != nil {
@@ -617,10 +647,11 @@ func (r *UpdateServiceReconciler) ensureService(ctx context.Context, reqLogger l
 }
 
 func (r *UpdateServiceReconciler) ensureConfigMap(ctx context.Context, reqLogger logr.Logger, cm *corev1.ConfigMap) error {
+
 	// Check if this configmap already exists
 	found := &corev1.ConfigMap{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: cm.Name, Namespace: cm.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		reqLogger.Info("Creating ConfigMap", "Namespace", cm.Namespace, "Name", cm.Name)
 		return r.Client.Create(ctx, cm)
 	} else if err != nil {
@@ -642,7 +673,7 @@ func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger lo
 	// Check if this secret already exists
 	found := &corev1.Secret{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: secret.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && apiErrors.IsNotFound(err) {
 		reqLogger.Info("Creating Secret", "Namespace", secret.Namespace, "Name", secret.Name)
 		return r.Client.Create(ctx, secret)
 	} else if err != nil {
