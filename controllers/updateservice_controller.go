@@ -125,11 +125,16 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	clusterCM, err := r.findTrustedClusterCAConfig(ctx, reqLogger, instanceCopy)
+	if apiErrors.IsNotFound(err) {
+		clusterCM = newTrustedClusterCAConfig(instanceCopy, clusterCM)
+	}
+
 	// 2. Create all the kubeResources
 	//    'newKubeResources' creates all the kube resources we need and holds
 	//    them in 'resources' as the canonical reference for those resources
 	//    during reconciliation.
-	resources, err := newKubeResources(instanceCopy, r.OperandImage, ps, cm)
+	resources, err := newKubeResources(instanceCopy, r.OperandImage, ps, cm, clusterCM)
 	if err != nil {
 		reqLogger.Error(err, "Failed to render resources")
 		return ctrl.Result{}, err
@@ -149,6 +154,7 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.ensureConfig,
 		r.ensurePullSecret,
 		r.ensureEnvConfig,
+		r.ensureTrustedClusterCA,
 		r.ensureAdditionalTrustedCA,
 		r.ensureDeployment,
 		r.ensureGraphBuilderService,
@@ -259,6 +265,28 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	return sourceCM, nil
 }
 
+
+// findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
+func (r *UpdateServiceReconciler) findTrustedClusterCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (*corev1.ConfigMap, error) {
+
+	// Search for the ConfigMap in the operator namespace
+	sourceCM := &corev1.ConfigMap{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: NameClusterTrustedCAVolume, Namespace: instance.Namespace}, sourceCM)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := sourceCM.Data[NameClusterCertConfigMapKey]; !ok {
+		m := fmt.Sprintf("Found cluster-wide CA but required key: '%v' not found", NameClusterCertConfigMapKey )
+		handleCACertStatus(reqLogger, &instance.Status, "EnsureTrustedClusterCAFailed", m)
+		return nil, nil
+	}
+
+	return sourceCM, nil
+}
+
+
+
 func (r *UpdateServiceReconciler) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	if resources.pullSecret == nil {
 		return nil
@@ -301,6 +329,28 @@ func (r *UpdateServiceReconciler) ensureAdditionalTrustedCA(ctx context.Context,
 		return err
 	}
 	return nil
+}
+
+func (r *UpdateServiceReconciler) ensureTrustedClusterCA(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
+
+	if resources.trustedClusterCAConfig == nil {
+		return nil
+	}
+
+	_, err := r.findTrustedClusterCAConfig(ctx, reqLogger, instance)
+	if apiErrors.IsNotFound(err) {
+		// Set UpdateService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, resources.trustedClusterCAConfig, r.Scheme); err != nil {
+			return err
+		}
+
+		if err := r.ensureConfigMap(ctx, reqLogger, resources.trustedClusterCAConfig); err != nil {
+			handleErr(reqLogger, &instance.Status, "EnsureConfigMapFailedForClusterCA", err)
+			return err
+		}
+		return nil
+	}
+	return err
 }
 
 func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService,

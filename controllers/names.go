@@ -18,6 +18,10 @@ const (
 	NameTrustedCAVolume = "trusted-ca"
 	// NameCertConfigMapKey is the ConfigMap key name where the operator expects the external registry CA Cert
 	NameCertConfigMapKey = "updateservice-registry"
+	// NameClusterTrustedCAVolume is the name of the Volume used in UpdateService's deployment containing the CA Cert for cluster-wide proxy
+	NameClusterTrustedCAVolume = "cluster-trusted-ca"
+	// NameClusterCertConfigMapKey is the ConfigMap key name where the operator expects the external registry CA Cert for cluster-wide proxy
+	NameClusterCertConfigMapKey = "ca-bundle.crt"
 	// namePullSecret is the OpenShift pull secret name
 	namePullSecret = "pull-secret"
 )

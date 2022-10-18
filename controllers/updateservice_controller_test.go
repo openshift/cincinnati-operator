@@ -109,7 +109,7 @@ func TestEnsureConfig(t *testing.T) {
 	updateservice := newDefaultUpdateService()
 	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil, nil)
 	err = r.ensureConfig(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -129,7 +129,7 @@ func TestEnsureEnvConfig(t *testing.T) {
 	updateservice := newDefaultUpdateService()
 	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil, nil)
 	err = r.ensureEnvConfig(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +189,7 @@ func TestEnsurePullSecret(t *testing.T) {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
 
 			if !apierrors.IsNotFound(err) {
 				err = r.ensurePullSecret(context.TODO(), log, updateservice, resources)
@@ -295,7 +295,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 				return
 			}
 
-			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
 
 			err = r.ensureAdditionalTrustedCA(context.TODO(), log, updateservice, resources)
 
@@ -368,7 +368,7 @@ func TestEnsureDeployment(t *testing.T) {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
 
 			err = r.ensureDeployment(context.TODO(), log, updateservice, resources)
 			if err != nil {
@@ -411,7 +411,7 @@ func TestEnsureGraphBuilderService(t *testing.T) {
 	updateservice := newDefaultUpdateService()
 	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil, nil)
 	err = r.ensureGraphBuilderService(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -433,7 +433,7 @@ func TestEnsurePolicyEngineService(t *testing.T) {
 	updateservice := newDefaultUpdateService()
 	r := newTestReconciler(updateservice)
 
-	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil, nil)
 	err = r.ensurePolicyEngineService(context.TODO(), log, updateservice, resources)
 	if err != nil {
 		t.Fatal(err)
@@ -497,7 +497,7 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
 			err = r.ensurePodDisruptionBudget(context.TODO(), log, updateservice, resources)
 			if err != nil {
 				t.Fatal(err)
@@ -596,7 +596,7 @@ func TestEnsurePolicyEngineRoute(t *testing.T) {
 				assert.Error(t, err)
 			}
 
-			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm)
+			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
 			err = r.ensurePolicyEngineRoute(context.TODO(), log, updateservice, resources)
 			if err != nil {
 				t.Fatal(err)
