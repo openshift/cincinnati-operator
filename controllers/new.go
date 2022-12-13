@@ -86,12 +86,13 @@ type kubeResources struct {
 	policyEngineRoute        *routev1.Route
 	policyEngineOldRoute     *routev1.Route
 	trustedCAConfig          *corev1.ConfigMap
+	trustedClusterCAConfig   *corev1.ConfigMap
 	pullSecret               *corev1.Secret
 	volumes                  []corev1.Volume
 	graphBuilderVolumeMounts []corev1.VolumeMount
 }
 
-func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *corev1.Secret, caConfigMap *corev1.ConfigMap) (*kubeResources, error) {
+func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *corev1.Secret, caConfigMap *corev1.ConfigMap, clusterCA *corev1.ConfigMap) (*kubeResources, error) {
 	k := kubeResources{}
 
 	gbConfig, err := k.newGraphBuilderConfig(instance)
@@ -113,6 +114,7 @@ func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *cor
 		return nil, err
 	}
 	k.trustedCAConfig = k.newTrustedCAConfig(instance, caConfigMap)
+	k.trustedClusterCAConfig = newTrustedClusterCAConfig(instance, clusterCA)
 	k.pullSecret = k.newPullSecret(instance, pullSecret)
 	k.envConfigHash = envConfigHash
 	k.podDisruptionBudget = k.newPodDisruptionBudget(instance)
@@ -418,6 +420,26 @@ func (k *kubeResources) newVolumes(instance *cv1.UpdateService) []corev1.Volume 
 			},
 		})
 	}
+
+	if k.trustedClusterCAConfig != nil {
+		v = append(v, corev1.Volume{
+			Name: NameClusterTrustedCAVolume,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					DefaultMode: &mode,
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: NameClusterTrustedCAVolume,
+					},
+					Items: []corev1.KeyToPath{
+						{
+							Path: "cluster-ca-bundle.crt",
+							Key:  NameClusterCertConfigMapKey,
+						},
+					},
+				},
+			},
+		})
+	}
 	return v
 
 }
@@ -444,6 +466,32 @@ func (k *kubeResources) newTrustedCAConfig(instance *cv1.UpdateService, cm *core
 			Namespace: instance.Namespace,
 		},
 		Data: cm.Data,
+	}
+}
+
+func newTrustedClusterCAConfig(instance *cv1.UpdateService, clusterCA *corev1.ConfigMap) *corev1.ConfigMap {
+
+	// check if the proxy variables are set by olm
+	httpProxy := os.Getenv("HTTP_PROXY")
+	httpsProxy := os.Getenv("HTTPS_PROXY")
+	noProxy := os.Getenv("NO_PROXY")
+
+	if httpProxy == "" && httpsProxy == "" && noProxy == "" {
+		// cluster wide proxy is not set, so dont create configmap
+		return nil
+	}
+
+	if clusterCA != nil {
+		return clusterCA
+	}
+
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      NameClusterTrustedCAVolume,
+			Namespace: instance.Namespace,
+			Labels: map[string]string{"config.openshift.io/inject-trusted-cabundle":"true"},
+			Annotations: map[string]string{"release.openshift.io/create-only":"true"},
+		},
 	}
 }
 
@@ -583,6 +631,14 @@ func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1.UpdateService)
 			Name:      NameTrustedCAVolume,
 			ReadOnly:  true,
 			MountPath: "/etc/pki/ca-trust/extracted/pem",
+		})
+	}
+	if k.trustedClusterCAConfig != nil {
+		vm = append(vm, corev1.VolumeMount{
+			Name:      NameClusterTrustedCAVolume,
+			ReadOnly:  true,
+			MountPath: "/etc/pki/ca-trust/extracted/pem/cluster-ca-bundle.crt",
+			SubPath: NameClusterCertConfigMapKey,
 		})
 	}
 
