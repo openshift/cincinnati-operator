@@ -6,11 +6,13 @@ approvers:
 - PratikMahajan
 - vrutkovs
 - wking
+- petr-muller
 reviewers:
 - jottofar
 - LalatenduMohanty
 - PratikMahajan
 - vrutkovs
 - wking
+- petr-muller
 
 component: OpenShift Update Service
