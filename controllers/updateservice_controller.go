@@ -11,7 +11,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -265,7 +265,6 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	return sourceCM, nil
 }
 
-
 // findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
 func (r *UpdateServiceReconciler) findTrustedClusterCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (*corev1.ConfigMap, error) {
 
@@ -277,15 +276,13 @@ func (r *UpdateServiceReconciler) findTrustedClusterCAConfig(ctx context.Context
 	}
 
 	if _, ok := sourceCM.Data[NameClusterCertConfigMapKey]; !ok {
-		m := fmt.Sprintf("Found cluster-wide CA but required key: '%v' not found", NameClusterCertConfigMapKey )
+		m := fmt.Sprintf("Found cluster-wide CA but required key: '%v' not found", NameClusterCertConfigMapKey)
 		handleCACertStatus(reqLogger, &instance.Status, "EnsureTrustedClusterCAFailed", m)
 		return nil, nil
 	}
 
 	return sourceCM, nil
 }
-
-
 
 func (r *UpdateServiceReconciler) ensurePullSecret(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	if resources.pullSecret == nil {
@@ -490,7 +487,7 @@ func (r *UpdateServiceReconciler) ensurePodDisruptionBudget(ctx context.Context,
 	}
 
 	// Check if it already exists
-	found := &policyv1beta1.PodDisruptionBudget{}
+	found := &policyv1.PodDisruptionBudget{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: pdb.Name, Namespace: pdb.Namespace}, found)
 	if err != nil && apiErrors.IsNotFound(err) {
 		reqLogger.Info("Creating PodDisruptionBudget", "Namespace", pdb.Namespace, "Name", pdb.Name)
@@ -750,7 +747,7 @@ func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Service{}).
-		Owns(&policyv1beta1.PodDisruptionBudget{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&routev1.Route{}).
 		Watches(
 			&source.Kind{Type: &apicfgv1.Image{}},

@@ -12,7 +12,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -76,7 +76,7 @@ type kubeResources struct {
 	envConfigHash            string
 	graphBuilderConfig       *corev1.ConfigMap
 	graphBuilderConfigHash   string
-	podDisruptionBudget      *policyv1beta1.PodDisruptionBudget
+	podDisruptionBudget      *policyv1.PodDisruptionBudget
 	deployment               *appsv1.Deployment
 	graphBuilderContainer    *corev1.Container
 	graphDataInitContainer   *corev1.Container
@@ -131,14 +131,14 @@ func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *cor
 	return &k, nil
 }
 
-func (k *kubeResources) newPodDisruptionBudget(instance *cv1.UpdateService) *policyv1beta1.PodDisruptionBudget {
+func (k *kubeResources) newPodDisruptionBudget(instance *cv1.UpdateService) *policyv1.PodDisruptionBudget {
 	minAvailable := getMinAvailablePBD(instance)
-	return &policyv1beta1.PodDisruptionBudget{
+	return &policyv1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namePodDisruptionBudget(instance),
 			Namespace: instance.Namespace,
 		},
-		Spec: policyv1beta1.PodDisruptionBudgetSpec{
+		Spec: policyv1.PodDisruptionBudgetSpec{
 			MinAvailable: &minAvailable,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
