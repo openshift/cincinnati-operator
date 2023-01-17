@@ -582,7 +582,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 			InitialDelaySeconds: 3,
 			PeriodSeconds:       10,
 			TimeoutSeconds:      3,
-			Handler: corev1.Handler{
+			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/liveness",
 					Port:   intstr.FromInt(9080),
@@ -596,7 +596,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 			InitialDelaySeconds: 3,
 			PeriodSeconds:       10,
 			TimeoutSeconds:      3,
-			Handler: corev1.Handler{
+			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/readiness",
 					Port:   intstr.FromInt(9080),
@@ -707,7 +707,7 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 			InitialDelaySeconds: 3,
 			PeriodSeconds:       10,
 			TimeoutSeconds:      3,
-			Handler: corev1.Handler{
+			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/metrics",
 					Port:   intstr.FromInt(9081),
