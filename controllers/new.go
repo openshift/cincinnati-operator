@@ -432,7 +432,7 @@ func (k *kubeResources) newVolumes(instance *cv1.UpdateService) []corev1.Volume 
 					},
 					Items: []corev1.KeyToPath{
 						{
-							Path: "cluster-ca-bundle.crt",
+							Path: NameClusterCertConfigMapKey,
 							Key:  NameClusterCertConfigMapKey,
 						},
 					},
@@ -637,7 +637,7 @@ func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1.UpdateService)
 		vm = append(vm, corev1.VolumeMount{
 			Name:      NameClusterTrustedCAVolume,
 			ReadOnly:  true,
-			MountPath: "/etc/pki/ca-trust/extracted/pem/cluster-ca-bundle.crt",
+			MountPath: "/etc/pki/ca-trust/extracted/pem/"+NameClusterCertConfigMapKey,
 			SubPath: NameClusterCertConfigMapKey,
 		})
 	}
