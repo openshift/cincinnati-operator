@@ -704,12 +704,26 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 		LivenessProbe: &corev1.Probe{
 			FailureThreshold:    3,
 			SuccessThreshold:    1,
-			InitialDelaySeconds: 3,
-			PeriodSeconds:       10,
+			InitialDelaySeconds: 120,
+			PeriodSeconds:       30,
 			TimeoutSeconds:      3,
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
-					Path:   "/metrics",
+					Path:   "/livez",
+					Port:   intstr.FromInt(9081),
+					Scheme: corev1.URISchemeHTTP,
+				},
+			},
+		},
+		ReadinessProbe: &corev1.Probe{
+			FailureThreshold:    3,
+			SuccessThreshold:    1,
+			InitialDelaySeconds: 120,
+			PeriodSeconds:       30,
+			TimeoutSeconds:      3,
+			ProbeHandler: corev1.ProbeHandler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path:   "/readyz",
 					Port:   intstr.FromInt(9081),
 					Scheme: corev1.URISchemeHTTP,
 				},
