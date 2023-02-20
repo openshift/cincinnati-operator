@@ -24,6 +24,8 @@ const (
 	NameClusterCertConfigMapKey = "ca-bundle.crt"
 	// namePullSecret is the OpenShift pull secret name
 	namePullSecret = "pull-secret"
+	// ClusterCAMountDir is the mount path for the dir containing cluster CA
+	ClusterCAMountDir = "/etc/pki/ca-trust/extracted/cluster-ca/"
 )
 
 func nameDeployment(instance *cv1.UpdateService) string {

@@ -430,12 +430,6 @@ func (k *kubeResources) newVolumes(instance *cv1.UpdateService) []corev1.Volume 
 					LocalObjectReference: corev1.LocalObjectReference{
 						Name: NameClusterTrustedCAVolume,
 					},
-					Items: []corev1.KeyToPath{
-						{
-							Path: NameClusterCertConfigMapKey,
-							Key:  NameClusterCertConfigMapKey,
-						},
-					},
 				},
 			},
 		})
@@ -541,6 +535,15 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 		)
 	}
 
+	if k.trustedClusterCAConfig != nil{
+		gbENV = append(gbENV,
+			corev1.EnvVar{
+				Name:  "SSL_CERT_FILE",
+				Value: ClusterCAMountDir + NameClusterCertConfigMapKey,
+			},
+		)
+	}
+
 	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
@@ -637,8 +640,7 @@ func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1.UpdateService)
 		vm = append(vm, corev1.VolumeMount{
 			Name:      NameClusterTrustedCAVolume,
 			ReadOnly:  true,
-			MountPath: "/etc/pki/ca-trust/extracted/pem/"+NameClusterCertConfigMapKey,
-			SubPath: NameClusterCertConfigMapKey,
+			MountPath: ClusterCAMountDir,
 		})
 	}
 
