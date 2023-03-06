@@ -481,10 +481,10 @@ func newTrustedClusterCAConfig(instance *cv1.UpdateService, clusterCA *corev1.Co
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      NameClusterTrustedCAVolume,
-			Namespace: instance.Namespace,
-			Labels: map[string]string{"config.openshift.io/inject-trusted-cabundle":"true"},
-			Annotations: map[string]string{"release.openshift.io/create-only":"true"},
+			Name:        NameClusterTrustedCAVolume,
+			Namespace:   instance.Namespace,
+			Labels:      map[string]string{"config.openshift.io/inject-trusted-cabundle": "true"},
+			Annotations: map[string]string{"release.openshift.io/create-only": "true"},
 		},
 	}
 }
@@ -535,7 +535,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 		)
 	}
 
-	if k.trustedClusterCAConfig != nil{
+	if k.trustedClusterCAConfig != nil {
 		gbENV = append(gbENV,
 			corev1.EnvVar{
 				Name:  "SSL_CERT_FILE",
