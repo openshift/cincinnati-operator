@@ -105,12 +105,11 @@ In order to build a container image that contains the graph-data, which will be 
 container in the updateservice pod: 
 
 ```
-wget https://github.com/openshift/cincinnati-graph-data/archive/master.tar.gz -O graph.tar.gz
 cat <<EOF > Dockerfile
 FROM registry.access.redhat.com/ubi8/ubi:8.1
-COPY graph.tar.gz /tmp/
-RUN mkdir -p /var/lib/cincinnati/graph-data/
-CMD exec /bin/bash -c "tar xvzf /tmp/graph.tar.gz -C /var/lib/cincinnati/graph-data/ --strip-components=1"
+RUN curl -L -o cincinnati-graph-data.tar.gz https://api.openshift.com/api/upgrades_info/graph-data
+RUN mkdir -p /var/lib/cincinnati-graph-data && tar xvzf cincinnati-graph-data.tar.gz -C /var/lib/cincinnati-graph-data/ --no-overwrite-dir
+CMD ["/bin/bash", "-c" ,"exec cp -rp /var/lib/cincinnati-graph-data/* /var/lib/cincinnati/graph-data"]
 EOF
 
 podman build -f Dockerfile -t ${DISCONNECTED_REGISTRY}/updateservice/graph-data:v1
