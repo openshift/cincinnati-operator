@@ -113,7 +113,7 @@ func TestCustomResource(t *testing.T) {
 	// Checks to see if a given PodDisruptionBudget is available after a specified amount of time.
 	// If the PodDisruptionBudget is not available after 30 * retries seconds, the condition function returns an error.
 	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
-		if _, err := k8sClient.PolicyV1beta1().PodDisruptionBudgets(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{}); err != nil {
+		if _, err := k8sClient.PolicyV1().PodDisruptionBudgets(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
 				t.Logf("Waiting for availability of %s PodDisruptionBudget\n", operatorName)
 				return false, nil
