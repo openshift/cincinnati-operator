@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
@@ -13,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -156,7 +159,6 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.ensureEnvConfig,
 		r.ensureTrustedClusterCA,
 		r.ensureAdditionalTrustedCA,
-		r.ensureDeployment,
 		r.ensureGraphBuilderService,
 		r.ensurePolicyEngineService,
 		r.ensurePodDisruptionBudget,
@@ -166,6 +168,18 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if err != nil {
 			break
 		}
+	}
+
+	imageSHA, err := r.ensureGraphDataSHA(ctx, reqLogger, instanceCopy)
+	if err != nil {
+		reqLogger.Error(err, "ensuring GraphData image checksum annotation")
+		// setting the imageSHA to an empty string to make sure we're not passing any garbage information as annotation
+		imageSHA = ""
+	}
+
+	err = r.ensureDeployment(ctx, reqLogger, instanceCopy, resources, imageSHA)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	// handle status. Ensure functions should set conditions on the passed-in
@@ -186,7 +200,7 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		reqLogger.Error(err, "Failed to update Status")
 	}
 
-	return ctrl.Result{}, err
+	return ctrl.Result{RequeueAfter: time.Duration(5 * time.Minute)}, err
 }
 
 // handleErr logs the error and sets an appropriate Condition on the status.
@@ -350,8 +364,71 @@ func (r *UpdateServiceReconciler) ensureTrustedClusterCA(ctx context.Context, re
 	return err
 }
 
+func (r *UpdateServiceReconciler) ensureGraphDataSHA(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (string, error) {
+
+	if strings.Contains(instance.Spec.GraphDataImage, "@sha256") {
+		return "", nil
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "graph-data-tag-digest",
+			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				"updateservice.operator.openshift.io/last-refresh": time.Now().UTC().Format(time.RFC822),
+			},
+		},
+		Spec: corev1.PodSpec{
+			RestartPolicy: corev1.RestartPolicyNever,
+			Containers: []corev1.Container{
+				{
+					Name:            NameInitContainerGraphData,
+					Image:           instance.Spec.GraphDataImage,
+					ImagePullPolicy: corev1.PullAlways,
+					Command:         []string{"/bin/sh", "-c", "--"},
+					Args:            []string{"sleep 300;"},
+				},
+			},
+		},
+	}
+
+	if err := controllerutil.SetControllerReference(instance, pod, r.Scheme); err != nil {
+		return "", err
+	}
+
+	// Check if this pod already exists
+	found := &corev1.Pod{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+
+	if err != nil && apiErrors.IsNotFound(err) {
+		reqLogger.Info("Creating Pod", "Namespace", pod.Namespace, "Name", pod.Name)
+		err := r.Client.Create(ctx, pod)
+		if err != nil {
+			handleErr(reqLogger, &instance.Status, "CreateGraphDataPodFailed", err)
+		}
+		return "", err
+	} else if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetGraphDataPodFailed", err)
+		return "", err
+	} else if found.Status.Phase == corev1.PodSucceeded {
+		err := r.Client.Delete(ctx, pod)
+		if err != nil {
+			handleErr(reqLogger, &instance.Status, "DeleteGraphDataPodFailed", err)
+		}
+		return "", err
+	}
+
+	if len(found.Status.ContainerStatuses) > 0 {
+		return found.Status.ContainerStatuses[0].ImageID, nil
+	} else {
+		handleErr(reqLogger, &instance.Status, "GraphDataPodStatusEmpty", fmt.Errorf("Graph-Data pod returned empty container status"))
+	}
+
+	return "", nil
+}
+
 func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService,
-	resources *kubeResources) error {
+	resources *kubeResources, imageSHA string) error {
 
 	deployment := resources.deployment
 	if err := controllerutil.SetControllerReference(instance, deployment, r.Scheme); err != nil {
@@ -393,6 +470,11 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 	}
 	for key, value := range deployment.Spec.Template.ObjectMeta.Annotations {
 		updated.Spec.Template.ObjectMeta.Annotations[key] = value
+	}
+
+	if len(imageSHA) > 0 {
+		reqLogger.Info("Setting SHA annotation")
+		updated.Spec.Template.ObjectMeta.Annotations["updateservice.operator.openshift.io/graph-data-image"] = imageSHA
 	}
 
 	updated.Spec.Template.Spec.Volumes = deployment.Spec.Template.Spec.Volumes
@@ -749,6 +831,7 @@ func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&corev1.Service{}).
 		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&routev1.Route{}).
+		Owns(&corev1.Pod{}).
 		Watches(
 			&source.Kind{Type: &apicfgv1.Image{}},
 			handler.EnqueueRequestsFromMapFunc(mapped.Map),

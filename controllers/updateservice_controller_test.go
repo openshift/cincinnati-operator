@@ -370,7 +370,7 @@ func TestEnsureDeployment(t *testing.T) {
 
 			resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
 
-			err = r.ensureDeployment(context.TODO(), log, updateservice, resources)
+			err = r.ensureDeployment(context.TODO(), log, updateservice, resources, "")
 			if err != nil {
 				t.Fatal(err)
 			}
