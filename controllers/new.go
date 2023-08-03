@@ -538,8 +538,14 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 	if k.trustedClusterCAConfig != nil {
 		gbENV = append(gbENV,
 			corev1.EnvVar{
-				Name:  "SSL_CERT_FILE",
-				Value: ClusterCAMountDir + NameClusterCertConfigMapKey,
+				Name:  "CLUSTER_CERT_DIR",
+				Value: ClusterCAMountDir,
+			},
+		)
+		gbENV = append(gbENV,
+			corev1.EnvVar{
+				Name:  "SSL_CERT_DIR",
+				Value: SSLCertDir + ":" + ClusterCAMountDir,
 			},
 		)
 	}
@@ -633,7 +639,7 @@ func (k *kubeResources) newGraphBuilderVolumeMounts(instance *cv1.UpdateService)
 		vm = append(vm, corev1.VolumeMount{
 			Name:      NameTrustedCAVolume,
 			ReadOnly:  true,
-			MountPath: "/etc/pki/ca-trust/extracted/pem",
+			MountPath: SSLCertDir,
 		})
 	}
 	if k.trustedClusterCAConfig != nil {
