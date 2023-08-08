@@ -210,7 +210,7 @@ spec:
                 - name: OPERATOR_NAME
                   value: updateservice-operator
                 - name: RELATED_IMAGE_OPERAND
-                  value: quay.io/cincinnati/cincinnati:latest
+                  value: quay.io/app-sre/cincinnati:bbd7096
                 image: controller:latest
                 imagePullPolicy: Always
                 name: updateservice-operator
@@ -248,6 +248,6 @@ spec:
   provider:
     name: Red Hat
   relatedImages:
-  - image: quay.io/cincinnati/cincinnati:latest
+  - image: quay.io/app-sre/cincinnati:bbd7096
     name: operand
   version: 5.0.1
