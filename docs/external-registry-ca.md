@@ -1,9 +1,10 @@
 # External Registry CA Injection
 
+**Note:** In a disconnected cluster with cluster-wide CA, Cincinnati will use the pre-configured CA certificates 
+to access the external registry. 
+
 If you are using a secure external container registry to hold mirrored OpenShift
-release images, Cincinnati will need access to this registry in order to build
-an upgrade graph.  Here's how you can inject your CA Cert into the Cincinnati
-pod.
+release images for which the CA certificates are not added to cluster-wide CA, Cincinnati will need access to this registry in order to build an upgrade graph.  Here's how you can inject your CA Cert into the Cincinnati pod.
 
 OpenShift has an external registry API, located at `image.config.openshift.io`,
 that we'll use to store the external registry CA Cert.  You can read more about
