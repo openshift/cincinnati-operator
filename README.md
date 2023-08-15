@@ -1,3 +1,4 @@
+# TEST ONLY
 # update-service-operator
 
 This operator is developed using the [operator SDK][operator-sdk], version 1.9.0.
