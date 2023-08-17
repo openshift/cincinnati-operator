@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -522,32 +521,11 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 		containers[i].ReadinessProbe = original.ReadinessProbe
 	}
 
-	graphDataInitContainerIdx := -1
-	removeUnexpected := false
 	initContainers := updated.Spec.Template.Spec.InitContainers
 	for i := range initContainers {
-		var original *corev1.Container
-		if initContainers[i].Name == "graph-data" {
-			graphDataInitContainerIdx = i
-			original = resources.graphDataInitContainer
-		} else {
-			reqLogger.Info("Unexpected init container in pod will be removed", "Container.Name", initContainers[i].Name)
-			removeUnexpected = true
-			continue
-		}
-		initContainers[i].Image = original.Image
-		initContainers[i].ImagePullPolicy = original.ImagePullPolicy
-		initContainers[i].VolumeMounts = original.VolumeMounts
+		reqLogger.Info("Unexpected init container in pod will be removed", "Container.Name", initContainers[i].Name)
 	}
-
-	if graphDataInitContainerIdx == -1 {
-		handleErr(reqLogger, &instance.Status, "UpdateDeploymentFailed", errors.New("Graph data init container not found"))
-		return err
-	}
-
-	if removeUnexpected {
-		initContainers = append([]corev1.Container(nil), initContainers[graphDataInitContainerIdx])
-	}
+	initContainers = []corev1.Container(nil)
 
 	if !reflect.DeepEqual(updated.Spec, found.Spec) {
 		reqLogger.Info("Updating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)

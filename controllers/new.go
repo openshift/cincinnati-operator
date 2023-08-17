@@ -34,8 +34,11 @@ const (
 )
 
 type graphBuilderProperties struct {
-	Registry   string
-	Repository string
+	Registry            string
+	Repository          string
+	GraphDataRegistry   string
+	GraphDataRepository string
+	GraphDataTag        string
 }
 
 const graphBuilderTOML string = `verbosity = "vvv"
@@ -57,8 +60,18 @@ fetch_concurrency = 16
 credentials_path = "/var/lib/cincinnati/registry-credentials/.dockerconfigjson"
 
 [[plugin_settings]]
+name="dkrv2-secondary-metadata-scrape"
+registry = "{{.GraphDataRegistry}}"
+repository = "{{.GraphDataRepository}}"
+{{- if .GraphDataTag}}
+tag = "{{.GraphDataTag}}"
+{{- end}}
+graph_data_path = "/var/lib/cincinnati-graph-data"
+output_directory = "/var/lib/cincinnati/graph-data/dkrv2-secondary-metadata-scrape"
+credentials_path = "/var/lib/cincinnati/registry-credentials/.dockerconfigjson"
+
+[[plugin_settings]]
 name = "openshift-secondary-metadata-parse"
-data_directory = "/var/lib/cincinnati/graph-data"
 
 [[plugin_settings]]
 name = "edge-add-remove"`
@@ -79,7 +92,6 @@ type kubeResources struct {
 	podDisruptionBudget      *policyv1.PodDisruptionBudget
 	deployment               *appsv1.Deployment
 	graphBuilderContainer    *corev1.Container
-	graphDataInitContainer   *corev1.Container
 	policyEngineContainer    *corev1.Container
 	graphBuilderService      *corev1.Service
 	policyEngineService      *corev1.Service
@@ -121,7 +133,6 @@ func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *cor
 	k.volumes = k.newVolumes(instance)
 	k.graphBuilderVolumeMounts = k.newGraphBuilderVolumeMounts(instance)
 	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
-	k.graphDataInitContainer = k.newGraphDataInitContainer(instance)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
 	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
@@ -296,14 +307,25 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1.UpdateService) (*cor
 		repository = segments[1]
 	}
 
+	var graph_data_registry, graph_data_repository, graph_data_tag string
+	if segments := strings.SplitN(instance.Spec.GraphDataImage, "/", 2); len(segments) != 2 {
+		return nil, fmt.Errorf("failed to split %q into registry and repository components", instance.Spec.GraphDataImage)
+	} else {
+		graph_data_registry = segments[0]
+		graph_data_repository, graph_data_tag, _ = strings.Cut(segments[1], ":")
+	}
+
 	tmpl, err := template.New("gb").Parse(graphBuilderTOML)
 	if err != nil {
 		return nil, err
 	}
 	builder := strings.Builder{}
 	if err = tmpl.Execute(&builder, &graphBuilderProperties{
-		Registry:   registry,
-		Repository: repository,
+		Registry:            registry,
+		Repository:          repository,
+		GraphDataRegistry:   graph_data_registry,
+		GraphDataRepository: graph_data_repository,
+		GraphDataTag:        graph_data_tag,
 	}); err != nil {
 		return nil, err
 	}
@@ -361,11 +383,6 @@ func (k *kubeResources) newDeployment(instance *cv1.UpdateService) *appsv1.Deplo
 				},
 			},
 		},
-	}
-	if k.graphDataInitContainer != nil {
-		dep.Spec.Template.Spec.InitContainers = []corev1.Container{
-			*k.graphDataInitContainer,
-		}
 	}
 	return dep
 }
