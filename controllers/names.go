@@ -26,8 +26,6 @@ const (
 	namePullSecret = "pull-secret"
 	// ClusterCAMountDir is the mount path for the dir containing cluster CA
 	ClusterCAMountDir = "/etc/pki/ca-trust/extracted/cluster-ca/"
-	// SSLCertDir is the directory where all the SSL_CERTs are kept
-	SSLCertDir = "/etc/pki/ca-trust/extracted/pem"
 )
 
 func nameDeployment(instance *cv1.UpdateService) string {
