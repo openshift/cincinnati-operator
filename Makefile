@@ -12,6 +12,7 @@ VERSION ?= 0.0.1
 	bundle \
 	bundle-build
 
+ARTIFACT_DIR ?= .
 SOURCES := $(shell find . -name '*.go' -not -path "*/vendor/*")
 GOBUILDFLAGS ?= -i -mod=vendor
 GOLDFLAGS ?= -s -w -X github.com/openshift/cincinnati-operator/version.Operator=$(VERSION)
@@ -53,7 +54,7 @@ deploy:
 func-test: deploy
 	@echo "Running functional test suite"
 	go clean -testcache
-	go test -timeout 20m -v ./functests/...
+	go test -timeout 20m -v ./functests/... || (oc -n openshift-updateservice adm inspect --dest-dir="$(ARTIFACT_DIR)/inspect" namespace/openshift-updateservice customresourcedefinition/updateservices.updateservice.operator.openshift.io updateservice/example; false)
 
 unit-test:
 	@echo "Executing unit tests"

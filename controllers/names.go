@@ -10,6 +10,8 @@ const (
 	NameContainerGraphBuilder string = "graph-builder"
 	// NameContainerPolicyEngine is the Name property of the policy engine container
 	NameContainerPolicyEngine string = "policy-engine"
+	// NameContainerMetadata is the Name property of the metadata container
+	NameContainerMetadata string = "metadata"
 	// NameInitContainerGraphData is the Name property of the graph data container
 	NameInitContainerGraphData string = "graph-data"
 	// OpenshiftConfigNamespace is the name of openshift's configuration namespace
@@ -48,6 +50,10 @@ func namePolicyEngineService(instance *cv1.UpdateService) string {
 	return instance.Name + "-policy-engine"
 }
 
+func nameMetadataService(instance *cv1.UpdateService) string {
+	return instance.Name + "-metadata"
+}
+
 func nameGraphBuilderService(instance *cv1.UpdateService) string {
 	return instance.Name + "-graph-builder"
 }
@@ -58,6 +64,10 @@ func namePolicyEngineRoute(instance *cv1.UpdateService) string {
 
 func oldPolicyEngineRouteName(instance *cv1.UpdateService) string {
 	return namePolicyEngineService(instance) + "-route"
+}
+
+func nameMetadataRoute(instance *cv1.UpdateService) string {
+	return instance.Name + "-meta-route"
 }
 
 func nameAdditionalTrustedCA(instance *cv1.UpdateService) string {
