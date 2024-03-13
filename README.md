@@ -12,10 +12,10 @@ export RELATED_IMAGE_OPERAND="quay.io/app-sre/cincinnati:2873c6b"
 operator-sdk run --local
 ```
 
-## Using an init container to load graph data
+## Using a graph data container
 
-The UpdateService graph data is loaded from an init container. Before deploying 
-the update-service-operator, you will need to [build and push an init container containing the graph data](docs/graph-data-init-container.md).
+The UpdateService graph data is loaded from a graph data container. Before deploying
+the update-service-operator, you will need to [build and push a container containing the graph data](docs/graph-data-container.md).
 
 ## Deploy operator
 
@@ -39,7 +39,7 @@ To run the functional testcases locally, you must set below environment variable
 
 ```
 export KUBECONFIG="path-for-kubeconfig-file"
-export GRAPH_DATA_IMAGE="your-registry/your-repo/your-init-container:tag"
+export GRAPH_DATA_IMAGE="your-registry/your-repo/your-graph-data-container:tag"
 ```
 
 ## Run unit tests
@@ -69,4 +69,4 @@ make bundle
 ## Documentation
 * [Deploy disconnected update service](./docs/disconnected-updateservice-operator.md)
 * [External registry CA injection](./docs/external-registry-ca.md)
-* [Using graph data init container](./docs/graph-data-init-container.md)
+* [Using graph data container](./docs/graph-data-container.md)

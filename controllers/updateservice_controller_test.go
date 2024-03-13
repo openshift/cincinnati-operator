@@ -35,7 +35,7 @@ const (
 	testOperandImage            = "testOperandImage"
 	testReplicas                = 1
 	testReleases                = "testRegistry/testRepository"
-	testGraphDataImage          = "testGraphDataImage"
+	testGraphDataImage          = "testGraphDataRegistry/testGraphDataImage"
 	testConfigMap               = "testConfigMap"
 )
 
@@ -400,8 +400,6 @@ func TestEnsureDeployment(t *testing.T) {
 				assert.Equal(t, found.Spec.Template.Spec.Containers[0].VolumeMounts[3].Name, NameTrustedCAVolume)
 			}
 
-			initContainer := found.Spec.Template.Spec.InitContainers[0]
-			assert.Equal(t, &initContainer, resources.graphDataInitContainer)
 		})
 	}
 }
