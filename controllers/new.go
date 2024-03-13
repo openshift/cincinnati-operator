@@ -603,15 +603,6 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 		)
 	}
 
-	if k.trustedClusterCAConfig != nil {
-		gbENV = append(gbENV,
-			corev1.EnvVar{
-				Name:  "SSL_CERT_FILE",
-				Value: ClusterCAMountDir + NameClusterCertConfigMapKey,
-			},
-		)
-	}
-
 	g := &corev1.Container{
 		Name:            NameContainerGraphBuilder,
 		Image:           image,
