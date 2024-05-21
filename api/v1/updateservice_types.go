@@ -40,12 +40,14 @@ type UpdateServiceStatus struct {
 	//
 	// * /api/upgrades_info/v1/graph, with the update graph recommendations.
 	// * /api/upgrades_info/graph, with the update graph recommendations, versioned by content-type (e.g. application/vnd.redhat.cincinnati.v1+json).
+	// +kubebuilder:validation:Optional
 	PolicyEngineURI string `json:"policyEngineURI,optional"`
 
 	// metadataURI is the external URI which exposes metadata.
 	// Available paths from this URI include:
 	//
 	// * /api/upgrades_info/signatures/{ALGORITHM}/{DIGEST}/{SIGNATURE}, with release signatures.
+	// +kubebuilder:validation:Optional
 	MetadataURI string `json:"metadataURI,optional"`
 }
 

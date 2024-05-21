@@ -99,9 +99,6 @@ spec:
                   with the update graph recommendations, versioned by content-type
                   (e.g. application/vnd.redhat.cincinnati.v1+json)."
                 type: string
-            required:
-            - metadataURI
-            - policyEngineURI
             type: object
         required:
         - metadata
