@@ -120,8 +120,16 @@ func TestEnsureConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	verifyAnnotation(t, found.ObjectMeta.Annotations, "the configuration file for the graph-builder")
 	// TODO: check that the gb.toml is corrently rendered with updateservice.Spec
 	assert.NotEmpty(t, found.Data["gb.toml"])
+}
+
+func verifyAnnotation(t *testing.T, annotations map[string]string, keywords ...string) {
+	assert.Contains(t, annotations, DescriptionAnnotation)
+	for _, keyword := range keywords {
+		assert.Contains(t, annotations[DescriptionAnnotation], keyword)
+	}
 }
 
 func TestEnsureEnvConfig(t *testing.T) {
@@ -140,6 +148,7 @@ func TestEnsureEnvConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	verifyAnnotation(t, found.ObjectMeta.Annotations, "the environment information shared")
 	assert.NotEmpty(t, found.Data["pe.upstream"])
 }
 
@@ -201,6 +210,7 @@ func TestEnsurePullSecret(t *testing.T) {
 				assert.Empty(t, found)
 			} else {
 				verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+				verifyAnnotation(t, found.ObjectMeta.Annotations, "the pull credentials from the global pull secret")
 				assert.Equal(t, found.Data, test.expectedSecret.Data)
 			}
 		})
@@ -306,6 +316,7 @@ func TestEnsureAdditionalTrustedCA(t *testing.T) {
 				assert.Empty(t, found)
 			} else {
 				verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+				verifyAnnotation(t, found.ObjectMeta.Annotations, "additional certificate authorities to be trusted")
 				assert.Equal(t, found.Data, test.expectedConfigMap.Data)
 			}
 		})
@@ -382,6 +393,7 @@ func TestEnsureDeployment(t *testing.T) {
 			}
 
 			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+			verifyAnnotation(t, found.ObjectMeta.Annotations, "launches the components for the OpenShift UpdateService", updateservice.Name)
 			assert.Equal(t, found.Spec.Selector.MatchLabels["app"], nameDeployment(updateservice))
 			assert.Equal(t, found.Spec.Replicas, &updateservice.Spec.Replicas)
 
@@ -424,6 +436,7 @@ func TestEnsureGraphBuilderService(t *testing.T) {
 	}
 
 	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	verifyAnnotation(t, found.ObjectMeta.Annotations, "a client-agnostic update graph to other clients within the cluster")
 	assert.Equal(t, found.ObjectMeta.Labels["app"], nameGraphBuilderService(updateservice))
 	assert.Equal(t, found.Spec.Selector["deployment"], nameDeployment(updateservice))
 }
@@ -446,6 +459,7 @@ func TestEnsurePolicyEngineService(t *testing.T) {
 	}
 
 	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	verifyAnnotation(t, found.ObjectMeta.Annotations, "views of the update graph by applying a set of filters")
 	assert.Equal(t, found.ObjectMeta.Labels["app"], namePolicyEngineService(updateservice))
 	assert.Equal(t, found.Spec.Selector["deployment"], nameDeployment(updateservice))
 }
@@ -510,6 +524,7 @@ func TestEnsurePodDisruptionBudget(t *testing.T) {
 			}
 
 			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+			verifyAnnotation(t, found.ObjectMeta.Annotations, "at least one Pod running at all times")
 			assert.Equal(t, found.Spec.Selector.MatchLabels["app"], nameDeployment(updateservice))
 
 			minAvailable := getMinAvailablePBD(updateservice)
@@ -609,6 +624,7 @@ func TestEnsurePolicyEngineRoute(t *testing.T) {
 			}
 
 			verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+			verifyAnnotation(t, found.ObjectMeta.Annotations, "exposes views of the update graph")
 			assert.Equal(t, found.ObjectMeta.Labels["app"], nameDeployment(updateservice))
 			assert.Equal(t, found.Spec.To.Kind, "Service")
 			assert.Equal(t, found.Spec.To.Name, namePolicyEngineService(updateservice))

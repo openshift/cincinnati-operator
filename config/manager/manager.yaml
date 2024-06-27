@@ -2,6 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: updateservice-operator
+  annotations:
+    kubernetes.io/description: |
+      This OpenShift Update Service operator Deployment reconciles local UpdateServices into more fundamental Kubernetes
+      and OpenShift resources like Cincinnati Deployments and Routes, and it reports the status of those components in 
+      the UpdateService status.
 spec:
   replicas: 1
   selector:

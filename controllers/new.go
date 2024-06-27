@@ -31,6 +31,10 @@ const (
 	// the env config on the operand Pod. Storing the annotation ensures that
 	// the Pod will be replaced whenever the content of the ConfigMap changes.
 	EnvConfigHashAnnotation string = "updateservice.operator.openshift.io/env-config-hash"
+
+	// DescriptionAnnotation is the key for an annotation used for describing specific behaviour of given object.
+	//  https://kubernetes.io/docs/reference/labels-annotations-taints/#description
+	DescriptionAnnotation = "kubernetes.io/description"
 )
 
 type graphBuilderProperties struct {
@@ -143,6 +147,12 @@ func (k *kubeResources) newPodDisruptionBudget(instance *cv1.UpdateService) *pol
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namePodDisruptionBudget(instance),
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "This PodDisruptionBudget blocks graceful evictions " +
+					"(but cannot guard against all external disruption) " +
+					"to try and keep at least one Pod running at all times, if the Update Service instance " +
+					"specifies two or more replicas.",
+			},
 		},
 		Spec: policyv1.PodDisruptionBudgetSpec{
 			MinAvailable: &minAvailable,
@@ -161,6 +171,12 @@ func (k *kubeResources) newGraphBuilderService(instance *cv1.UpdateService) *cor
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "This Service exposes a client-agnostic update graph to other clients within the cluster. " +
+					"This allows convenient in-cluster access to those graphs, and also allows platform monitoring to " +
+					"scrape graph-builder containers for Prometheus metrics. " +
+					"See https://github.com/openshift/cincinnati/blob/master/docs/design/cincinnati.md#graph-builder for more details",
+			},
 			Labels: map[string]string{
 				"app": name,
 			},
@@ -195,6 +211,11 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1.UpdateService) *cor
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "It exposes views of the update graph by applying a set of filters " +
+					"which are defined within the particular Policy Engine instance. " +
+					"See https://github.com/openshift/cincinnati/blob/master/docs/design/cincinnati.md#policy-engine for more details",
+			},
 			Labels: map[string]string{
 				"app": name,
 			},
@@ -229,6 +250,10 @@ func (k *kubeResources) newMetadataService(instance *cv1.UpdateService) *corev1.
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "It exposes release image signatures " +
+					"See https://github.com/openshift/cincinnati-graph-data?tab=readme-ov-file#signatures for more details",
+			},
 			Labels: map[string]string{
 				"app": name,
 			},
@@ -263,6 +288,11 @@ func (k *kubeResources) newPolicyEngineRoute(instance *cv1.UpdateService) *route
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "It exposes views of the update graph by applying a set of filters " +
+					"which are defined within the particular Policy Engine instance. " +
+					"See https://github.com/openshift/cincinnati/blob/master/docs/design/cincinnati.md#policy-engine for more details",
+			},
 			Labels: map[string]string{
 				"app": nameDeployment(instance),
 			},
@@ -289,6 +319,11 @@ func (k *kubeResources) oldPolicyEngineRoute(instance *cv1.UpdateService) *route
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "It exposes views of the update graph by applying a set of filters " +
+					"which are defined within the particular Policy Engine instance. " +
+					"See https://github.com/openshift/cincinnati/blob/master/docs/design/cincinnati.md#policy-engine for more details",
+			},
 			Labels: map[string]string{
 				"app": nameDeployment(instance),
 			},
@@ -315,6 +350,10 @@ func (k *kubeResources) newMetadataRoute(instance *cv1.UpdateService) *routev1.R
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "It exposes release image signatures " +
+					"See https://github.com/openshift/cincinnati-graph-data?tab=readme-ov-file#signatures for more details",
+			},
 			Labels: map[string]string{
 				"app": nameDeployment(instance),
 			},
@@ -340,6 +379,9 @@ func (k *kubeResources) newEnvConfig(instance *cv1.UpdateService) *corev1.Config
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameEnvConfig(instance),
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "This ConfigMap contains the environment information shared by the containers of UpdateService",
+			},
 		},
 		Data: map[string]string{
 			"gb.rust_backtrace":              "0",
@@ -378,6 +420,9 @@ func (k *kubeResources) newGraphBuilderConfig(instance *cv1.UpdateService) (*cor
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameConfig(instance),
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "This ConfigMap contains the configuration file for the graph-builder",
+			},
 		},
 		Data: map[string]string{
 			"gb.toml": builder.String(),
@@ -393,6 +438,9 @@ func (k *kubeResources) newDeployment(instance *cv1.UpdateService) *appsv1.Deplo
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: fmt.Sprintf("This deployment launches the components for the OpenShift UpdateService %s", instance.Name),
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &instance.Spec.Replicas,
@@ -511,6 +559,9 @@ func (k *kubeResources) newPullSecret(instance *cv1.UpdateService, s *corev1.Sec
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namePullSecretCopy(instance),
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "It contains the pull credentials from the global pull secret for the cluster",
+			},
 		},
 		Data: s.Data,
 	}
@@ -526,6 +577,9 @@ func (k *kubeResources) newTrustedCAConfig(instance *cv1.UpdateService, cm *core
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nameAdditionalTrustedCA(instance),
 			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "This ConfigMap contains additional certificate authorities to be trusted during image registry access.",
+			},
 		},
 		Data: cm.Data,
 	}
