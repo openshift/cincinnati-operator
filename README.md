@@ -17,13 +17,20 @@ operator-sdk run --local
 The UpdateService graph data is loaded from an init container. Before deploying 
 the update-service-operator, you will need to [build and push an init container containing the graph data](docs/graph-data-init-container.md).
 
+## Build operator image
+
+```console
+podman build -f ./Dockerfile --platform=linux/amd64 -t your-registry/your-repo/your-update-service-operator:tag
+podman push your-registry/your-repo/your-update-service-operator:tag
+```
+
 ## Deploy operator
 
 ```
 make deploy
 ```
 
-By default, operator will be deployed using the default operator image `quay.io/updateservice/update-service-operator:latest`. If you want to override the default operator image with your image, set 
+By default, operator will be deployed using the default operator image `controller:latest`. If you want to override the default operator image with your image, set 
 
 ```
 export RELATED_IMAGE_OPERATOR="your-registry/your-repo/your-update-service-opertor-image:tag"
