@@ -21,9 +21,10 @@ fi
 
 echo "Deploying using ${RELATED_OPERATOR_IMAGE} as operator, ${RELATED_OPERAND_IMAGE} as operand and ${GRAPH_DATA_IMAGE} as graph data image"
 
-sed -i "s|$DEFAULT_OPERAND_IMAGE|$RELATED_OPERAND_IMAGE|" config/manager/manager.yaml
-sed -i "s|$DEFAULT_OPERATOR_IMAGE|$RELATED_OPERATOR_IMAGE|" config/manager/manager.yaml
-sed -i "s|your-registry/your-repo/your-init-container|$GRAPH_DATA_IMAGE|" config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
+SED_CMD="${SED_CMD:-sed}"
+${SED_CMD} -i "s|$DEFAULT_OPERAND_IMAGE|$RELATED_OPERAND_IMAGE|" config/manager/manager.yaml
+${SED_CMD} -i "s|$DEFAULT_OPERATOR_IMAGE|$RELATED_OPERATOR_IMAGE|" config/manager/manager.yaml
+${SED_CMD} -i "s|your-registry/your-repo/your-init-container|$GRAPH_DATA_IMAGE|" config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
 
 NAMESPACE="openshift-updateservice"
 oc create namespace $NAMESPACE

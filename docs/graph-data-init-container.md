@@ -20,8 +20,8 @@ When the init container runs, it untars the data to /var/lib/cincinnati/graph-da
 Build and push the image to your own repository. 
 
 ````
-podman build -f ./dev/Dockerfile -t quay.io/rwsu/cincinnati-graph-data-container:latest
-podman push quay.io/rwsu/cincinnati-graph-data-container:latest
+podman build -f ./dev/Dockerfile --platform=linux/amd64 -t your-registry/your-repo/your-cincinnati-graph-data-container:tag
+podman push your-registry/your-repo/your-cincinnati-graph-data-container:tag
 ````
 Depending upon your setup you need to make the repository public or private to make sure the operator can fetch the image from it.
 
@@ -41,5 +41,5 @@ metadata:
 spec:
   replicas: 1
   releases: quay.io/openshift-release-dev/ocp-release
-  graphDataImage: quay.io/rwsu/cincinnati-graph-data-container:latest
+  graphDataImage: your-registry/your-repo/your-cincinnati-graph-data-container:tag
 ```
