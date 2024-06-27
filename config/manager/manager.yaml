@@ -2,6 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: updateservice-operator
+  annotations:
+    kubernetes.io/description: |
+      This updateservice operator manages an OpenShift Update Service instance in a cluster
+      that is appealing for offline OpenShift clusters or for admins that want to provide
+      their own graph data instead of using https://github.com/openshift/cincinnati-graph-data.
 spec:
   replicas: 1
   selector:
