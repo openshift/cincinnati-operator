@@ -1,6 +1,6 @@
 # Before adding new files here to ignore,
 # please check out https://git-scm.com/docs/gitignore#_description
-# to see if $XDG_CONFIG_HOME/git/ignore is a better place for them.
+# to see if $XDG_CONFIG_HOME/git/ignore is a better place for them (e.g. IDE/editor-specific folders).
 #
 # Temporary Build Files
 build/_output
