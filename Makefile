@@ -85,11 +85,7 @@ kustomize:
 ifeq (, $(shell which kustomize))
 	@{ \
 	set -e ;\
-	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
-	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
+	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash -s 5.4.2 $(GOBIN) ;\
 	}
 KUSTOMIZE=$(GOBIN)/kustomize
 else
