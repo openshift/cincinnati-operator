@@ -7,10 +7,12 @@ spec:
   selector:
     matchLabels:
       name: updateservice-operator
+      control-plane: updateservice-operator
   template:
     metadata:
       labels:
         name: updateservice-operator
+        control-plane: updateservice-operator
     spec:
       serviceAccountName: updateservice-operator
       containers:

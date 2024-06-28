@@ -7,8 +7,8 @@ metadata:
   namespace: openshift-updateservice
 spec:
   ports:
-  - name: https
-    port: 8443
-    targetPort: https
+  - name: metrics
+    port: 80
+    targetPort: 8080
   selector:
     control-plane: updateservice-operator

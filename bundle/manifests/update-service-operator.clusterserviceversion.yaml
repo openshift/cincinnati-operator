@@ -16,7 +16,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-06-28T02:54:06Z"
+    createdAt: "2024-06-28T14:03:37Z"
     description: Creates and maintains an OpenShift Update Service instance
     operatorframework.io/suggested-namespace: openshift-update-service
     operators.operatorframework.io/builder: operator-sdk-v1.28.0-ocp
@@ -190,11 +190,13 @@ spec:
           replicas: 1
           selector:
             matchLabels:
+              control-plane: updateservice-operator
               name: updateservice-operator
           strategy: {}
           template:
             metadata:
               labels:
+                control-plane: updateservice-operator
                 name: updateservice-operator
             spec:
               containers:
