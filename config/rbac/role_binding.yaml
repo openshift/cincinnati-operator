@@ -1,5 +1,4 @@
----
-kind: ClusterRoleBinding
+kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: updateservice-operator
@@ -8,6 +7,6 @@ subjects:
   name: updateservice-operator
   namespace: openshift-update-service
 roleRef:
-  kind: ClusterRole
+  kind: Role
   name: updateservice-operator
   apiGroup: rbac.authorization.k8s.io
