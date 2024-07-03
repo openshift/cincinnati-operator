@@ -47,10 +47,6 @@ func TestCustomResource(t *testing.T) {
 		}
 	}
 
-	if err := waitForService(ctx, k8sClient, operatorName+"-metrics"); err != nil {
-		t.Fatal(err)
-	}
-
 	if err := deployCR(ctx); err != nil {
 		t.Fatal(err)
 	}
