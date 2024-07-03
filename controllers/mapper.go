@@ -14,7 +14,8 @@ import (
 )
 
 type mapper struct {
-	client client.Client
+	client    client.Client
+	namespace string
 }
 
 // Map will return a reconcile request for a UpdateService if the event is for a
@@ -50,7 +51,7 @@ func (m *mapper) Map(obj client.Object) []reconcile.Request {
 
 func (m *mapper) requeueUpdateServices() []reconcile.Request {
 	updateservices := &cv1.UpdateServiceList{}
-	err := m.client.List(context.TODO(), updateservices)
+	err := m.client.List(context.TODO(), updateservices, client.InNamespace(m.namespace))
 	if err != nil {
 		return []reconcile.Request{}
 	}

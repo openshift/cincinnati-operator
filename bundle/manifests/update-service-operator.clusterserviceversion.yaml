@@ -16,7 +16,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-07-18T19:55:07Z"
+    createdAt: "2024-07-24T20:38:38Z"
     description: Creates and maintains an OpenShift Update Service instance
     kubernetes.io/description: "This OpenShift Update Service operator Deployment
       reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift
@@ -111,6 +111,92 @@ spec:
           - ""
           resources:
           - configmaps
+          - pods
+          - secrets
+          - services
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - images
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - policy
+          resources:
+          - poddisruptionbudgets
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - updateservice.operator.openshift.io
+          resources:
+          - '*'
+          verbs:
+          - get
+          - list
+          - watch
+        serviceAccountName: updateservice-operator
+      deployments:
+      - name: updateservice-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: updateservice-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                name: updateservice-operator
+            spec:
+              containers:
+              - env:
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: POD_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+                - name: OPERATOR_NAME
+                  value: updateservice-operator
+                - name: RELATED_IMAGE_OPERAND
+                  value: quay.io/cincinnati/cincinnati:latest
+                image: controller:latest
+                imagePullPolicy: Always
+                name: updateservice-operator
+                resources: {}
+              serviceAccountName: updateservice-operator
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
           - endpoints
           - events
           - persistentvolumeclaims
@@ -126,12 +212,6 @@ spec:
           - patch
           - update
           - watch
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - get
         - apiGroups:
           - apps
           resources:
@@ -149,27 +229,12 @@ spec:
           - watch
         - apiGroups:
           - apps
-          resources:
-          - deployments
-          - replicasets
-          verbs:
-          - get
-        - apiGroups:
-          - apps
           resourceNames:
           - updateservice-operator
           resources:
           - deployments/finalizers
           verbs:
           - update
-        - apiGroups:
-          - config.openshift.io
-          resources:
-          - images
-          verbs:
-          - get
-          - list
-          - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:
@@ -213,38 +278,6 @@ spec:
           - update
           - watch
         serviceAccountName: updateservice-operator
-      deployments:
-      - name: updateservice-operator
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              name: updateservice-operator
-          strategy: {}
-          template:
-            metadata:
-              labels:
-                name: updateservice-operator
-            spec:
-              containers:
-              - env:
-                - name: POD_NAME
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.name
-                - name: POD_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.namespace
-                - name: OPERATOR_NAME
-                  value: updateservice-operator
-                - name: RELATED_IMAGE_OPERAND
-                  value: quay.io/cincinnati/cincinnati:latest
-                image: controller:latest
-                imagePullPolicy: Always
-                name: updateservice-operator
-                resources: {}
-              serviceAccountName: updateservice-operator
     strategy: deployment
   installModes:
   - supported: true

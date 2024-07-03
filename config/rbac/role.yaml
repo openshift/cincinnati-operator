@@ -1,8 +1,66 @@
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: updateservice-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - pods
+  - secrets
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - config.openshift.io
+  resources:
+  - images
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - updateservice.operator.openshift.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: updateservice-operator
+  namespace: openshift-update-service
 rules:
 - apiGroups:
   - ""
@@ -24,12 +82,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-- apiGroups:
   - apps
   resources:
   - daemonsets
@@ -46,27 +98,12 @@ rules:
   - watch
 - apiGroups:
   - apps
-  resources:
-  - deployments
-  - replicasets
-  verbs:
-  - get
-- apiGroups:
-  - apps
   resourceNames:
   - updateservice-operator
   resources:
   - deployments/finalizers
   verbs:
   - update
-- apiGroups:
-  - config.openshift.io
-  resources:
-  - images
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - monitoring.coreos.com
   resources:

@@ -93,7 +93,8 @@ func main() {
 		LeaderElectionID:   "48ad1930.openshift.io",
 		Namespace:          "",
 	}
-	nsList := []string{podNamespace, "", controllers.OpenshiftConfigNamespace}
+
+	nsList := []string{podNamespace, controllers.OpenshiftConfigNamespace}
 	options.NewCache = cache.MultiNamespacedCacheBuilder(nsList)
 	log.Info(fmt.Sprintf("list: %v", nsList))
 
@@ -108,7 +109,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		OperandImage:      operandImage,
 		OperatorNamespace: podNamespace,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, podNamespace); err != nil {
 		log.Error(err, "unable to create controller", "controller", "UpdateService")
 		os.Exit(1)
 	}
