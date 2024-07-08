@@ -73,6 +73,17 @@ IMG=registry.com/cincinnati-openshift-update-service-operator:v4.6.0
 make bundle
 ```
 
+## Test a PR with a cluster-bot cluster
+
+Follow [ci-docs](https://docs.ci.openshift.org/docs/how-tos/testing-operator-sdk-operators/#launching-clusters-with-operator-built-from-pr-via-cluster-bot). E.g., issuing the following message to "Cluster Bot" in Slack
+
+```
+launch 4.16,openshift/cincinnati-operator#185 aws
+```
+
+
+will launch a 4.16 cluster on `aws` and install the built operator from [PR#185](https://github.com/openshift/cincinnati-operator/pull/185).
+
 ## Documentation
 * [Deploy disconnected update service](./docs/disconnected-updateservice-operator.md)
 * [External registry CA injection](./docs/external-registry-ca.md)
