@@ -2,6 +2,13 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
+    # This description annotation is here because
+    # it is a workaround of annotating the deployment which is currently not taken into the CSV
+    # https://github.com/operator-framework/api/pull/350#issuecomment-2204202612
+    kubernetes.io/description: |
+      This OpenShift Update Service operator Deployment reconciles local UpdateServices into more fundamental Kubernetes
+      and OpenShift resources like Cincinnati Deployments and Routes, and it reports the status of those components in 
+      the UpdateService status.
     alm-examples: '[]'
     capabilities: Basic Install
     description: Creates and maintains an OpenShift Update Service instance
