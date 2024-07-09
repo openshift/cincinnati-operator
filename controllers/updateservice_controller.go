@@ -161,10 +161,8 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.ensureAdditionalTrustedCA,
 		r.ensureGraphBuilderService,
 		r.ensurePolicyEngineService,
-		r.ensureMetadataService,
 		r.ensurePodDisruptionBudget,
 		r.ensurePolicyEngineRoute,
-		r.ensureMetadataRoute,
 	} {
 		err = f(ctx, reqLogger, instanceCopy, resources)
 		if err != nil {
@@ -640,20 +638,6 @@ func (r *UpdateServiceReconciler) ensureGraphBuilderService(ctx context.Context,
 	return nil
 }
 
-func (r *UpdateServiceReconciler) ensureMetadataService(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
-	service := resources.metadataService
-	// Set UpdateService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, service, r.Scheme); err != nil {
-		return err
-	}
-
-	if err := r.ensureService(ctx, reqLogger, service); err != nil {
-		handleErr(reqLogger, &instance.Status, "EnsureServiceFailed", err)
-		return err
-	}
-	return nil
-}
-
 func (r *UpdateServiceReconciler) ensurePolicyEngineService(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	service := resources.policyEngineService
 	// Set UpdateService instance as the owner and controller
@@ -690,54 +674,8 @@ func validateRouteName(instance *cv1.UpdateService, name string, namespace strin
 	return fmt.Errorf(fmt.Sprintf("UpdateService route name %q %s Route name %s", routeName, errReasons[0], errReasons[1]))
 }
 
-func (r *UpdateServiceReconciler) ensureMetadataRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
-	route := resources.metadataRoute
-	foundRoute := &routev1.Route{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: route.Name, Namespace: route.Namespace}, foundRoute)
-	if err != nil && apiErrors.IsNotFound(err) {
-		// Set UpdateService instance as the owner and controller
-		if err = controllerutil.SetControllerReference(instance, route, r.Scheme); err != nil {
-			return err
-		}
-		reqLogger.Info("Creating Route", "Namespace", route.Namespace, "Name", route.Name)
-		if err = r.Client.Create(ctx, route); err != nil {
-			handleErr(reqLogger, &instance.Status, "CreateRouteFailed", err)
-		}
-		return err
-	} else if err != nil {
-		handleErr(reqLogger, &instance.Status, "GetRouteFailed", err)
-		return err
-	}
-
-	if uri, _, err := routeapihelpers.IngressURI(foundRoute, ""); err == nil {
-		instance.Status.MetadataURI = uri.String()
-	} else {
-		handleErr(reqLogger, &instance.Status, "RouteIngressFailed", err)
-	}
-
-	updated := foundRoute.DeepCopy()
-	// Keep found tls for later use
-	tls := updated.Spec.TLS
-	// This is just so we compare the Spec on the two objects but make an exception for Spec.TLS
-	updated.Spec.TLS = route.Spec.TLS
-
-	// found existing resource; let's compare and update if needed
-	if !reflect.DeepEqual(updated.Spec, route.Spec) {
-		reqLogger.Info("Updating Route", "Namespace", route.Namespace, "Name", route.Name)
-		updated.Spec = route.Spec
-		// We want to allow user to update the TLS cert/key manually on the route and we don't want to override that change.
-		// Keep the existing tls on the route
-		updated.Spec.TLS = tls
-		err = r.Client.Update(ctx, updated)
-		if err != nil {
-			handleErr(reqLogger, &instance.Status, "UpdateRouteFailed", err)
-		}
-	}
-
-	return nil
-}
-
 func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
+
 	route := resources.policyEngineRoute
 	foundRoute, err := r.findExistingRoute(ctx, reqLogger, instance, resources)
 	if err != nil {
