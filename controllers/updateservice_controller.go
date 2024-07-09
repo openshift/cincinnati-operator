@@ -488,8 +488,6 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 			original = resources.graphBuilderContainer
 		case NameContainerPolicyEngine:
 			original = resources.policyEngineContainer
-		case NameContainerMetadata:
-			original = resources.metadataContainer
 		default:
 			reqLogger.Info("encountered unexpected container in pod", "Container.Name", containers[i].Name)
 			continue
