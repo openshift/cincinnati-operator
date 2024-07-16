@@ -14,16 +14,19 @@ type UpdateServiceSpec struct {
 	// all times.
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Replicas int32 `json:"replicas"`
 
 	// releases is the repository in which release images are tagged,
 	// such as quay.io/openshift-release-dev/ocp-release.
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Releases string `json:"releases"`
 
 	// graphDataImage is a container image that contains the UpdateService graph
 	// data.
 	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	GraphDataImage string `json:"graphDataImage"`
 }
 
@@ -33,6 +36,7 @@ type UpdateServiceStatus struct {
 	// +patchMergeKey=type
 	// +patchStrategy=merge
 	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Conditions []conditionsv1.Condition `json:"conditions,omitempty"  patchStrategy:"merge" patchMergeKey:"type"`
 
 	// policyEngineURI is the external URI which exposes the policy
@@ -41,6 +45,7 @@ type UpdateServiceStatus struct {
 	// * /api/upgrades_info/v1/graph, with the update graph recommendations.
 	// * /api/upgrades_info/graph, with the update graph recommendations, versioned by content-type (e.g. application/vnd.redhat.cincinnati.v1+json).
 	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
 	PolicyEngineURI string `json:"policyEngineURI,optional"`
 
 	// metadataURI is the external URI which exposes metadata.
@@ -48,6 +53,7 @@ type UpdateServiceStatus struct {
 	//
 	// * /api/upgrades_info/signatures/{ALGORITHM}/{DIGEST}/{SIGNATURE}, with release signatures.
 	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
 	MetadataURI string `json:"metadataURI,optional"`
 }
 
@@ -63,6 +69,7 @@ const (
 	ConditionReconcileError conditionsv1.ConditionType = "ReconcileError"
 )
 
+// +operator-sdk:csv:customresourcedefinitions:resources={{Service,v1,policy-engine-service}}
 // +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="The age of the UpdateService resource."
 // +kubebuilder:printcolumn:name="Policy Engine URI",type="string",JSONPath=".status.policyEngineURI",description="The external URI which exposes the policy engine.",priority=1
