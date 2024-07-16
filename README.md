@@ -5,11 +5,16 @@ Installation docs are [here][operator-sdk-installation].
 
 ## Run locally
 
-To run locally, you must set the operand image as shown below.
+To run the operator built from the code using a kubeconfig with `cluster-admin` permissions:
 
 ```
 export RELATED_IMAGE_OPERAND="quay.io/app-sre/cincinnati:2873c6b"
-operator-sdk run --local
+export OPERATOR_NAME=updateservice-operator
+export POD_NAMESPACE=openshift-updateservice
+### Ensure above namespace exists on the cluster and is the current active
+oc create namespace --dry-run=client -o yaml "${POD_NAMESPACE}" | oc apply -f -
+oc project "${POD_NAMESPACE}"
+KUBECONFIG=path/to/kubeconfig make run
 ```
 
 ## Using an init container to load graph data
