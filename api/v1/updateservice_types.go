@@ -64,7 +64,11 @@ const (
 )
 
 // +kubebuilder:object:root=true
-
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="The age of the UpdateService resource."
+// +kubebuilder:printcolumn:name="Policy Engine URI",type="string",JSONPath=".status.policyEngineURI",description="The external URI which exposes the policy engine.",priority=1
+// +kubebuilder:printcolumn:name="Releases",type="string",JSONPath=".spec.releases",description="The repository in which release images are tagged.",priority=1
+// +kubebuilder:printcolumn:name="Graph Data Image",type="string",JSONPath=".spec.graphDataImage",description="The container image that contains the UpdateService graph data.",priority=1
+// +kubebuilder:printcolumn:name="Reconcile Completed",type="string",JSONPath=`.status.conditions[?(@.type=="ReconcileCompleted")].status`,description="Status reports whether all required resources have been created in the cluster and reflect the specified state.",priority=1
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=updateservices,scope=Namespaced
 
