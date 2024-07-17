@@ -61,22 +61,24 @@ unit-test:
 build: $(SOURCES)
 	go build $(GOBUILDFLAGS) -ldflags="$(GOLDFLAGS)" -o ./update-service-operator ./
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen:
-ifeq (, $(shell which controller-gen))
-	@{ \
-	set -e ;\
-	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
-	cd $$CONTROLLER_GEN_TMP_DIR ;\
-	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
-	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
-	}
-CONTROLLER_GEN=$(GOBIN)/controller-gen
-else
-CONTROLLER_GEN=$(shell which controller-gen)
-endif
+
+.PHONY: run
+run: manifests generate fmt vet ## Run a controller from your host.
+	go run ./main.go
+
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)
+
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+CONTROLLER_TOOLS_VERSION ?= v0.13.0
+
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 kustomize:
 ifeq (, $(shell which kustomize))
@@ -90,8 +92,21 @@ KUSTOMIZE=$(shell which kustomize)
 endif
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests:  controller-gen
-	$(CONTROLLER_GEN) rbac:roleName=updateservice-operator webhook crd paths="./..." output:crd:artifacts:config=config/crd/bases
+.PHONY: manifests
+manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) rbac:roleName=updateservice-operator crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+.PHONY: generate
+generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+.PHONY: fmt
+fmt: ## Run go fmt against code.
+	go fmt ./...
+
+.PHONY: vet
+vet: ## Run go vet against code.
+	go vet ./...
 
 # Generate bundle manifests
 gen-for-bundle: manifests kustomize
