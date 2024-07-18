@@ -2,20 +2,17 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    # This description annotation is here because
-    # it is a workaround of annotating the deployment which is currently not taken into the CSV
-    # https://github.com/operator-framework/api/pull/350#issuecomment-2204202612
-    kubernetes.io/description: |
-      This OpenShift Update Service operator Deployment reconciles local UpdateServices into more fundamental Kubernetes
-      and OpenShift resources like Cincinnati Deployments and Routes, and it reports the status of those components in 
-      the UpdateService status.
     alm-examples: '[]'
     capabilities: Basic Install
     description: Creates and maintains an OpenShift Update Service instance
+    kubernetes.io/description: "This OpenShift Update Service operator Deployment
+      reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift
+      resources like Cincinnati Deployments and Routes, and it reports the status
+      of those components in \nthe UpdateService status.\n"
     operatorframework.io/suggested-namespace: openshift-update-service
     operators.operatorframework.io/builder: operator-sdk-v1.9.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: update-service-operator.vX.Y.Z
+  name: update-service-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -25,13 +22,40 @@ spec:
       displayName: Update Service
       kind: UpdateService
       name: updateservices.updateservice.operator.openshift.io
-      version: v1
       resources:
       - kind: Service
+        name: policy-engine-service
+        version: v1
       specDescriptors:
-      - path: replicas
+      - description: graphDataImage is a container image that contains the UpdateService
+          graph data.
+        displayName: Graph Data Image
+        path: graphDataImage
+      - description: releases is the repository in which release images are tagged,
+          such as quay.io/openshift-release-dev/ocp-release.
+        displayName: Releases
+        path: releases
+      - description: replicas is the number of pods to run. When >=2, a PodDisruptionBudget
+          will ensure that voluntary disruption leaves at least one Pod running at
+          all times.
+        displayName: Replicas
+        path: replicas
       statusDescriptors:
-      - path: replicas
+      - description: Conditions describe the state of the UpdateService resource.
+        displayName: Conditions
+        path: conditions
+      - description: "metadataURI is the external URI which exposes metadata. Available
+          paths from this URI include: \n * /api/upgrades_info/signatures/{ALGORITHM}/{DIGEST}/{SIGNATURE},
+          with release signatures."
+        displayName: Metadata URI
+        path: metadataURI
+      - description: "policyEngineURI is the external URI which exposes the policy
+          engine.  Available paths from this URI include: \n * /api/upgrades_info/v1/graph,
+          with the update graph recommendations. * /api/upgrades_info/graph, with
+          the update graph recommendations, versioned by content-type (e.g. application/vnd.redhat.cincinnati.v1+json)."
+        displayName: Policy Engine URI
+        path: policyEngineURI
+      version: v1
   description: |-
     # Use Case
     Running an Update Service instance in a cluster is appealing for offline OpenShift
