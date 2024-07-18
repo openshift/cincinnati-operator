@@ -1,5 +1,9 @@
 #!/bin/bash
 
+### This script is to modify the environment variables in the manifests
+### "kustomize edit set configmap" works for the case but operator-sdk errors out on the generated files
+### Error generating bundle manifests: related images with valueFrom field unsupported, found in RELATED_IMAGE_OPERAND`
+
 set -ex
 
 # DEFAULT_OPERATOR_IMAGE is a placeholder for cincinnati-operator image placeholder
@@ -25,12 +29,3 @@ SED_CMD="${SED_CMD:-sed}"
 ${SED_CMD} -i "s|$DEFAULT_OPERAND_IMAGE|$RELATED_OPERAND_IMAGE|" config/manager/manager.yaml
 ${SED_CMD} -i "s|$DEFAULT_OPERATOR_IMAGE|$RELATED_OPERATOR_IMAGE|" config/manager/manager.yaml
 ${SED_CMD} -i "s|your-registry/your-repo/your-init-container|$GRAPH_DATA_IMAGE|" config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
-
-NAMESPACE="openshift-updateservice"
-oc create namespace $NAMESPACE
-
-oc apply -f config/rbac/service_account.yaml -n $NAMESPACE
-oc apply -f config/rbac/role.yaml -n $NAMESPACE
-oc apply -f config/rbac/role_binding.yaml -n $NAMESPACE
-oc apply -f config/manager/manager.yaml -n $NAMESPACE
-oc apply -f config/crd/bases/updateservice.operator.openshift.io_updateservices.yaml -n $NAMESPACE

@@ -1,3 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
+  name: openshift-updateservice
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

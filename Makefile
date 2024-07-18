@@ -44,9 +44,11 @@ clean:
 	go clean -testcache
 	rm functests/functests.test
 
-deploy:
-	@echo "Deploying Update Service operator"
-	hack/deploy.sh
+.PHONY: deploy
+deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	hack/kustomize_edit_env_vars.sh
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | oc apply -f -
 
 func-test: deploy
 	@echo "Running functional test suite"
@@ -78,15 +80,15 @@ CONTROLLER_TOOLS_VERSION ?= v0.13.0
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
-	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+	GOBIN=$(LOCALBIN) GOFLAGS="" go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 kustomize:
 ifeq (, $(shell which kustomize))
 	@{ \
 	set -e ;\
-	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash -s 5.4.2 $(GOBIN) ;\
+	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash -s 5.4.2 $(LOCALBIN) ;\
 	}
-KUSTOMIZE=$(GOBIN)/kustomize
+KUSTOMIZE=$(LOCALBIN)/kustomize
 else
 KUSTOMIZE=$(shell which kustomize)
 endif
