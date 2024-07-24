@@ -4,7 +4,7 @@ metadata:
   labels:
     control-plane: updateservice-operator
   name: updateservice-operator-metrics
-  namespace: openshift-updateservice
+  namespace: openshift-update-service
 spec:
   ports:
   - name: https

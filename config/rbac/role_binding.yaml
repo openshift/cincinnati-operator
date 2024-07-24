@@ -6,7 +6,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: updateservice-operator
-  namespace: openshift-updateservice
+  namespace: openshift-update-service
 roleRef:
   kind: ClusterRole
   name: updateservice-operator

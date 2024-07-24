@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAMESPACE="${NAMESPACE:-openshift-updateservice}"
+NAMESPACE="${NAMESPACE:-openshift-update-service}"
 
 oc create ns $NAMESPACE
 

@@ -10,7 +10,7 @@ To run the operator built from the code using a kubeconfig with `cluster-admin` 
 ```
 export RELATED_IMAGE_OPERAND="quay.io/app-sre/cincinnati:2873c6b"
 export OPERATOR_NAME=updateservice-operator
-export POD_NAMESPACE=openshift-updateservice
+export POD_NAMESPACE=openshift-update-service
 ### Ensure above namespace exists on the cluster and is the current active
 oc create namespace --dry-run=client -o yaml "${POD_NAMESPACE}" | oc apply -f -
 oc project "${POD_NAMESPACE}"

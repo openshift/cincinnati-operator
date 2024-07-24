@@ -11,7 +11,7 @@ REGISTRY="${REGISTRY:-quay.io/updateservice}"
 
 echo Deploying OSUS using image ${REGISTRY}/cincinnati-graph-data-container:${tag}
 
-cat <<EOF | oc -n openshift-updateservice create -f -
+cat <<EOF | oc -n openshift-update-service create -f -
 apiVersion: updateservice.operator.openshift.io/v1
 kind: UpdateService
 metadata:

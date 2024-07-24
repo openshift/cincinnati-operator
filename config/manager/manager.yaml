@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
-  name: openshift-updateservice
+  name: openshift-update-service
 ---
 apiVersion: apps/v1
 kind: Deployment
