@@ -141,8 +141,13 @@ bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metada
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-
 .PHONY: verify-generate
 verify-generate: manifests generate fmt vet
 	$(MAKE) bundle VERSION=$(VERSION)
 	git diff --exit-code -I"createdAt:"
+
+
+.PHONY: scorecard-test
+scorecard-test: operator-sdk
+	test -n "$(KUBECONFIG)" || (echo "The environment variable KUBECONFIG must not empty" && false)
+	$(OPERATOR_SDK) scorecard bundle -o text --kubeconfig $KUBECONFIG -n default
