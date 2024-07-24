@@ -22,7 +22,7 @@ import (
 const (
 	customResourceName = "example"
 	operatorName       = "updateservice-operator"
-	operatorNamespace  = "openshift-updateservice"
+	operatorNamespace  = "openshift-update-service"
 	crdName            = "updateservices.updateservice.operator.openshift.io"
 	resource           = "updateservices"
 	replicas           = 1
