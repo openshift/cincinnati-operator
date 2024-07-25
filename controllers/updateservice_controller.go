@@ -54,16 +54,19 @@ type UpdateServiceReconciler struct {
 	OperatorNamespace string
 }
 
-// +kubebuilder:rbac:groups="",resources=pods,verbs=get
-// +kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups="apps",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update
-// +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
-// +kubebuilder:rbac:groups="apps",resources=replicasets;deployments,verbs=get
-// +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=create;get
-// +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups="",resources=configmaps;pods;services;secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=images,verbs=get;list;watch
-// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch
-// +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
+// +kubebuilder:rbac:groups="apps",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update,namespace=openshift-update-service
+// +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
+// +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=create;get,namespace=openshift-update-service
+// +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
+// +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch,namespace=openshift-update-service
+// +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
 
 func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	/*    **Reconcile Pattern**
@@ -885,8 +888,8 @@ func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger lo
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	mapped := &mapper{mgr.GetClient()}
+func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager, namespace string) error {
+	mapped := &mapper{client: mgr.GetClient(), namespace: namespace}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cv1.UpdateService{}).

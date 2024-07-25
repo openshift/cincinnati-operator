@@ -118,7 +118,7 @@ func TestMap(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			r := newTestReconciler(test.existingObjs...)
-			m := mapper{r.Client}
+			m := mapper{r.Client, ""}
 			var reqs []reconcile.Request
 			if test.image != nil {
 				reqs = m.Map(test.image)
