@@ -150,4 +150,4 @@ verify-generate: manifests generate fmt vet
 .PHONY: scorecard-test
 scorecard-test: operator-sdk
 	test -n "$(KUBECONFIG)" || (echo "The environment variable KUBECONFIG must not empty" && false)
-	$(OPERATOR_SDK) scorecard bundle -o text --kubeconfig $KUBECONFIG -n default
+	$(OPERATOR_SDK) scorecard bundle -o text --kubeconfig "$(KUBECONFIG)" -n default
