@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 0.0.1
+VERSION ?= 5.0.3-dev
 
 .PHONY: \
 	clean \
