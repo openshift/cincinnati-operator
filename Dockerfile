@@ -1,7 +1,7 @@
 FROM registry.ci.openshift.org/openshift/release:golang-1.18 AS builder
 WORKDIR /go/src/github.com/openshift/cincinnati-operator/
 COPY . .
-RUN make GOBUILDFLAGS=-mod=vendor VERSION="$(git describe --abbrev=8 --dirty --always)" build
+RUN make GOBUILDFLAGS=-mod=vendor OPERATOR_VERSION="$(git describe --abbrev=8 --dirty --always)" build
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
