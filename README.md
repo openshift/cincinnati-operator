@@ -66,14 +66,14 @@ make unit-test
 ## Generating OLM manifests
 
 Here are the steps to generate the operator-framework manifests in the bundle format
-* Set the `VERSION` value in the shell
+* Set the `OPERATOR_VERSION` value in the shell
 * Set the `IMG` value pointing to the OSUS operator which should be part of the operator bundle.
 * Run `make bundle`.
 
 Example:
 
 ```sh
-VERSION=4.9.0
+OPERATOR_VERSION=4.9.0
 IMG=registry.com/cincinnati-openshift-update-service-operator:v4.6.0
 make bundle
 ```

@@ -1,5 +1,5 @@
 # Current Operator version
-VERSION ?= 5.0.3-dev
+OPERATOR_VERSION ?= 5.0.3-dev
 
 .PHONY: \
 	clean \
@@ -15,7 +15,7 @@ VERSION ?= 5.0.3-dev
 ARTIFACT_DIR ?= .
 SOURCES := $(shell find . -name '*.go' -not -path "*/vendor/*")
 GOBUILDFLAGS ?= -i -mod=vendor
-GOLDFLAGS ?= -s -w -X github.com/openshift/cincinnati-operator/version.Operator=$(VERSION)
+GOLDFLAGS ?= -s -w -X github.com/openshift/cincinnati-operator/version.Operator=$(OPERATOR_VERSION)
 
 # This is a placeholder for cincinnati-operator image placeholder
 # During development override this when you want to use an specific image
@@ -128,7 +128,7 @@ vet: ## Run go vet against code.
 
 
 # BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
-BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(OPERATOR_VERSION) $(BUNDLE_METADATA_OPTS)
 
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
@@ -143,7 +143,7 @@ bundle-build:
 
 .PHONY: verify-generate
 verify-generate: manifests generate fmt vet
-	$(MAKE) bundle VERSION=$(VERSION)
+	$(MAKE) bundle OPERATOR_VERSION=$(OPERATOR_VERSION)
 	git diff --exit-code -I"createdAt:"
 
 
