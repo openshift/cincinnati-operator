@@ -642,7 +642,7 @@ func newRequest(updateservice *cv1.UpdateService) reconcile.Request {
 }
 
 func newTestReconciler(initObjs ...runtime.Object) *UpdateServiceReconciler {
-	c := fake.NewFakeClientWithScheme(scheme.Scheme, initObjs...)
+	c := fake.NewFakeClient(initObjs...)
 	return &UpdateServiceReconciler{
 		Client:            c,
 		Scheme:            scheme.Scheme,

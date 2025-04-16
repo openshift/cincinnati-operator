@@ -11,6 +11,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -86,17 +87,19 @@ func main() {
 		os.Exit(1)
 	}
 	options := ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "48ad1930.openshift.io",
-		Namespace:          "",
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
+		LeaderElection:   enableLeaderElection,
+		LeaderElectionID: "48ad1930.openshift.io",
+		Cache: cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				podNamespace:                         {},
+				controllers.OpenshiftConfigNamespace: {},
+			},
+		},
 	}
-
-	nsList := []string{podNamespace, controllers.OpenshiftConfigNamespace}
-	options.NewCache = cache.MultiNamespacedCacheBuilder(nsList)
-	log.Info(fmt.Sprintf("list: %v", nsList))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {

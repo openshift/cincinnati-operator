@@ -20,7 +20,7 @@ type mapper struct {
 
 // Map will return a reconcile request for a UpdateService if the event is for a
 // ImageConfigName Image or a ConfigMap referenced by AdditionalTrustedCA.Name.
-func (m *mapper) Map(obj client.Object) []reconcile.Request {
+func (m *mapper) Map(ctx context.Context, obj client.Object) []reconcile.Request {
 	if cm, ok := obj.(*corev1.ConfigMap); ok {
 		// There is already a watch on local configMap as a secondary resource
 		// This watch is for the source configMap in openshift-config namespace
@@ -28,7 +28,7 @@ func (m *mapper) Map(obj client.Object) []reconcile.Request {
 			return []reconcile.Request{}
 		}
 		image := &apicfgv1.Image{}
-		err := m.client.Get(context.TODO(), types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
+		err := m.client.Get(ctx, types.NamespacedName{Name: defaults.ImageConfigName, Namespace: ""}, image)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				log.Error(err, "Could not get Image with Name:%v, Namespace: %v", defaults.ImageConfigName, "")
