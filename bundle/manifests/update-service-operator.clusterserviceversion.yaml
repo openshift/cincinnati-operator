@@ -16,7 +16,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2024-07-25T12:39:44Z"
+    createdAt: "2025-04-16T14:22:33Z"
     description: Creates and maintains an OpenShift Update Service instance
     kubernetes.io/description: "This OpenShift Update Service operator Deployment
       reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift

@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.13.0
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: updateservices.updateservice.operator.openshift.io
 spec:
   group: updateservice.operator.openshift.io
@@ -46,34 +46,43 @@ spec:
         description: UpdateService is the Schema for the updateservices API.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
           spec:
-            description: spec is the desired state of the UpdateService service.  The
-              operator will work to ensure that the desired configuration is applied
-              to the cluster.
+            description: |-
+              spec is the desired state of the UpdateService service.  The
+              operator will work to ensure that the desired configuration is
+              applied to the cluster.
             properties:
               graphDataImage:
-                description: graphDataImage is a container image that contains the
-                  UpdateService graph data.
+                description: |-
+                  graphDataImage is a container image that contains the UpdateService graph
+                  data.
                 type: string
               releases:
-                description: releases is the repository in which release images are
-                  tagged, such as quay.io/openshift-release-dev/ocp-release.
+                description: |-
+                  releases is the repository in which release images are tagged,
+                  such as quay.io/openshift-release-dev/ocp-release.
                 type: string
               replicas:
-                description: replicas is the number of pods to run. When >=2, a PodDisruptionBudget
-                  will ensure that voluntary disruption leaves at least one Pod running
-                  at all times.
+                description: |-
+                  replicas is the number of pods to run. When >=2, a PodDisruptionBudget
+                  will ensure that voluntary disruption leaves at least one Pod running at
+                  all times.
                 format: int32
                 minimum: 1
                 type: integer
@@ -83,14 +92,16 @@ spec:
             - replicas
             type: object
           status:
-            description: status contains information about the current state of the
+            description: |-
+              status contains information about the current state of the
               UpdateService service.
             properties:
               conditions:
                 description: Conditions describe the state of the UpdateService resource.
                 items:
-                  description: Condition represents the state of the operator's reconciliation
-                    functionality.
+                  description: |-
+                    Condition represents the state of the operator's
+                    reconciliation functionality.
                   properties:
                     lastHeartbeatTime:
                       format: date-time
@@ -114,16 +125,21 @@ spec:
                   type: object
                 type: array
               metadataURI:
-                description: "metadataURI is the external URI which exposes metadata.
-                  Available paths from this URI include: \n * /api/upgrades_info/signatures/{ALGORITHM}/{DIGEST}/{SIGNATURE},
-                  with release signatures."
+                description: |-
+                  metadataURI is the external URI which exposes metadata.
+                  Available paths from this URI include:
+
+
+                  * /api/upgrades_info/signatures/{ALGORITHM}/{DIGEST}/{SIGNATURE}, with release signatures.
                 type: string
               policyEngineURI:
-                description: "policyEngineURI is the external URI which exposes the
-                  policy engine.  Available paths from this URI include: \n * /api/upgrades_info/v1/graph,
-                  with the update graph recommendations. * /api/upgrades_info/graph,
-                  with the update graph recommendations, versioned by content-type
-                  (e.g. application/vnd.redhat.cincinnati.v1+json)."
+                description: |-
+                  policyEngineURI is the external URI which exposes the policy
+                  engine.  Available paths from this URI include:
+
+
+                  * /api/upgrades_info/v1/graph, with the update graph recommendations.
+                  * /api/upgrades_info/graph, with the update graph recommendations, versioned by content-type (e.g. application/vnd.redhat.cincinnati.v1+json).
                 type: string
             type: object
         required:
