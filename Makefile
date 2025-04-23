@@ -53,7 +53,7 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 func-test: deploy
 	@echo "Running functional test suite"
 	go clean -testcache
-	go test -timeout 30m -v ./functests/... || (oc -n openshift-update-service adm inspect --dest-dir="$(ARTIFACT_DIR)/inspect" namespace/openshift-update-service customresourcedefinition/updateservices.updateservice.operator.openshift.io updateservice/example; false)
+	go test -timeout 30m -v ./functests/... && (oc -n openshift-update-service adm inspect --dest-dir="$(ARTIFACT_DIR)/inspect" namespace/openshift-update-service customresourcedefinition/updateservices.updateservice.operator.openshift.io updateservice/example; false)
 
 unit-test:
 	@echo "Executing unit tests"
