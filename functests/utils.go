@@ -27,7 +27,7 @@ const (
 	resource           = "updateservices"
 	replicas           = 1
 	retryInterval      = time.Second * 30
-	timeout            = time.Minute * 20
+	timeout            = time.Minute * 30
 )
 
 // getConfig is the function used to retrieve the kubernetes config
