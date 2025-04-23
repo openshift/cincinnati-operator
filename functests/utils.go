@@ -137,16 +137,6 @@ func waitForService(ctx context.Context, k8sClient *kubernetes.Clientset, name s
 
 // deleteCR is the function to delete a custom resource from the cluster
 func deleteCR(ctx context.Context) error {
-	klog.Info("Deleting custom resource")
-	updateserviceClient, _ := getUpdateServiceClient()
-	err := updateserviceClient.Delete().
-		Resource(resource).
-		Namespace(operatorNamespace).
-		Name(customResourceName).
-		Do(ctx).
-		Error()
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
+	klog.Info("Deleting custom resource: doing nothing")
 	return nil
 }
