@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"testing"
 
 	apicfgv1 "github.com/openshift/api/config/v1"
@@ -121,9 +122,9 @@ func TestMap(t *testing.T) {
 			m := mapper{r.Client, ""}
 			var reqs []reconcile.Request
 			if test.image != nil {
-				reqs = m.Map(test.image)
+				reqs = m.Map(context.TODO(), test.image)
 			} else {
-				reqs = m.Map(test.configMap)
+				reqs = m.Map(context.TODO(), test.configMap)
 			}
 			assert.Equal(t, test.expectedRequests, reqs)
 		})

@@ -151,3 +151,13 @@ verify-generate: manifests generate fmt vet
 scorecard-test: operator-sdk
 	test -n "$(KUBECONFIG)" || (echo "The environment variable KUBECONFIG must not empty" && false)
 	$(OPERATOR_SDK) scorecard bundle -o text --kubeconfig "$(KUBECONFIG)" -n default
+
+
+.PHONY: verify-crypto
+verify-crypto:
+	@if grep -r -n -i --include="*.go" golang.org/x/crypto . ; then \
+	  >&2 echo "golang.org/x/crypto is used which violates FIPS-compliance" ; \
+	  false ; \
+	else \
+	  echo "golang.org/x/crypto did not show in src as expected" ; \
+	fi

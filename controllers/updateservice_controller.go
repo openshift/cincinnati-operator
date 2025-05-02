@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	apicfgv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -900,11 +899,11 @@ func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager, namespace s
 		Owns(&routev1.Route{}).
 		Owns(&corev1.Pod{}).
 		Watches(
-			&source.Kind{Type: &apicfgv1.Image{}},
+			&apicfgv1.Image{},
 			handler.EnqueueRequestsFromMapFunc(mapped.Map),
 		).
 		Watches(
-			&source.Kind{Type: &corev1.ConfigMap{}},
+			&corev1.ConfigMap{},
 			handler.EnqueueRequestsFromMapFunc(mapped.Map),
 		).
 		Complete(r)
