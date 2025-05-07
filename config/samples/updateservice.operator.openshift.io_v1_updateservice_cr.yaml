@@ -4,5 +4,5 @@ metadata:
   name: example
 spec:
   replicas: 1
-  releases: quay.io/openshift-release-dev/ocp-release
+  releases: quay.io/redhat/openshift-cincinnati-test-public-manual
   graphDataImage: your-registry/your-repo/your-init-container
