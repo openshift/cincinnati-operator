@@ -1,0 +1,12 @@
+resources:
+- ../samples
+patches:
+- path: samples-patch.yaml
+  target:
+    kind: UpdateService
+    name: sample
+commonAnnotations:
+  managed-by: kustomize
+  used-for: e2e tests
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization

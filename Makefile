@@ -21,6 +21,10 @@ GOLDFLAGS ?= -s -w -X github.com/openshift/cincinnati-operator/version.Operator=
 # During development override this when you want to use an specific image
 # Example: IMG ?= quay.io/jottofar/update-service-operator:v1
 IMG ?= controller:latest
+# In CI e2e tests RELATED_IMAGE_OPERATOR is set
+ifdef RELATED_IMAGE_OPERATOR
+IMG=$(RELATED_IMAGE_OPERATOR)
+endif
 
 BUNDLE_IMG ?= controller-bundle:latest
 
@@ -43,12 +47,25 @@ clean:
 	@echo "Cleaning previous outputs"
 	go clean -testcache
 	rm functests/functests.test
+	rm config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
+
+SED ?= sed
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	hack/kustomize_edit_env_vars.sh
+deploy: manifests kustomize generate-e2e-cr ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+ifdef RELATED_IMAGE_OPERAND
+	$(SED) -i "s|quay.io/cincinnati/cincinnati:latest|${RELATED_IMAGE_OPERAND}|" config/manager/deployment-patch.yaml
+endif
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | oc apply -f -
+
+
+generate-e2e-cr: kustomize
+	@echo "Generating CR for function test suite"
+ifdef GRAPH_DATA_IMAGE
+	$(SED) -i "s|your-registry/your-repo/your-init-container|${GRAPH_DATA_IMAGE}|" config/e2e/samples-patch.yaml
+endif
+	$(KUSTOMIZE) build config/e2e > config/samples/updateservice.operator.openshift.io_v1_updateservice_cr.yaml
 
 func-test: deploy
 	@echo "Running functional test suite"
@@ -115,7 +132,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	$(CONTROLLER_GEN) rbac:roleName=updateservice-operator crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen generate-e2e-cr ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	touch /tmp/boilerplate.go.txt
 	$(CONTROLLER_GEN) object:headerFile="/tmp/boilerplate.go.txt" paths="./..."
 

@@ -1,8 +1,11 @@
 apiVersion: updateservice.operator.openshift.io/v1
 kind: UpdateService
 metadata:
+  annotations:
+    managed-by: kustomize
+    used-for: e2e tests
   name: example
 spec:
-  replicas: 1
-  releases: quay.io/openshift-ota/openshift-cincinnati-test-public-manual
   graphDataImage: your-registry/your-repo/your-init-container
+  releases: quay.io/openshift-ota/openshift-cincinnati-test-public-manual
+  replicas: 1
