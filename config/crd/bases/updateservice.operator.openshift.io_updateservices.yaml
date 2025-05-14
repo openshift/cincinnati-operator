@@ -124,14 +124,6 @@ spec:
                   - type
                   type: object
                 type: array
-              metadataURI:
-                description: |-
-                  metadataURI is the external URI which exposes metadata.
-                  Available paths from this URI include:
-
-
-                  * /api/upgrades_info/signatures/{ALGORITHM}/{DIGEST}/{SIGNATURE}, with release signatures.
-                type: string
               policyEngineURI:
                 description: |-
                   policyEngineURI is the external URI which exposes the policy
