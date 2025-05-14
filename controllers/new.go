@@ -85,13 +85,10 @@ type kubeResources struct {
 	graphBuilderContainer    *corev1.Container
 	graphDataInitContainer   *corev1.Container
 	policyEngineContainer    *corev1.Container
-	metadataContainer        *corev1.Container
 	graphBuilderService      *corev1.Service
 	policyEngineService      *corev1.Service
-	metadataService          *corev1.Service
 	policyEngineRoute        *routev1.Route
 	policyEngineOldRoute     *routev1.Route
-	metadataRoute            *routev1.Route
 	trustedCAConfig          *corev1.ConfigMap
 	trustedClusterCAConfig   *corev1.ConfigMap
 	pullSecret               *corev1.Secret
@@ -130,14 +127,11 @@ func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *cor
 	k.graphBuilderContainer = k.newGraphBuilderContainer(instance, image)
 	k.graphDataInitContainer = k.newGraphDataInitContainer(instance)
 	k.policyEngineContainer = k.newPolicyEngineContainer(instance, image)
-	k.metadataContainer = k.newMetadataContainer(instance, image)
 	k.deployment = k.newDeployment(instance)
 	k.graphBuilderService = k.newGraphBuilderService(instance)
 	k.policyEngineService = k.newPolicyEngineService(instance)
-	k.metadataService = k.newMetadataService(instance)
 	k.policyEngineRoute = k.newPolicyEngineRoute(instance)
 	k.policyEngineOldRoute = k.oldPolicyEngineRoute(instance)
-	k.metadataRoute = k.newMetadataRoute(instance)
 	return &k, nil
 }
 
@@ -244,44 +238,6 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1.UpdateService) *cor
 	}
 }
 
-func (k *kubeResources) newMetadataService(instance *cv1.UpdateService) *corev1.Service {
-	name := nameMetadataService(instance)
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: instance.Namespace,
-			Annotations: map[string]string{
-				DescriptionAnnotation: "It exposes release image signatures " +
-					"See https://github.com/openshift/cincinnati-graph-data?tab=readme-ov-file#signatures for more details",
-			},
-			Labels: map[string]string{
-				"app": name,
-			},
-		},
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeClusterIP,
-			Ports: []corev1.ServicePort{
-				{
-					Name:       "metadata",
-					Port:       80,
-					TargetPort: intstr.FromInt(8082),
-					Protocol:   corev1.ProtocolTCP,
-				},
-				{
-					Name:       "status-m",
-					Port:       9082,
-					TargetPort: intstr.FromInt(9082),
-					Protocol:   corev1.ProtocolTCP,
-				},
-			},
-			Selector: map[string]string{
-				"deployment": nameDeployment(instance),
-			},
-			SessionAffinity: corev1.ServiceAffinityNone,
-		},
-	}
-}
-
 func (k *kubeResources) newPolicyEngineRoute(instance *cv1.UpdateService) *routev1.Route {
 	name := namePolicyEngineRoute(instance)
 	return &routev1.Route{
@@ -335,36 +291,6 @@ func (k *kubeResources) oldPolicyEngineRoute(instance *cv1.UpdateService) *route
 			To: routev1.RouteTargetReference{
 				Kind: "Service",
 				Name: namePolicyEngineService(instance),
-			},
-			TLS: &routev1.TLSConfig{
-				Termination:                   routev1.TLSTerminationEdge,
-				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
-			},
-		},
-	}
-}
-
-func (k *kubeResources) newMetadataRoute(instance *cv1.UpdateService) *routev1.Route {
-	name := nameMetadataRoute(instance)
-	return &routev1.Route{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: instance.Namespace,
-			Annotations: map[string]string{
-				DescriptionAnnotation: "It exposes release image signatures " +
-					"See https://github.com/openshift/cincinnati-graph-data?tab=readme-ov-file#signatures for more details",
-			},
-			Labels: map[string]string{
-				"app": nameDeployment(instance),
-			},
-		},
-		Spec: routev1.RouteSpec{
-			Port: &routev1.RoutePort{
-				TargetPort: intstr.FromString("metadata"),
-			},
-			To: routev1.RouteTargetReference{
-				Kind: "Service",
-				Name: nameMetadataService(instance),
 			},
 			TLS: &routev1.TLSConfig{
 				Termination:                   routev1.TLSTerminationEdge,
@@ -472,7 +398,6 @@ func (k *kubeResources) newDeployment(instance *cv1.UpdateService) *appsv1.Deplo
 					Containers: []corev1.Container{
 						*k.graphBuilderContainer,
 						*k.policyEngineContainer,
-						*k.metadataContainer,
 					},
 				},
 			},
@@ -842,92 +767,6 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 					Port:   intstr.FromInt(9081),
 					Scheme: corev1.URISchemeHTTP,
 				},
-			},
-		},
-	}
-}
-
-func (k *kubeResources) newMetadataContainer(instance *cv1.UpdateService, image string) *corev1.Container {
-	envConfigName := nameEnvConfig(instance)
-	return &corev1.Container{
-		Name:            NameContainerMetadata,
-		Image:           image,
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Command: []string{
-			"/usr/bin/metadata-helper",
-		},
-		Args: []string{
-			"-vvv",
-			"--signatures.dir",
-			"/var/lib/cincinnati/graph-data/signatures",
-			"--service.address",
-			"::",
-			"--service.port",
-			"8082",
-			"--service.path_prefix",
-			"/api/upgrades_info",
-			"--status.address",
-			"::",
-			"--status.port",
-			"9082",
-		},
-		Ports: []corev1.ContainerPort{
-			{
-				Name:          "metadata",
-				ContainerPort: 8082,
-				Protocol:      corev1.ProtocolTCP,
-			},
-			{
-				Name:          "status-m",
-				ContainerPort: 9082,
-				Protocol:      corev1.ProtocolTCP,
-			},
-		},
-		Env: []corev1.EnvVar{
-			newCMEnvVar("RUST_BACKTRACE", "m.rust_backtrace", envConfigName),
-		},
-		Resources: corev1.ResourceRequirements{
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(750, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(768*1024*1024, resource.BinarySI),
-			},
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(350, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(128*1024*1024, resource.BinarySI),
-			},
-		},
-		LivenessProbe: &corev1.Probe{
-			FailureThreshold:    3,
-			SuccessThreshold:    1,
-			InitialDelaySeconds: 150,
-			PeriodSeconds:       30,
-			TimeoutSeconds:      3,
-			ProbeHandler: corev1.ProbeHandler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path:   "/livez",
-					Port:   intstr.FromInt(9082),
-					Scheme: corev1.URISchemeHTTP,
-				},
-			},
-		},
-		ReadinessProbe: &corev1.Probe{
-			FailureThreshold:    3,
-			SuccessThreshold:    1,
-			InitialDelaySeconds: 150,
-			PeriodSeconds:       30,
-			TimeoutSeconds:      3,
-			ProbeHandler: corev1.ProbeHandler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path:   "/readyz",
-					Port:   intstr.FromInt(9082),
-					Scheme: corev1.URISchemeHTTP,
-				},
-			},
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      "cincinnati-graph-data",
-				MountPath: "/var/lib/cincinnati/graph-data",
 			},
 		},
 	}

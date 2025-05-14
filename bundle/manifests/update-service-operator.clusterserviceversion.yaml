@@ -16,7 +16,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-04-16T14:22:33Z"
+    createdAt: "2025-05-14T21:01:52Z"
     description: Creates and maintains an OpenShift Update Service instance
     kubernetes.io/description: "This OpenShift Update Service operator Deployment
       reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift
@@ -57,11 +57,6 @@ spec:
       - description: Conditions describe the state of the UpdateService resource.
         displayName: Conditions
         path: conditions
-      - description: "metadataURI is the external URI which exposes metadata. Available
-          paths from this URI include: \n * /api/upgrades_info/signatures/{ALGORITHM}/{DIGEST}/{SIGNATURE},
-          with release signatures."
-        displayName: Metadata URI
-        path: metadataURI
       - description: "policyEngineURI is the external URI which exposes the policy
           engine.  Available paths from this URI include: \n * /api/upgrades_info/v1/graph,
           with the update graph recommendations. * /api/upgrades_info/graph, with

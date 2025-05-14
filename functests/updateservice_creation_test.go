@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
 
 	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
@@ -107,10 +106,6 @@ func TestCustomResource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := waitForService(ctx, k8sClient, customResourceName+"-metadata"); err != nil {
-		t.Fatal(err)
-	}
-
 	// Checks to see if a given PodDisruptionBudget is available after a specified amount of time.
 	// If the PodDisruptionBudget is not available after 30 * retries seconds, the condition function returns an error.
 	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
@@ -128,7 +123,6 @@ func TestCustomResource(t *testing.T) {
 	t.Logf("PodDisruptionBudget %s available", operatorName)
 
 	var policyEngineURI string
-	var metadataURI string
 	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
 		result := &updateservicev1.UpdateService{}
 		err = updateServiceClient.Get().
@@ -142,11 +136,6 @@ func TestCustomResource(t *testing.T) {
 		}
 		if result.Status.PolicyEngineURI != "" {
 			policyEngineURI = result.Status.PolicyEngineURI
-		}
-		if result.Status.MetadataURI != "" {
-			metadataURI = result.Status.MetadataURI
-		}
-		if policyEngineURI != "" && metadataURI != "" {
 			return true, nil
 		}
 		return false, nil
@@ -154,7 +143,6 @@ func TestCustomResource(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("Policy engine route available at %s", policyEngineURI)
-	t.Logf("Metadata route available at %s", metadataURI)
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -176,29 +164,6 @@ func TestCustomResource(t *testing.T) {
 		}
 		t.Logf("Policy engine %s available", graphURI)
 		return true, nil
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	graph_data := os.Getenv("GRAPH_DATA")
-	signatureURI := fmt.Sprintf("%s/api/upgrades_info/signatures/sha256=beda83fb057e328d6f94f8415382350ca3ddf99bb9094e262184e0f127810ce0/signature-1", metadataURI)
-	req, err = http.NewRequestWithContext(ctx, "GET", signatureURI, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
-		if resp, err := httpClient.Do(req); err != nil {
-			t.Fatal(err)
-		} else if graph_data == "local" && resp.StatusCode == http.StatusOK {
-			t.Logf("Signature %s available, as expected for GRAPH_DATA=%q", signatureURI, graph_data)
-			return true, nil
-		} else if graph_data != "local" && resp.StatusCode == http.StatusNotFound {
-			t.Logf("Signature %s not available, as expected for GRAPH_DATA=%q", signatureURI, graph_data)
-			return true, nil
-		} else {
-			t.Logf("Waiting for availability of signature %s (current status %q)", signatureURI, resp.Status)
-		}
-		return false, nil
 	}); err != nil {
 		t.Fatal(err)
 	}
