@@ -512,16 +512,6 @@ func (k *kubeResources) newTrustedCAConfig(instance *cv1.UpdateService, cm *core
 
 func newTrustedClusterCAConfig(instance *cv1.UpdateService, clusterCA *corev1.ConfigMap) *corev1.ConfigMap {
 
-	// check if the proxy variables are set by olm
-	httpProxy := os.Getenv("HTTP_PROXY")
-	httpsProxy := os.Getenv("HTTPS_PROXY")
-	noProxy := os.Getenv("NO_PROXY")
-
-	if httpProxy == "" && httpsProxy == "" && noProxy == "" {
-		// cluster wide proxy is not set, so dont create configmap
-		return nil
-	}
-
 	if clusterCA != nil {
 		return clusterCA
 	}
