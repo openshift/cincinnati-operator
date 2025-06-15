@@ -3,7 +3,7 @@ module github.com/openshift/cincinnati-operator
 go 1.18
 
 require (
-	github.com/go-logr/logr v1.2.3
+	github.com/go-logr/logr v1.4.3
 	github.com/openshift/api v0.0.0-20210907084939-33af3ff57ff1
 	github.com/openshift/cluster-image-registry-operator v0.0.0-20210830135433-48485bb2206c
 	github.com/openshift/custom-resource-status v1.1.0
