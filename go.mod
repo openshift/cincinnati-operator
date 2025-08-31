@@ -8,7 +8,7 @@ require (
 	github.com/openshift/cluster-image-registry-operator v0.0.0-20210830135433-48485bb2206c
 	github.com/openshift/custom-resource-status v1.1.0
 	github.com/openshift/library-go v0.0.0-20210906100234-6754cfd64cb5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
 	k8s.io/client-go v0.25.0
