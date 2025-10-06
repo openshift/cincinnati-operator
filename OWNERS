@@ -4,11 +4,11 @@ approvers:
 - LalatenduMohanty
 - PratikMahajan
 - wking
-- petr-muller
 reviewers:
 - LalatenduMohanty
 - PratikMahajan
 - wking
+emeritus_approvers:
 - petr-muller
 
 component: "OpenShift Update Service / operator"
