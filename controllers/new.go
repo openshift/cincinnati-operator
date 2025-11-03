@@ -184,13 +184,13 @@ func (k *kubeResources) newGraphBuilderService(instance *cv1.UpdateService) *cor
 				{
 					Name:       "graph-builder",
 					Port:       8080,
-					TargetPort: intstr.FromInt(8080),
+					TargetPort: intstr.FromInt32(8080),
 					Protocol:   corev1.ProtocolTCP,
 				},
 				{
 					Name:       "status-gb",
 					Port:       9080,
-					TargetPort: intstr.FromInt(9080),
+					TargetPort: intstr.FromInt32(9080),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
@@ -223,13 +223,13 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1.UpdateService) *cor
 				{
 					Name:       "policy-engine",
 					Port:       80,
-					TargetPort: intstr.FromInt(8081),
+					TargetPort: intstr.FromInt32(8081),
 					Protocol:   corev1.ProtocolTCP,
 				},
 				{
 					Name:       "status-pe",
 					Port:       9081,
-					TargetPort: intstr.FromInt(9081),
+					TargetPort: intstr.FromInt32(9081),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
@@ -698,7 +698,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/liveness",
-					Port:   intstr.FromInt(9080),
+					Port:   intstr.FromInt32(9080),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
@@ -712,7 +712,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/readiness",
-					Port:   intstr.FromInt(9080),
+					Port:   intstr.FromInt32(9080),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
@@ -822,7 +822,7 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/livez",
-					Port:   intstr.FromInt(9081),
+					Port:   intstr.FromInt32(9081),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
@@ -836,7 +836,7 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/readyz",
-					Port:   intstr.FromInt(9081),
+					Port:   intstr.FromInt32(9081),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},

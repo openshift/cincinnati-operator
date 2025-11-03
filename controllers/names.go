@@ -71,9 +71,9 @@ func namePullSecretCopy(instance *cv1.UpdateService) string {
 // When running a single replica, allow 0 available so we don't block node
 // drains. Otherwise require 1.
 func getMinAvailablePBD(instance *cv1.UpdateService) intstr.IntOrString {
-	minAvailable := intstr.FromInt(0)
+	minAvailable := intstr.FromInt32(0)
 	if instance.Spec.Replicas >= 2 {
-		minAvailable = intstr.FromInt(1)
+		minAvailable = intstr.FromInt32(1)
 	}
 	return minAvailable
 }
