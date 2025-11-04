@@ -13,6 +13,7 @@ import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,6 +56,7 @@ type UpdateServiceReconciler struct {
 
 // +kubebuilder:rbac:groups="",resources=configmaps;pods;services;secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch
 // +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=images,verbs=get;list;watch
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch
@@ -63,6 +65,7 @@ type UpdateServiceReconciler struct {
 // +kubebuilder:rbac:groups="apps",resourceNames=updateservice-operator,resources=deployments/finalizers,verbs=update,namespace=openshift-update-service
 // +kubebuilder:rbac:groups="apps",resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
 // +kubebuilder:rbac:groups="monitoring.coreos.com",resources=servicemonitors,verbs=create;get,namespace=openshift-update-service
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
 // +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch,namespace=openshift-update-service
 // +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
@@ -165,6 +168,7 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.ensurePolicyEngineService,
 		r.ensurePodDisruptionBudget,
 		r.ensurePolicyEngineRoute,
+		r.ensureNetworkPolicy,
 	} {
 		err = f(ctx, reqLogger, instanceCopy, resources)
 		if err != nil {
@@ -821,6 +825,41 @@ func (r *UpdateServiceReconciler) ensureSecret(ctx context.Context, reqLogger lo
 	return nil
 }
 
+func (r *UpdateServiceReconciler) ensureNetworkPolicy(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
+	policy := resources.networkPolicy
+	// Set UpdateService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, policy, r.Scheme); err != nil {
+		return err
+	}
+
+	// Check if it already exists
+	found := &networkingv1.NetworkPolicy{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: policy.Name, Namespace: policy.Namespace}, found)
+	if err != nil && apiErrors.IsNotFound(err) {
+		reqLogger.Info("Creating NetworkPolicy", "Namespace", policy.Namespace, "Name", policy.Name)
+		if err = r.Client.Create(ctx, policy); err != nil {
+			handleErr(reqLogger, &instance.Status, "CreateNetworkPolicyFailed", err)
+		}
+		return err
+	} else if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetNetworkPolicyFailed", err)
+		return err
+	}
+
+	// found existing resource; let's compare and update if needed
+	if !reflect.DeepEqual(found.Spec, policy.Spec) {
+		reqLogger.Info("Updating NetworkPolicy", "Namespace", policy.Namespace, "Name", policy.Name)
+		updated := found.DeepCopy()
+		updated.Spec = policy.Spec
+		err = r.Client.Update(ctx, updated)
+		if err != nil {
+			handleErr(reqLogger, &instance.Status, "UpdateNetworkPolicyFailed", err)
+		}
+	}
+
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager, namespace string) error {
 	mapped := &mapper{client: mgr.GetClient(), namespace: namespace}
@@ -832,6 +871,7 @@ func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager, namespace s
 		Owns(&corev1.Service{}).
 		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&routev1.Route{}).
+		Owns(&networkingv1.NetworkPolicy{}).
 		Owns(&corev1.Pod{}).
 		Watches(
 			&apicfgv1.Image{},

@@ -12,6 +12,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,6 +90,7 @@ type kubeResources struct {
 	policyEngineService      *corev1.Service
 	policyEngineRoute        *routev1.Route
 	policyEngineOldRoute     *routev1.Route
+	networkPolicy            *networkingv1.NetworkPolicy
 	trustedCAConfig          *corev1.ConfigMap
 	trustedClusterCAConfig   *corev1.ConfigMap
 	pullSecret               *corev1.Secret
@@ -132,6 +134,7 @@ func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *cor
 	k.policyEngineService = k.newPolicyEngineService(instance)
 	k.policyEngineRoute = k.newPolicyEngineRoute(instance)
 	k.policyEngineOldRoute = k.oldPolicyEngineRoute(instance)
+	k.networkPolicy = k.newNetworkPolicy(instance)
 	return &k, nil
 }
 
@@ -181,13 +184,13 @@ func (k *kubeResources) newGraphBuilderService(instance *cv1.UpdateService) *cor
 				{
 					Name:       "graph-builder",
 					Port:       8080,
-					TargetPort: intstr.FromInt(8080),
+					TargetPort: intstr.FromInt32(8080),
 					Protocol:   corev1.ProtocolTCP,
 				},
 				{
 					Name:       "status-gb",
 					Port:       9080,
-					TargetPort: intstr.FromInt(9080),
+					TargetPort: intstr.FromInt32(9080),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
@@ -220,13 +223,13 @@ func (k *kubeResources) newPolicyEngineService(instance *cv1.UpdateService) *cor
 				{
 					Name:       "policy-engine",
 					Port:       80,
-					TargetPort: intstr.FromInt(8081),
+					TargetPort: intstr.FromInt32(8081),
 					Protocol:   corev1.ProtocolTCP,
 				},
 				{
 					Name:       "status-pe",
 					Port:       9081,
-					TargetPort: intstr.FromInt(9081),
+					TargetPort: intstr.FromInt32(9081),
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
@@ -299,6 +302,75 @@ func (k *kubeResources) oldPolicyEngineRoute(instance *cv1.UpdateService) *route
 		},
 	}
 }
+
+func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkingv1.NetworkPolicy {
+	return &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      instance.Name,
+			Namespace: instance.Namespace,
+			Annotations: map[string]string{
+				DescriptionAnnotation: "This NetworkPolicy allows all egress, to support graph-builder scraping and DNS. " +
+					"It allows ingress from the router, to support serving policy-engine responses. " +
+					"All other ingress is blocked, including, for now, metrics scraping.",
+			},
+			Labels: map[string]string{
+				"app": instance.Name,
+			},
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": nameDeployment(instance),
+				},
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{{
+				// Traffic from the router to the policy-engine service
+				From: []networkingv1.NetworkPolicyPeer{{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"policy-group.network.openshift.io/ingress": "",
+						},
+					},
+				}},
+				Ports: []networkingv1.NetworkPolicyPort{{
+					Protocol: corev1ProtocolPtr(corev1.ProtocolTCP),
+					Port:     intOrStringPtr(intstr.FromString("policy-engine")),
+				}},
+			}},
+			Egress: []networkingv1.NetworkPolicyEgressRule{{
+				// TCP access to all ports, for registry access, possibly via proxies
+				Ports: []networkingv1.NetworkPolicyPort{{
+					Protocol: corev1ProtocolPtr(corev1.ProtocolTCP),
+				}},
+			}, {
+				// DNS access to the cluster's openshift-dns DaemonSet.
+				To: []networkingv1.NetworkPolicyPeer{{
+					NamespaceSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"kubernetes.io/metadata.name": "openshift-dns",
+						},
+					},
+					PodSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"dns.operator.openshift.io/daemonset-dns": "default",
+						},
+					},
+				}},
+				Ports: []networkingv1.NetworkPolicyPort{{
+					Protocol: corev1ProtocolPtr(corev1.ProtocolTCP),
+					Port:     intOrStringPtr(intstr.FromInt32(5353)),
+				}, {
+					Protocol: corev1ProtocolPtr(corev1.ProtocolUDP),
+					Port:     intOrStringPtr(intstr.FromInt32(5353)),
+				}},
+			}},
+		},
+	}
+}
+
+func corev1ProtocolPtr(proto corev1.Protocol) *corev1.Protocol { return &proto }
+
+func intOrStringPtr(intOrString intstr.IntOrString) *intstr.IntOrString { return &intOrString }
 
 func (k *kubeResources) newEnvConfig(instance *cv1.UpdateService) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
@@ -626,7 +698,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/liveness",
-					Port:   intstr.FromInt(9080),
+					Port:   intstr.FromInt32(9080),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
@@ -640,7 +712,7 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/readiness",
-					Port:   intstr.FromInt(9080),
+					Port:   intstr.FromInt32(9080),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
@@ -750,7 +822,7 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/livez",
-					Port:   intstr.FromInt(9081),
+					Port:   intstr.FromInt32(9081),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
@@ -764,7 +836,7 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 			ProbeHandler: corev1.ProbeHandler{
 				HTTPGet: &corev1.HTTPGetAction{
 					Path:   "/readyz",
-					Port:   intstr.FromInt(9081),
+					Port:   intstr.FromInt32(9081),
 					Scheme: corev1.URISchemeHTTP,
 				},
 			},
