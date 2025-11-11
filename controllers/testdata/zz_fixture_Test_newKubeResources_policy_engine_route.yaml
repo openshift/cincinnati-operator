@@ -1,0 +1,22 @@
+metadata:
+  annotations:
+    kubernetes.io/description: It exposes views of the update graph by applying a
+      set of filters which are defined within the particular Policy Engine instance.
+      See https://github.com/openshift/cincinnati/blob/master/docs/design/cincinnati.md#policy-engine
+      for more details
+  creationTimestamp: null
+  labels:
+    app: sample
+  name: sample-route
+  namespace: sample-ns
+spec:
+  port:
+    targetPort: policy-engine
+  tls:
+    insecureEdgeTerminationPolicy: None
+    termination: edge
+  to:
+    kind: Service
+    name: sample-policy-engine
+    weight: null
+status: {}
