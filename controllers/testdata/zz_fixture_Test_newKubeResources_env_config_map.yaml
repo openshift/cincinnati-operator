@@ -1,0 +1,16 @@
+data:
+  gb.rust_backtrace: "0"
+  m.rust_backtrace: "0"
+  pe.address: '::'
+  pe.log.verbosity: vv
+  pe.mandatory_client_parameters: channel
+  pe.rust_backtrace: "0"
+  pe.status.address: '::'
+  pe.upstream: http://localhost:8080/v1/graph
+metadata:
+  annotations:
+    kubernetes.io/description: This ConfigMap contains the environment information
+      shared by the containers of UpdateService
+  creationTimestamp: null
+  name: sample-env
+  namespace: sample-ns

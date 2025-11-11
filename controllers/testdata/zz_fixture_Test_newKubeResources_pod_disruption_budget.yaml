@@ -1,0 +1,19 @@
+metadata:
+  annotations:
+    kubernetes.io/description: This PodDisruptionBudget blocks graceful evictions
+      (but cannot guard against all external disruption) to try and keep at least
+      one Pod running at all times, if the Update Service instance specifies two or
+      more replicas.
+  creationTimestamp: null
+  name: sample
+  namespace: sample-ns
+spec:
+  minAvailable: 0
+  selector:
+    matchLabels:
+      app: sample
+status:
+  currentHealthy: 0
+  desiredHealthy: 0
+  disruptionsAllowed: 0
+  expectedPods: 0
