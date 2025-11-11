@@ -1,0 +1,28 @@
+metadata:
+  annotations:
+    kubernetes.io/description: This Service exposes a client-agnostic update graph
+      to other clients within the cluster. This allows convenient in-cluster access
+      to those graphs, and also allows platform monitoring to scrape graph-builder
+      containers for Prometheus metrics. See https://github.com/openshift/cincinnati/blob/master/docs/design/cincinnati.md#graph-builder
+      for more details
+  creationTimestamp: null
+  labels:
+    app: sample-graph-builder
+  name: sample-graph-builder
+  namespace: sample-ns
+spec:
+  ports:
+  - name: graph-builder
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  - name: status-gb
+    port: 9080
+    protocol: TCP
+    targetPort: 9080
+  selector:
+    deployment: sample
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

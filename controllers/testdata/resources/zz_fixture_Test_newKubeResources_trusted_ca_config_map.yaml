@@ -1,0 +1,9 @@
+data:
+  a: b
+metadata:
+  annotations:
+    kubernetes.io/description: This ConfigMap contains additional certificate authorities
+      to be trusted during image registry access.
+  creationTimestamp: null
+  name: sample-trusted-ca
+  namespace: sample-ns

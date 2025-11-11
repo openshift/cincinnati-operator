@@ -1,0 +1,27 @@
+metadata:
+  annotations:
+    kubernetes.io/description: It exposes views of the update graph by applying a
+      set of filters which are defined within the particular Policy Engine instance.
+      See https://github.com/openshift/cincinnati/blob/master/docs/design/cincinnati.md#policy-engine
+      for more details
+  creationTimestamp: null
+  labels:
+    app: sample-policy-engine
+  name: sample-policy-engine
+  namespace: sample-ns
+spec:
+  ports:
+  - name: policy-engine
+    port: 80
+    protocol: TCP
+    targetPort: 8081
+  - name: status-pe
+    port: 9081
+    protocol: TCP
+    targetPort: 9081
+  selector:
+    deployment: sample
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
