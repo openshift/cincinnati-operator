@@ -285,7 +285,7 @@ func (r *UpdateServiceReconciler) findTrustedCAConfig(ctx context.Context, reqLo
 	return sourceCM, nil
 }
 
-// findTrustedCAConfig - Locate the ConfigMap referenced by the ImageConfig resource in openshift-config and return it
+// findTrustedCAConfig - Locate the ConfigMap referenced by the trustedCA from Proxy resource in openshift-config and return it
 func (r *UpdateServiceReconciler) findTrustedClusterCAConfig(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService) (*corev1.ConfigMap, error) {
 
 	// Search for the ConfigMap in the operator namespace
