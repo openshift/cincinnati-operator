@@ -1,0 +1,37 @@
+metadata:
+  annotations:
+    kubernetes.io/description: This NetworkPolicy allows all egress, to support graph-builder
+      scraping and DNS. It allows ingress from the router, to support serving policy-engine
+      responses. All other ingress is blocked, including, for now, metrics scraping.
+  creationTimestamp: null
+  labels:
+    app: sample
+  name: sample
+  namespace: sample-ns
+spec:
+  egress:
+  - ports:
+    - protocol: TCP
+  - ports:
+    - port: 5353
+      protocol: TCP
+    - port: 5353
+      protocol: UDP
+    to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: openshift-dns
+      podSelector:
+        matchLabels:
+          dns.operator.openshift.io/daemonset-dns: default
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          policy-group.network.openshift.io/ingress: ""
+    ports:
+    - port: policy-engine
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app: sample

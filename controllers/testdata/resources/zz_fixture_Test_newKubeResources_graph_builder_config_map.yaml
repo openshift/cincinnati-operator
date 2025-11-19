@@ -1,0 +1,33 @@
+data:
+  gb.toml: |-
+    verbosity = "vvv"
+
+    [service]
+    pause_secs = 300
+    address = "::"
+    port = 8080
+
+    [status]
+    address = "::"
+    port = 9080
+
+    [[plugin_settings]]
+    name = "release-scrape-dockerv2"
+    registry = "example.com"
+    repository = "library/xyz@sha256:123"
+    fetch_concurrency = 16
+    credentials_path = "/var/lib/cincinnati/registry-credentials/.dockerconfigjson"
+
+    [[plugin_settings]]
+    name = "openshift-secondary-metadata-parse"
+    data_directory = "/var/lib/cincinnati/graph-data"
+
+    [[plugin_settings]]
+    name = "edge-add-remove"
+metadata:
+  annotations:
+    kubernetes.io/description: This ConfigMap contains the configuration file for
+      the graph-builder
+  creationTimestamp: null
+  name: sample-config
+  namespace: sample-ns

@@ -1,0 +1,201 @@
+metadata:
+  annotations:
+    kubernetes.io/description: This deployment launches the components for the OpenShift
+      UpdateService sample
+  creationTimestamp: null
+  name: sample
+  namespace: sample-ns
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: sample
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 50%
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        updateservice.operator.openshift.io/env-config-hash: 19bb914661465267d3b209808e573ac93b489f270dc742d67f05c80490b45cea
+        updateservice.operator.openshift.io/graph-builder-config-hash: f6d17cf71eefd23bd017f548456251ed9cf4fe5c66bae1906bd785c594993375
+      creationTimestamp: null
+      labels:
+        app: sample
+        deployment: sample
+    spec:
+      containers:
+      - args:
+        - -c
+        - /etc/configs/gb.toml
+        command:
+        - /usr/bin/graph-builder
+        env:
+        - name: RUST_BACKTRACE
+          valueFrom:
+            configMapKeyRef:
+              key: gb.rust_backtrace
+              name: sample-env
+        image: image
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /liveness
+            port: 9080
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: graph-builder
+        ports:
+        - containerPort: 8080
+          name: graph-builder
+          protocol: TCP
+        - containerPort: 9080
+          name: status-gb
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readiness
+            port: 9080
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 750m
+            memory: 512Mi
+          requests:
+            cpu: 150m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /etc/configs
+          name: configs
+          readOnly: true
+        - mountPath: /var/lib/cincinnati/graph-data
+          name: cincinnati-graph-data
+        - mountPath: /var/lib/cincinnati/registry-credentials
+          name: pull-secret
+          readOnly: true
+        - mountPath: /etc/pki/ca-trust/extracted/pem
+          name: trusted-ca
+          readOnly: true
+      - args:
+        - -$(PE_LOG_VERBOSITY)
+        - --service.address
+        - $(ADDRESS)
+        - --service.mandatory_client_parameters
+        - $(PE_MANDATORY_CLIENT_PARAMETERS)
+        - --service.path_prefix
+        - /api/upgrades_info
+        - --service.port
+        - "8081"
+        - --status.address
+        - $(PE_STATUS_ADDRESS)
+        - --status.port
+        - "9081"
+        - --upstream.cincinnati.url
+        - $(UPSTREAM)
+        command:
+        - /usr/bin/policy-engine
+        env:
+        - name: ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: pe.address
+              name: sample-env
+        - name: PE_STATUS_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: pe.status.address
+              name: sample-env
+        - name: UPSTREAM
+          valueFrom:
+            configMapKeyRef:
+              key: pe.upstream
+              name: sample-env
+        - name: PE_LOG_VERBOSITY
+          valueFrom:
+            configMapKeyRef:
+              key: pe.log.verbosity
+              name: sample-env
+        - name: PE_MANDATORY_CLIENT_PARAMETERS
+          valueFrom:
+            configMapKeyRef:
+              key: pe.mandatory_client_parameters
+              name: sample-env
+        - name: RUST_BACKTRACE
+          valueFrom:
+            configMapKeyRef:
+              key: pe.rust_backtrace
+              name: sample-env
+        image: image
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /livez
+            port: 9081
+            scheme: HTTP
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 3
+        name: policy-engine
+        ports:
+        - containerPort: 8081
+          name: policy-engine
+          protocol: TCP
+        - containerPort: 9081
+          name: status-pe
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: 9081
+            scheme: HTTP
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+          limits:
+            cpu: 750m
+            memory: 512Mi
+          requests:
+            cpu: 150m
+            memory: 64Mi
+      initContainers:
+      - image: example.com/library/graph-data@sha256:123
+        imagePullPolicy: Always
+        name: graph-data
+        resources: {}
+        volumeMounts:
+        - mountPath: /var/lib/cincinnati/graph-data
+          name: cincinnati-graph-data
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: sample-config
+        name: configs
+      - emptyDir: {}
+        name: cincinnati-graph-data
+      - name: pull-secret
+        secret:
+          defaultMode: 420
+          secretName: sample-pull-secret
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: updateservice-registry
+            path: tls-ca-bundle.pem
+          name: sample-trusted-ca
+        name: trusted-ca
+status: {}
