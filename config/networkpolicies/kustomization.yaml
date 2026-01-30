@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: networkpolicies
+  annotations:
+    description: |
+      Network policies for Cincinnati Operator (OTA-1608)
+
+      These policies implement defense-in-depth security for the Cincinnati operator
+      and UpdateService operand workloads.
+
+namespace: openshift-update-service
+
+resources:
+  # Default deny policy - blocks all traffic by default
+  - default-deny-all.yaml
+
+  # Operator network policies
+  - operator-egress-openshift-api.yaml
+  - operator-egress-openshift-dns.yaml
+  - operator-ingress-prometheus.yaml
+
+  # Operand network policies
+  - operand-egress-openshift-api.yaml
+  - operand-egress-openshift-dns.yaml
+  - operand-egress-external-registries.yaml
+  - operand-egress-cluster-proxy.yaml
+  - operand-egress-internal-registry.yaml
+  - operand-ingress-openshift-router.yaml
+  - operand-ingress-prometheus.yaml
+
+# Add management labels to the NetworkPolicy metadata only
+labels:
+- includeSelectors: false
+  pairs:
+    app.kubernetes.io/part-of: update-service-operator
+    network-policy.operator.openshift.io/managed-by: cincinnati-operator
+
+# Set consistent naming convention
+namePrefix: "osus-"
