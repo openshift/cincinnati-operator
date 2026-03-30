@@ -381,6 +381,7 @@ func (r *UpdateServiceReconciler) ensureGraphDataSHA(ctx context.Context, reqLog
 			Name:      "graph-data-tag-digest",
 			Namespace: instance.Namespace,
 			Annotations: map[string]string{
+				"kubernetes.io/description":                        "Resolve any by-tag graph-data images into by-digest pullspecs, so we can update update service Deployments if the by-tag graph data image their UpdateService requests has updated content.  The current implementation polls every 5 minutes, and the container does nothing other than request a fresh image pull.  If you want to avoid this polling, use by-digest pullspecs in all UpdateServices, and update the digest in those UpdateServices when the content of the graph-data image changes.",
 				"updateservice.operator.openshift.io/last-refresh": time.Now().UTC().Format(time.RFC822),
 			},
 		},
