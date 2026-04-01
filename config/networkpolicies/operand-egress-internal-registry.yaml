@@ -1,0 +1,45 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operand-egress-internal-registry
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Allows UpdateService operand pods to access OpenShift internal image registry.
+      This enables the Cincinnati policy engine to query the internal registry
+      for OpenShift release image metadata and graph data.
+  labels:
+    app.kubernetes.io/name: update-service
+    app.kubernetes.io/component: network-policy
+spec:
+  # Target all operand pods (UpdateService workloads)
+  podSelector:
+    matchExpressions:
+      - key: deployment
+        operator: Exists  # Matches any pod with a "deployment" label (operand pods)
+  policyTypes:
+    - Egress
+  egress:
+    # Allow access to OpenShift internal image registry
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-image-registry
+          podSelector:
+            matchLabels:
+              docker-registry: default
+      ports:
+        - protocol: TCP
+          port: 5000  # Internal registry port
+
+    # Allow access to registry console (if enabled)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-image-registry
+          podSelector:
+            matchLabels:
+              name: registry-console
+      ports:
+        - protocol: TCP
+          port: 9000
