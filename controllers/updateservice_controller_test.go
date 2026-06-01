@@ -635,6 +635,10 @@ func TestEnsurePolicyEngineRoute(t *testing.T) {
 }
 
 func TestEnsureNetworkPolicyUpdatesOnPortChange(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "")
+	t.Setenv("HTTPS_PROXY", "")
+	t.Setenv("NO_PROXY", "")
+
 	pullSecret := newSecret()
 	updateservice := &cv1.UpdateService{
 		TypeMeta: metav1.TypeMeta{

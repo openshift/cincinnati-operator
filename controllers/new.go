@@ -366,7 +366,7 @@ func isClusterInternal(host string) bool {
 	if err != nil {
 		h = host
 	}
-	return strings.HasSuffix(h, ".svc") || strings.Contains(h, ".svc.")
+	return strings.HasSuffix(h, ".svc") || strings.HasSuffix(h, ".svc.cluster.local")
 }
 
 func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkingv1.NetworkPolicy {

@@ -139,6 +139,12 @@ func Test_egressPorts(t *testing.T) {
 			expected:  []int32{80, 443},
 		},
 		{
+			name:       "host with svc in domain name is not cluster-internal",
+			releases:   "my.svc.company.com/openshift/release",
+			httpsProxy: "http://proxy.example.com:3128",
+			expected:   []int32{443, 3128},
+		},
+		{
 			name:       "both HTTP_PROXY and HTTPS_PROXY with different ports",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
 			httpProxy:  "http://proxy.example.com:8080",
