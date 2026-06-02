@@ -634,6 +634,46 @@ func TestEnsurePolicyEngineRoute(t *testing.T) {
 	}
 }
 
+func TestEnsureNetworkPolicy(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "")
+	t.Setenv("HTTPS_PROXY", "")
+	t.Setenv("NO_PROXY", "")
+
+	pullSecret := newSecret()
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice)
+
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = r.ensureNetworkPolicy(context.TODO(), log, updateservice, resources)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := &networkingv1.NetworkPolicy{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: updateservice.Name, Namespace: updateservice.Namespace}, found)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	verifyAnnotation(t, found.ObjectMeta.Annotations, "NetworkPolicy", "egress", "registry")
+	assert.Equal(t, found.ObjectMeta.Labels["app"], updateservice.Name)
+
+	assert.Equal(t, found.Spec.PodSelector.MatchLabels["app"], nameDeployment(updateservice))
+
+	assert.NotEmpty(t, found.Spec.Ingress, "should have ingress rules")
+	assert.Equal(t, intstr.FromString("policy-engine"), *found.Spec.Ingress[0].Ports[0].Port)
+
+	assert.Equal(t, 2, len(found.Spec.Egress), "should have 2 egress rules: registry and DNS")
+	assert.Equal(t, 1, len(found.Spec.Egress[0].Ports), "first egress rule should have 1 port for default registry")
+	assert.Equal(t, intstr.FromInt32(443), *found.Spec.Egress[0].Ports[0].Port, "registry port should be 443")
+	assert.Equal(t, intstr.FromInt32(5353), *found.Spec.Egress[1].Ports[0].Port, "DNS egress port should be 5353")
+}
+
 func TestEnsureNetworkPolicyUpdatesOnPortChange(t *testing.T) {
 	t.Setenv("HTTP_PROXY", "")
 	t.Setenv("HTTPS_PROXY", "")
