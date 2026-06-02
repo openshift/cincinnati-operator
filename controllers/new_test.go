@@ -97,10 +97,10 @@ func Test_egressPorts(t *testing.T) {
 			expected: []int32{8080},
 		},
 		{
-			name:       "proxy port included for external registry",
+			name:       "proxy port used instead of registry port for external registry",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
 			httpsProxy: "http://proxy.example.com:3128",
-			expected:   []int32{443, 3128},
+			expected:   []int32{3128},
 		},
 		{
 			name:       "proxy port ignored for cluster-internal registry (.svc)",
@@ -115,10 +115,10 @@ func Test_egressPorts(t *testing.T) {
 			expected:   []int32{5000},
 		},
 		{
-			name:      "HTTP_PROXY port used when set",
+			name:      "HTTP_PROXY port used instead of registry port",
 			releases:  "quay.io/openshift-release-dev/ocp-release",
 			httpProxy: "http://proxy.example.com:8888",
-			expected:  []int32{443, 8888},
+			expected:  []int32{8888},
 		},
 		{
 			name:       "dedup when proxy port equals registry port",
@@ -136,20 +136,31 @@ func Test_egressPorts(t *testing.T) {
 			name:      "proxy without explicit port defaults to 80 for http",
 			releases:  "quay.io/openshift-release-dev/ocp-release",
 			httpProxy: "http://proxy.example.com",
-			expected:  []int32{80, 443},
+			expected:  []int32{80},
 		},
 		{
 			name:       "host with svc in domain name is not cluster-internal",
 			releases:   "my.svc.company.com/openshift/release",
 			httpsProxy: "http://proxy.example.com:3128",
-			expected:   []int32{443, 3128},
+			expected:   []int32{3128},
 		},
 		{
 			name:       "both HTTP_PROXY and HTTPS_PROXY with different ports",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
-			httpProxy:  "http://proxy.example.com:8080",
-			httpsProxy: "http://proxy.example.com:3128",
-			expected:   []int32{443, 8080, 3128},
+			httpProxy:  "http://user:pass@proxy.example.com:8080",
+			httpsProxy: "http://user:pass@proxy.example.com:3128",
+			expected:   []int32{8080, 3128},
+		}, {
+			name:       "bad proxy",
+			releases:   "my.svc.company.com/openshift/release",
+			httpsProxy: "i am a very bad proxy",
+			expected:   []int32{443},
+		},
+		{
+			name:      "bad proxy port",
+			releases:  "my.svc.company.com/openshift/release",
+			httpProxy: "http://user:pass@proxy.example.com:80000080",
+			expected:  []int32{443},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -181,10 +192,10 @@ func Test_newNetworkPolicy_egress_ports(t *testing.T) {
 			wantPorts: []int32{5000},
 		},
 		{
-			name:       "proxy port added for external registry",
+			name:       "proxy port replaces registry port for external registry",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
 			httpsProxy: "http://squid.corp:3128",
-			wantPorts:  []int32{443, 3128},
+			wantPorts:  []int32{3128},
 		},
 		{
 			name:       "proxy port ignored for .svc registry",
@@ -215,6 +226,7 @@ func Test_newNetworkPolicy_egress_ports(t *testing.T) {
 			var gotPorts []int32
 			for _, p := range registryEgress.Ports {
 				gotPorts = append(gotPorts, p.Port.IntVal)
+				assert.Equal(t, corev1.ProtocolTCP, *p.Protocol)
 			}
 			assert.ElementsMatch(t, tc.wantPorts, gotPorts)
 		})

@@ -317,15 +317,23 @@ func egressPorts(releases string) []int32 {
 	}
 
 	registry := strings.SplitN(releases, "/", 2)[0]
-	registryPort := portFromHost(registry, 443)
-	add(registryPort)
 
 	if !isClusterInternal(registry) {
 		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY"} {
 			if v := os.Getenv(env); v != "" {
-				add(portFromProxyURL(v))
+				if p, err := portFromProxyURL(v); err == nil {
+					add(p)
+				} else {
+					log.Error(err, "Failed to parse port from the proxy environment variable", "env", env, "value", v)
+				}
 			}
 		}
+	}
+
+	// When a proxy is configured for an external registry, the pod talks to
+	// the proxy, not the registry directly, so only proxy ports are needed.
+	if len(ports) == 0 {
+		add(portFromHost(registry, 443))
 	}
 
 	return ports
@@ -343,22 +351,26 @@ func portFromHost(host string, defaultPort int32) int32 {
 	return int32(p)
 }
 
-func portFromProxyURL(rawURL string) int32 {
+func portFromProxyURL(rawURL string) (int32, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return 443
+		return 0, fmt.Errorf("failed to parse proxy URL: %w", err)
 	}
 	if p := u.Port(); p != "" {
 		n, err := strconv.ParseInt(p, 10, 32)
 		if err != nil || n < 1 || n > 65535 {
-			return 443
+			return 0, fmt.Errorf("invalid port %q in proxy URL", p)
 		}
-		return int32(n)
+		return int32(n), nil
 	}
-	if u.Scheme == "http" {
-		return 80
+	switch u.Scheme {
+	case "http":
+		return 80, nil
+	case "https":
+		return 443, nil
+	default:
+		return 0, fmt.Errorf("invalid proxy URL scheme %q", u.Scheme)
 	}
-	return 443
 }
 
 func isClusterInternal(host string) bool {
@@ -384,7 +396,7 @@ func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkin
 			Name:      instance.Name,
 			Namespace: instance.Namespace,
 			Annotations: map[string]string{
-				DescriptionAnnotation: "This NetworkPolicy restricts egress to the registry and proxy ports needed by graph-builder. " +
+				DescriptionAnnotation: "This NetworkPolicy allows egress restricted to the necessary ports, to support graph-builder scraping and DNS. " +
 					"It allows ingress from the router, to support serving policy-engine responses. " +
 					"All other ingress is blocked, including, for now, metrics scraping.",
 			},
@@ -399,6 +411,7 @@ func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkin
 				},
 			},
 			Ingress: []networkingv1.NetworkPolicyIngressRule{{
+				// Traffic from the router to the policy-engine service
 				From: []networkingv1.NetworkPolicyPeer{{
 					NamespaceSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -412,6 +425,7 @@ func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkin
 				}},
 			}},
 			Egress: []networkingv1.NetworkPolicyEgressRule{{
+				// TCP access to the necessary ports, for registry access, possibly via proxies
 				Ports: egressPolicyPorts,
 			}, {
 				To: []networkingv1.NetworkPolicyPeer{{

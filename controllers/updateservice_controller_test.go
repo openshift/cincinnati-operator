@@ -660,7 +660,7 @@ func TestEnsureNetworkPolicy(t *testing.T) {
 	}
 
 	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
-	verifyAnnotation(t, found.ObjectMeta.Annotations, "NetworkPolicy", "egress", "registry")
+	verifyAnnotation(t, found.ObjectMeta.Annotations, "NetworkPolicy", "egress")
 	assert.Equal(t, found.ObjectMeta.Labels["app"], updateservice.Name)
 
 	assert.Equal(t, found.Spec.PodSelector.MatchLabels["app"], nameDeployment(updateservice))
@@ -671,7 +671,7 @@ func TestEnsureNetworkPolicy(t *testing.T) {
 	assert.Equal(t, 2, len(found.Spec.Egress), "should have 2 egress rules: registry and DNS")
 	assert.Equal(t, 1, len(found.Spec.Egress[0].Ports), "first egress rule should have 1 port for default registry")
 	assert.Equal(t, intstr.FromInt32(443), *found.Spec.Egress[0].Ports[0].Port, "registry port should be 443")
-	assert.Equal(t, intstr.FromInt32(5353), *found.Spec.Egress[1].Ports[0].Port, "DNS egress port should be 5353")
+	assert.Equal(t, intstr.FromInt32(5353), *found.Spec.Egress[1].Ports[0].Port, "DNS egress port for TCP should be 5353")
 }
 
 func TestEnsureNetworkPolicyUpdatesOnPortChange(t *testing.T) {
