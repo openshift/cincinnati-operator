@@ -309,7 +309,15 @@ func (k *kubeResources) oldPolicyEngineRoute(instance *cv1.UpdateService) *route
 func egressPorts(releases string) []int32 {
 	seen := map[int32]bool{}
 	var ports []int32
-	add := func(p int32) {
+	add := func(url string, addDefaultOnErr bool) {
+		p, err := portFromURL(url)
+		if err != nil {
+			log.Error(err, "Failed to parse port from url", "url", url)
+			if !addDefaultOnErr {
+				return
+			}
+			p = 443
+		}
 		if !seen[p] {
 			seen[p] = true
 			ports = append(ports, p)
@@ -321,11 +329,7 @@ func egressPorts(releases string) []int32 {
 	if !isClusterInternal(registry) {
 		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY"} {
 			if v := os.Getenv(env); v != "" {
-				if p, err := portFromURL(v); err == nil {
-					add(p)
-				} else {
-					log.Error(err, "Failed to parse port from the proxy environment variable", "env", env, "value", v)
-				}
+				add(v, false)
 			}
 		}
 	}
@@ -333,14 +337,7 @@ func egressPorts(releases string) []int32 {
 	// When a proxy is configured for an external registry, the pod talks to
 	// the proxy, not the registry directly, so only proxy ports are needed.
 	if len(ports) == 0 {
-		registryURL := "https://" + registry
-		p, err := portFromURL(registryURL)
-		if err == nil {
-			add(p)
-		} else {
-			add(443)
-			log.Error(err, "Failed to parse port from the registry url and use the default port 433", "registryURL", registryURL)
-		}
+		add("https://"+registry, true)
 	}
 	return ports
 }
