@@ -127,6 +127,12 @@ func Test_egressPorts(t *testing.T) {
 			expected:   []int32{443},
 		},
 		{
+			name:       "http proxy with IP",
+			releases:   "quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://127.0.0.1:8443",
+			expected:   []int32{8443},
+		},
+		{
 			name:       "proxy without explicit port defaults to 443 for https",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
 			httpsProxy: "https://proxy.example.com",

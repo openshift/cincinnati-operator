@@ -321,7 +321,7 @@ func egressPorts(releases string) []int32 {
 	if !isClusterInternal(registry) {
 		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY"} {
 			if v := os.Getenv(env); v != "" {
-				if p, err := portFromProxyURL(v); err == nil {
+				if p, err := portFromURL(v); err == nil {
 					add(p)
 				} else {
 					log.Error(err, "Failed to parse port from the proxy environment variable", "env", env, "value", v)
@@ -333,25 +333,19 @@ func egressPorts(releases string) []int32 {
 	// When a proxy is configured for an external registry, the pod talks to
 	// the proxy, not the registry directly, so only proxy ports are needed.
 	if len(ports) == 0 {
-		add(portFromHost(registry, 443))
+		registryURL := "https://" + registry
+		p, err := portFromURL(registryURL)
+		if err == nil {
+			add(p)
+		} else {
+			add(443)
+			log.Error(err, "Failed to parse port from the registry url and use the default port 433", "registryURL", registryURL)
+		}
 	}
-
 	return ports
 }
 
-func portFromHost(host string, defaultPort int32) int32 {
-	_, portStr, err := net.SplitHostPort(host)
-	if err != nil {
-		return defaultPort
-	}
-	p, err := strconv.ParseInt(portStr, 10, 32)
-	if err != nil || p < 1 || p > 65535 {
-		return defaultPort
-	}
-	return int32(p)
-}
-
-func portFromProxyURL(rawURL string) (int32, error) {
+func portFromURL(rawURL string) (int32, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse proxy URL: %w", err)
