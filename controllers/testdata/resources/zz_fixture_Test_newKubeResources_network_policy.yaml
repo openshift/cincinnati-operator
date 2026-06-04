@@ -1,8 +1,9 @@
 metadata:
   annotations:
-    kubernetes.io/description: This NetworkPolicy allows all egress, to support graph-builder
-      scraping and DNS. It allows ingress from the router, to support serving policy-engine
-      responses. All other ingress is blocked, including, for now, metrics scraping.
+    kubernetes.io/description: This NetworkPolicy allows egress restricted to the
+      necessary ports, to support graph-builder scraping and DNS. It allows ingress
+      from the router, to support serving policy-engine responses. All other ingress
+      is blocked, including, for now, metrics scraping.
   creationTimestamp: null
   labels:
     app: sample
@@ -11,7 +12,8 @@ metadata:
 spec:
   egress:
   - ports:
-    - protocol: TCP
+    - port: 443
+      protocol: TCP
   - ports:
     - port: 5353
       protocol: TCP

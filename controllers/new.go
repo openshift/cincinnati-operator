@@ -4,8 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -303,13 +306,97 @@ func (k *kubeResources) oldPolicyEngineRoute(instance *cv1.UpdateService) *route
 	}
 }
 
+func egressPorts(releases string) []int32 {
+	seen := map[int32]bool{}
+	var ports []int32
+	add := func(p int32) {
+		if !seen[p] {
+			seen[p] = true
+			ports = append(ports, p)
+		}
+	}
+
+	registry := strings.SplitN(releases, "/", 2)[0]
+
+	if !isClusterInternal(registry) {
+		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY"} {
+			if v := os.Getenv(env); v != "" {
+				if p, err := portFromProxyURL(v); err == nil {
+					add(p)
+				} else {
+					log.Error(err, "Failed to parse port from the proxy environment variable", "env", env, "value", v)
+				}
+			}
+		}
+	}
+
+	// When a proxy is configured for an external registry, the pod talks to
+	// the proxy, not the registry directly, so only proxy ports are needed.
+	if len(ports) == 0 {
+		add(portFromHost(registry, 443))
+	}
+
+	return ports
+}
+
+func portFromHost(host string, defaultPort int32) int32 {
+	_, portStr, err := net.SplitHostPort(host)
+	if err != nil {
+		return defaultPort
+	}
+	p, err := strconv.ParseInt(portStr, 10, 32)
+	if err != nil || p < 1 || p > 65535 {
+		return defaultPort
+	}
+	return int32(p)
+}
+
+func portFromProxyURL(rawURL string) (int32, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse proxy URL: %w", err)
+	}
+	if p := u.Port(); p != "" {
+		n, err := strconv.ParseInt(p, 10, 32)
+		if err != nil || n < 1 || n > 65535 {
+			return 0, fmt.Errorf("invalid port %q in proxy URL", p)
+		}
+		return int32(n), nil
+	}
+	switch u.Scheme {
+	case "http":
+		return 80, nil
+	case "https":
+		return 443, nil
+	default:
+		return 0, fmt.Errorf("invalid proxy URL scheme %q", u.Scheme)
+	}
+}
+
+func isClusterInternal(host string) bool {
+	h, _, err := net.SplitHostPort(host)
+	if err != nil {
+		h = host
+	}
+	return strings.HasSuffix(h, ".svc") || strings.HasSuffix(h, ".svc.cluster.local")
+}
+
 func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkingv1.NetworkPolicy {
+	ports := egressPorts(instance.Spec.Releases)
+	egressPolicyPorts := make([]networkingv1.NetworkPolicyPort, len(ports))
+	for i, p := range ports {
+		egressPolicyPorts[i] = networkingv1.NetworkPolicyPort{
+			Protocol: corev1ProtocolPtr(corev1.ProtocolTCP),
+			Port:     intOrStringPtr(intstr.FromInt32(p)),
+		}
+	}
+
 	return &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name,
 			Namespace: instance.Namespace,
 			Annotations: map[string]string{
-				DescriptionAnnotation: "This NetworkPolicy allows all egress, to support graph-builder scraping and DNS. " +
+				DescriptionAnnotation: "This NetworkPolicy allows egress restricted to the necessary ports, to support graph-builder scraping and DNS. " +
 					"It allows ingress from the router, to support serving policy-engine responses. " +
 					"All other ingress is blocked, including, for now, metrics scraping.",
 			},
@@ -338,12 +425,9 @@ func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkin
 				}},
 			}},
 			Egress: []networkingv1.NetworkPolicyEgressRule{{
-				// TCP access to all ports, for registry access, possibly via proxies
-				Ports: []networkingv1.NetworkPolicyPort{{
-					Protocol: corev1ProtocolPtr(corev1.ProtocolTCP),
-				}},
+				// TCP access to the necessary ports, for registry access, possibly via proxies
+				Ports: egressPolicyPorts,
 			}, {
-				// DNS access to the cluster's openshift-dns DaemonSet.
 				To: []networkingv1.NetworkPolicyPeer{{
 					NamespaceSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{

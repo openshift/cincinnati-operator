@@ -16,6 +16,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -631,6 +632,101 @@ func TestEnsurePolicyEngineRoute(t *testing.T) {
 			assert.Equal(t, found.Spec.Port.TargetPort, intstr.FromString("policy-engine"))
 		})
 	}
+}
+
+func TestEnsureNetworkPolicy(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "")
+	t.Setenv("HTTPS_PROXY", "")
+	t.Setenv("NO_PROXY", "")
+
+	pullSecret := newSecret()
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice)
+
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = r.ensureNetworkPolicy(context.TODO(), log, updateservice, resources)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	found := &networkingv1.NetworkPolicy{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: updateservice.Name, Namespace: updateservice.Namespace}, found)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	verifyOwnerReference(t, found.ObjectMeta.OwnerReferences[0], updateservice)
+	verifyAnnotation(t, found.ObjectMeta.Annotations, "NetworkPolicy", "egress")
+	assert.Equal(t, found.ObjectMeta.Labels["app"], updateservice.Name)
+
+	assert.Equal(t, found.Spec.PodSelector.MatchLabels["app"], nameDeployment(updateservice))
+
+	assert.NotEmpty(t, found.Spec.Ingress, "should have ingress rules")
+	assert.Equal(t, intstr.FromString("policy-engine"), *found.Spec.Ingress[0].Ports[0].Port)
+
+	assert.Equal(t, 2, len(found.Spec.Egress), "should have 2 egress rules: registry and DNS")
+	assert.Equal(t, 1, len(found.Spec.Egress[0].Ports), "first egress rule should have 1 port for default registry")
+	assert.Equal(t, intstr.FromInt32(443), *found.Spec.Egress[0].Ports[0].Port, "registry port should be 443")
+	assert.Equal(t, intstr.FromInt32(5353), *found.Spec.Egress[1].Ports[0].Port, "DNS egress port for TCP should be 5353")
+}
+
+func TestEnsureNetworkPolicyUpdatesOnPortChange(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "")
+	t.Setenv("HTTPS_PROXY", "")
+	t.Setenv("NO_PROXY", "")
+
+	pullSecret := newSecret()
+	updateservice := &cv1.UpdateService{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       testUpdateServiceKind,
+			APIVersion: testUpdateServiceAPIVersion,
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testName,
+			Namespace: testNamespace,
+		},
+		Spec: cv1.UpdateServiceSpec{
+			Replicas:       testReplicas,
+			Releases:       "quay.io/ocp-release/release",
+			GraphDataImage: testGraphDataImage,
+		},
+	}
+
+	// Get expected NetworkPolicy (port 443 for quay.io)
+	resources, err := newKubeResources(updateservice, testOperandImage, pullSecret, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedPolicy := resources.networkPolicy
+
+	// Create "stale" NetworkPolicy with port 8080 instead of 443
+	oldPolicy := expectedPolicy.DeepCopy()
+	oldPolicy.Spec.Egress[0].Ports[0].Port = intOrStringPtr(intstr.FromInt32(8080))
+
+	// Set up reconciler with the old policy already existing
+	r := newTestReconciler(updateservice, oldPolicy)
+
+	// Call ensureNetworkPolicy
+	err = r.ensureNetworkPolicy(context.TODO(), log, updateservice, resources)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Fetch the NetworkPolicy and verify the port was updated to 443
+	found := &networkingv1.NetworkPolicy{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: updateservice.Name, Namespace: updateservice.Namespace}, found)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify the port was updated to 443 in the first egress rule (registry egress)
+	assert.Equal(t, 2, len(found.Spec.Egress), "should have 2 egress rules: registry and DNS")
+	assert.Equal(t, 1, len(found.Spec.Egress[0].Ports), "first egress rule should have 1 port")
+	assert.Equal(t, intstr.FromInt32(443), *found.Spec.Egress[0].Ports[0].Port, "registry port should be 443 for quay.io")
 }
 
 func newRequest(updateservice *cv1.UpdateService) reconcile.Request {
