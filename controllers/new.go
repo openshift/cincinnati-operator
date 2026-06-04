@@ -326,7 +326,9 @@ func egressPorts(releases string) []int32 {
 
 	registry := strings.SplitN(releases, "/", 2)[0]
 
-	if !isClusterInternal(registry) {
+	registryNoProxy := noProxy(registry)
+
+	if !isClusterInternal(registry) && !registryNoProxy {
 		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY"} {
 			if v := os.Getenv(env); v != "" {
 				add(v, false)
@@ -340,6 +342,37 @@ func egressPorts(releases string) []int32 {
 		add("https://"+registry, true)
 	}
 	return ports
+}
+
+func noProxy(registry string) bool {
+	noProxyEnv := os.Getenv("NO_PROXY")
+	if noProxyEnv == "" {
+		return false
+	}
+	// ref. https://docs.redhat.com/en/documentation/openshift_container_platform/3.11/html/configuring_clusters/install-config-http-proxies
+	// Example from the doc: NO_PROXY=master.hostname.example.com,10.1.0.0/16,172.30.0.0/16
+	if i := strings.IndexAny(registry, ":"); i > -1 {
+		registry = registry[:i]
+	}
+	for _, s := range strings.Split(noProxyEnv, ",") {
+		trimmed := strings.TrimSpace(s)
+		if trimmed == "*" {
+			return true
+		}
+		if trimmed == registry {
+			return true
+		}
+		// Subdomain Wildcards
+		if strings.HasPrefix(trimmed, ".") && strings.HasSuffix(registry, trimmed) {
+			return true
+		}
+		if ip := net.ParseIP(registry); ip != nil {
+			if _, ipNet, err := net.ParseCIDR(trimmed); err == nil && ipNet.Contains(ip) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func portFromURL(rawURL string) (int32, string, error) {

@@ -84,6 +84,7 @@ func Test_egressPorts(t *testing.T) {
 		releases   string
 		httpProxy  string
 		httpsProxy string
+		noProxy    string
 		expected   []int32
 	}{
 		{
@@ -101,6 +102,48 @@ func Test_egressPorts(t *testing.T) {
 			releases:   "quay.io/openshift-release-dev/ocp-release",
 			httpsProxy: "http://proxy.example.com:3128",
 			expected:   []int32{3128},
+		},
+		{
+			name:       "registry as no proxy",
+			releases:   "quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "quay.io, docker.io",
+			expected:   []int32{443},
+		},
+		{
+			name:       "registry and no proxy with ip",
+			releases:   "10.1.0.3:8443/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "10.1.0.3, quay.io, docker.io",
+			expected:   []int32{8443},
+		},
+		{
+			name:       "registry and no proxy with CIDR",
+			releases:   "10.1.0.2:8443/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "10.1.0.0/16, quay.io, docker.io",
+			expected:   []int32{8443},
+		},
+		{
+			name:       "registry and no proxy with exact subdomain",
+			releases:   "sub.quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "quay.io, docker.io",
+			expected:   []int32{3128},
+		},
+		{
+			name:       "registry and no proxy with dot",
+			releases:   "sub.quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    ".quay.io, docker.io",
+			expected:   []int32{443},
+		},
+		{
+			name:       "registry and no proxy with asterisk",
+			releases:   "sub.quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "docker.io, *",
+			expected:   []int32{443},
 		},
 		{
 			name:       "proxy port ignored for cluster-internal registry (.svc)",
@@ -172,6 +215,7 @@ func Test_egressPorts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("HTTP_PROXY", tc.httpProxy)
 			t.Setenv("HTTPS_PROXY", tc.httpsProxy)
+			t.Setenv("NO_PROXY", tc.noProxy)
 
 			got := egressPorts(tc.releases)
 			assert.ElementsMatch(t, tc.expected, got)
