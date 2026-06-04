@@ -310,9 +310,9 @@ func egressPorts(releases string) []int32 {
 	seen := map[int32]bool{}
 	var ports []int32
 	add := func(url string, addDefaultOnErr bool) {
-		p, err := portFromURL(url)
+		p, redacted, err := portFromURL(url)
 		if err != nil {
-			log.Error(err, "Failed to parse port from url", "url", url)
+			log.Error(err, "Failed to parse port from url", "url", redacted)
 			if !addDefaultOnErr {
 				return
 			}
@@ -342,25 +342,28 @@ func egressPorts(releases string) []int32 {
 	return ports
 }
 
-func portFromURL(rawURL string) (int32, error) {
+func portFromURL(rawURL string) (int32, string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse proxy URL: %w", err)
+		return 0, "url is redacted", fmt.Errorf("failed to parse proxy URL: %w", err)
+	}
+	if u.User != nil {
+		u.User = url.UserPassword("xxx", "xxx")
 	}
 	if p := u.Port(); p != "" {
 		n, err := strconv.ParseInt(p, 10, 32)
 		if err != nil || n < 1 || n > 65535 {
-			return 0, fmt.Errorf("invalid port %q in proxy URL", p)
+			return 0, u.String(), fmt.Errorf("invalid port %q in proxy URL", p)
 		}
-		return int32(n), nil
+		return int32(n), u.String(), nil
 	}
 	switch u.Scheme {
 	case "http":
-		return 80, nil
+		return 80, u.String(), nil
 	case "https":
-		return 443, nil
+		return 443, u.String(), nil
 	default:
-		return 0, fmt.Errorf("invalid proxy URL scheme %q", u.Scheme)
+		return 0, u.String(), fmt.Errorf("invalid proxy URL scheme %q", u.Scheme)
 	}
 }
 
