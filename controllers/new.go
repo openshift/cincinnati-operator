@@ -378,7 +378,7 @@ func noProxy(registry string) bool {
 func portFromURL(rawURL string) (int32, string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return 0, "url is redacted", fmt.Errorf("failed to parse proxy URL: %w", err)
+		return 0, "url is redacted", fmt.Errorf("failed to parse URL: %w", err)
 	}
 	if u.User != nil {
 		u.User = url.UserPassword("xxx", "xxx")
@@ -386,7 +386,7 @@ func portFromURL(rawURL string) (int32, string, error) {
 	if p := u.Port(); p != "" {
 		n, err := strconv.ParseInt(p, 10, 32)
 		if err != nil || n < 1 || n > 65535 {
-			return 0, u.String(), fmt.Errorf("invalid port %q in proxy URL", p)
+			return 0, u.String(), fmt.Errorf("invalid port %q in URL", p)
 		}
 		return int32(n), u.String(), nil
 	}
@@ -396,7 +396,7 @@ func portFromURL(rawURL string) (int32, string, error) {
 	case "https":
 		return 443, u.String(), nil
 	default:
-		return 0, u.String(), fmt.Errorf("invalid proxy URL scheme %q", u.Scheme)
+		return 0, u.String(), fmt.Errorf("invalid URL scheme %q", u.Scheme)
 	}
 }
 
