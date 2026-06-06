@@ -309,7 +309,15 @@ func (k *kubeResources) oldPolicyEngineRoute(instance *cv1.UpdateService) *route
 func egressPorts(releases string) []int32 {
 	seen := map[int32]bool{}
 	var ports []int32
-	add := func(p int32) {
+	add := func(url string, addDefaultOnErr bool) {
+		p, redacted, err := portFromURL(url)
+		if err != nil {
+			log.Error(err, "Failed to parse port from url", "url", redacted)
+			if !addDefaultOnErr {
+				return
+			}
+			p = 443
+		}
 		if !seen[p] {
 			seen[p] = true
 			ports = append(ports, p)
@@ -318,14 +326,12 @@ func egressPorts(releases string) []int32 {
 
 	registry := strings.SplitN(releases, "/", 2)[0]
 
-	if !isClusterInternal(registry) {
+	registryNoProxy := noProxy(registry)
+
+	if !isClusterInternal(registry) && !registryNoProxy {
 		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY"} {
 			if v := os.Getenv(env); v != "" {
-				if p, err := portFromProxyURL(v); err == nil {
-					add(p)
-				} else {
-					log.Error(err, "Failed to parse port from the proxy environment variable", "env", env, "value", v)
-				}
+				add(v, false)
 			}
 		}
 	}
@@ -333,43 +339,64 @@ func egressPorts(releases string) []int32 {
 	// When a proxy is configured for an external registry, the pod talks to
 	// the proxy, not the registry directly, so only proxy ports are needed.
 	if len(ports) == 0 {
-		add(portFromHost(registry, 443))
+		add("https://"+registry, true)
 	}
-
 	return ports
 }
 
-func portFromHost(host string, defaultPort int32) int32 {
-	_, portStr, err := net.SplitHostPort(host)
-	if err != nil {
-		return defaultPort
+func noProxy(registry string) bool {
+	noProxyEnv := os.Getenv("NO_PROXY")
+	if noProxyEnv == "" {
+		return false
 	}
-	p, err := strconv.ParseInt(portStr, 10, 32)
-	if err != nil || p < 1 || p > 65535 {
-		return defaultPort
+	// ref. https://docs.redhat.com/en/documentation/openshift_container_platform/3.11/html/configuring_clusters/install-config-http-proxies
+	// Example from the doc: NO_PROXY=master.hostname.example.com,10.1.0.0/16,172.30.0.0/16
+	if i := strings.IndexAny(registry, ":"); i > -1 {
+		registry = registry[:i]
 	}
-	return int32(p)
+	for _, s := range strings.Split(noProxyEnv, ",") {
+		trimmed := strings.TrimSpace(s)
+		if trimmed == "*" {
+			return true
+		}
+		if trimmed == registry {
+			return true
+		}
+		// Subdomain Wildcards
+		if strings.HasPrefix(trimmed, ".") && strings.HasSuffix(registry, trimmed) {
+			return true
+		}
+		if ip := net.ParseIP(registry); ip != nil {
+			if _, ipNet, err := net.ParseCIDR(trimmed); err == nil && ipNet.Contains(ip) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
-func portFromProxyURL(rawURL string) (int32, error) {
+func portFromURL(rawURL string) (int32, string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse proxy URL: %w", err)
+		return 0, "url is redacted", fmt.Errorf("failed to parse URL: %w", err)
+	}
+	if u.User != nil {
+		u.User = url.UserPassword("xxx", "xxx")
 	}
 	if p := u.Port(); p != "" {
 		n, err := strconv.ParseInt(p, 10, 32)
 		if err != nil || n < 1 || n > 65535 {
-			return 0, fmt.Errorf("invalid port %q in proxy URL", p)
+			return 0, u.String(), fmt.Errorf("invalid port %q in URL", p)
 		}
-		return int32(n), nil
+		return int32(n), u.String(), nil
 	}
 	switch u.Scheme {
 	case "http":
-		return 80, nil
+		return 80, u.String(), nil
 	case "https":
-		return 443, nil
+		return 443, u.String(), nil
 	default:
-		return 0, fmt.Errorf("invalid proxy URL scheme %q", u.Scheme)
+		return 0, u.String(), fmt.Errorf("invalid URL scheme %q", u.Scheme)
 	}
 }
 

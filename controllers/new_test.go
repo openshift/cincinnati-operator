@@ -84,6 +84,7 @@ func Test_egressPorts(t *testing.T) {
 		releases   string
 		httpProxy  string
 		httpsProxy string
+		noProxy    string
 		expected   []int32
 	}{
 		{
@@ -99,32 +100,80 @@ func Test_egressPorts(t *testing.T) {
 		{
 			name:       "proxy port used instead of registry port for external registry",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
-			httpsProxy: "http://proxy.example.com:3128",
+			httpsProxy: "https://proxy.example.com:3128",
 			expected:   []int32{3128},
+		},
+		{
+			name:       "registry as no proxy",
+			releases:   "quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "quay.io, docker.io",
+			expected:   []int32{443},
+		},
+		{
+			name:       "registry and no proxy with ip",
+			releases:   "10.1.0.3:8443/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "10.1.0.3, quay.io, docker.io",
+			expected:   []int32{8443},
+		},
+		{
+			name:       "registry and no proxy with CIDR",
+			releases:   "10.1.0.2:8443/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "10.1.0.0/16, quay.io, docker.io",
+			expected:   []int32{8443},
+		},
+		{
+			name:       "registry and no proxy with exact subdomain",
+			releases:   "sub.quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "quay.io, docker.io",
+			expected:   []int32{3128},
+		},
+		{
+			name:       "registry and no proxy with dot",
+			releases:   "sub.quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    ".quay.io, docker.io",
+			expected:   []int32{443},
+		},
+		{
+			name:       "registry and no proxy with asterisk",
+			releases:   "sub.quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://proxy.example.com:3128",
+			noProxy:    "docker.io, *",
+			expected:   []int32{443},
 		},
 		{
 			name:       "proxy port ignored for cluster-internal registry (.svc)",
 			releases:   "image-registry.openshift-image-registry.svc:5000/openshift/release",
-			httpsProxy: "http://proxy.example.com:3128",
+			httpsProxy: "https://proxy.example.com:3128",
 			expected:   []int32{5000},
 		},
 		{
 			name:       "proxy port ignored for .svc.cluster.local registry",
 			releases:   "quay.apps.internal.svc.cluster.local:5000/openshift/release",
-			httpsProxy: "http://proxy.example.com:3128",
+			httpsProxy: "https://proxy.example.com:3128",
 			expected:   []int32{5000},
 		},
 		{
 			name:      "HTTP_PROXY port used instead of registry port",
 			releases:  "quay.io/openshift-release-dev/ocp-release",
-			httpProxy: "http://proxy.example.com:8888",
+			httpProxy: "https://proxy.example.com:8888",
 			expected:  []int32{8888},
 		},
 		{
 			name:       "dedup when proxy port equals registry port",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
-			httpsProxy: "http://proxy.example.com:443",
+			httpsProxy: "https://proxy.example.com:443",
 			expected:   []int32{443},
+		},
+		{
+			name:       "http proxy with IP",
+			releases:   "quay.io/openshift-release-dev/ocp-release",
+			httpsProxy: "https://127.0.0.1:8443",
+			expected:   []int32{8443},
 		},
 		{
 			name:       "proxy without explicit port defaults to 443 for https",
@@ -141,14 +190,14 @@ func Test_egressPorts(t *testing.T) {
 		{
 			name:       "host with svc in domain name is not cluster-internal",
 			releases:   "my.svc.company.com/openshift/release",
-			httpsProxy: "http://proxy.example.com:3128",
+			httpsProxy: "https://proxy.example.com:3128",
 			expected:   []int32{3128},
 		},
 		{
 			name:       "both HTTP_PROXY and HTTPS_PROXY with different ports",
 			releases:   "quay.io/openshift-release-dev/ocp-release",
 			httpProxy:  "http://user:pass@proxy.example.com:8080",
-			httpsProxy: "http://user:pass@proxy.example.com:3128",
+			httpsProxy: "https://user:pass@proxy.example.com:3128",
 			expected:   []int32{8080, 3128},
 		}, {
 			name:       "bad proxy",
@@ -166,6 +215,7 @@ func Test_egressPorts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("HTTP_PROXY", tc.httpProxy)
 			t.Setenv("HTTPS_PROXY", tc.httpsProxy)
+			t.Setenv("NO_PROXY", tc.noProxy)
 
 			got := egressPorts(tc.releases)
 			assert.ElementsMatch(t, tc.expected, got)
