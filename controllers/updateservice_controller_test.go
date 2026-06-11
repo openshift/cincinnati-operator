@@ -716,6 +716,13 @@ func TestEnsureNetworkPolicy(t *testing.T) {
 			assert.Equal(t, "openshift-dns", dnsEgress.To[0].NamespaceSelector.MatchLabels["kubernetes.io/metadata.name"])
 			assert.Equal(t, 2, len(dnsEgress.Ports), "DNS egress should have TCP+UDP ports")
 			assert.Equal(t, intstr.FromInt32(5353), *dnsEgress.Ports[0].Port)
+			assert.Equal(t, intstr.FromInt32(5353), *dnsEgress.Ports[1].Port)
+			dnsProtocols := map[corev1.Protocol]bool{
+				*dnsEgress.Ports[0].Protocol: true,
+				*dnsEgress.Ports[1].Protocol: true,
+			}
+			assert.True(t, dnsProtocols[corev1.ProtocolTCP], "DNS egress should include TCP")
+			assert.True(t, dnsProtocols[corev1.ProtocolUDP], "DNS egress should include UDP")
 		})
 	}
 }

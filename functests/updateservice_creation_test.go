@@ -9,6 +9,7 @@ import (
 
 	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -110,7 +111,7 @@ func TestCustomResource(t *testing.T) {
 
 	// Checks to see if a given PodDisruptionBudget is available after a specified amount of time.
 	// If the PodDisruptionBudget is not available after 30 * retries seconds, the condition function returns an error.
-	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(ctx, retryInterval, timeout, true, func(_ context.Context) (done bool, err error) {
 		if _, err := k8sClient.PolicyV1().PodDisruptionBudgets(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
 				t.Logf("Waiting for availability of %s PodDisruptionBudget\n", operatorName)
@@ -125,9 +126,10 @@ func TestCustomResource(t *testing.T) {
 	t.Logf("PodDisruptionBudget %s available", operatorName)
 
 	// Checks to see if the NetworkPolicy is available and has the expected rules.
-	var networkPolicyFound bool
-	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
-		if _, err := k8sClient.NetworkingV1().NetworkPolicies(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{}); err != nil {
+	var np *networkingv1.NetworkPolicy
+	if err := wait.PollUntilContextTimeout(ctx, retryInterval, timeout, true, func(_ context.Context) (done bool, err error) {
+		np, err = k8sClient.NetworkingV1().NetworkPolicies(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{})
+		if err != nil {
 			if apierrors.IsNotFound(err) {
 				t.Logf("Waiting for availability of %s NetworkPolicy", customResourceName)
 				return false, nil
@@ -138,13 +140,7 @@ func TestCustomResource(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	networkPolicyFound = true
 	t.Logf("NetworkPolicy %s available", customResourceName)
-
-	np, err := k8sClient.NetworkingV1().NetworkPolicies(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if len(np.OwnerReferences) < 1 {
 		t.Fatal("NetworkPolicy has no owner references")
@@ -218,15 +214,27 @@ func TestCustomResource(t *testing.T) {
 		t.Fatalf("expected 2 DNS egress ports (TCP+UDP 5353), got %d", len(dnsEgress.Ports))
 	}
 	expectedDNSPort := intstr.FromInt32(5353)
+	var sawTCP, sawUDP bool
 	for _, p := range dnsEgress.Ports {
 		if *p.Port != expectedDNSPort {
 			t.Fatalf("expected DNS port 5353, got %v", *p.Port)
 		}
+		switch *p.Protocol {
+		case corev1.ProtocolTCP:
+			sawTCP = true
+		case corev1.ProtocolUDP:
+			sawUDP = true
+		default:
+			t.Fatalf("unexpected DNS egress protocol %v", *p.Protocol)
+		}
+	}
+	if !sawTCP || !sawUDP {
+		t.Fatalf("DNS egress should have both TCP and UDP, got TCP=%t UDP=%t", sawTCP, sawUDP)
 	}
 	t.Log("NetworkPolicy ingress and egress rules validated")
 
 	var policyEngineURI string
-	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(ctx, retryInterval, timeout, true, func(_ context.Context) (done bool, err error) {
 		result := &updateservicev1.UpdateService{}
 		err = updateServiceClient.Get().
 			Resource(resource).
@@ -258,7 +266,7 @@ func TestCustomResource(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Set("Accept", "application/json")
-	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(ctx, retryInterval, timeout, true, func(_ context.Context) (done bool, err error) {
 		if resp, err := httpClient.Do(req); err != nil {
 			t.Fatal(err)
 		} else if resp.StatusCode > http.StatusOK {
@@ -270,16 +278,13 @@ func TestCustomResource(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if networkPolicyFound {
-		t.Log("Route reachable with NetworkPolicy enforced — policy does not break real traffic")
-	}
 
 	if err := deleteCR(ctx); err != nil {
 		t.Log(err)
 	}
 
 	// Verify NetworkPolicy is garbage-collected after CR deletion via owner references.
-	if err := wait.Poll(retryInterval, timeout, func() (done bool, err error) {
+	if err := wait.PollUntilContextTimeout(ctx, retryInterval, timeout, true, func(_ context.Context) (done bool, err error) {
 		_, err = k8sClient.NetworkingV1().NetworkPolicies(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
