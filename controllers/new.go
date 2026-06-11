@@ -328,7 +328,7 @@ func egressPorts(releases string) []int32 {
 
 	registryNoProxy := noProxy(registry)
 
-	if !isClusterInternal(registry) && !registryNoProxy {
+	if namespaceFromInternalHost(registry) == "" && !registryNoProxy {
 		for _, env := range []string{"HTTP_PROXY", "HTTPS_PROXY"} {
 			if v := os.Getenv(env); v != "" {
 				add(v, false)
@@ -400,12 +400,26 @@ func portFromURL(rawURL string) (int32, string, error) {
 	}
 }
 
-func isClusterInternal(host string) bool {
+func namespaceFromInternalHost(host string) string {
 	h, _, err := net.SplitHostPort(host)
 	if err != nil {
 		h = host
 	}
-	return strings.HasSuffix(h, ".svc") || strings.HasSuffix(h, ".svc.cluster.local")
+	const svcSuffix = ".svc"
+	const svcClusterLocalSuffix = ".svc.cluster.local"
+	var prefix string
+	var found bool
+	if prefix, found = strings.CutSuffix(h, svcClusterLocalSuffix); !found {
+		prefix, found = strings.CutSuffix(h, svcSuffix)
+	}
+	if !found {
+		return ""
+	}
+	parts := strings.Split(prefix, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[len(parts)-1]
 }
 
 func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkingv1.NetworkPolicy {
@@ -418,12 +432,28 @@ func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkin
 		}
 	}
 
+	registry := strings.SplitN(instance.Spec.Releases, "/", 2)[0]
+	registryEgress := networkingv1.NetworkPolicyEgressRule{
+		Ports: egressPolicyPorts,
+	}
+	egressDescription := "This NetworkPolicy allows egress restricted to the necessary ports, to support graph-builder scraping and DNS. "
+	if ns := namespaceFromInternalHost(registry); ns != "" {
+		registryEgress.To = []networkingv1.NetworkPolicyPeer{{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					corev1.LabelMetadataName: ns,
+				},
+			},
+		}}
+		egressDescription = fmt.Sprintf("This NetworkPolicy allows egress restricted to namespace %s on the necessary ports, to support graph-builder scraping and DNS. ", ns)
+	}
+
 	return &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instance.Name,
 			Namespace: instance.Namespace,
 			Annotations: map[string]string{
-				DescriptionAnnotation: "This NetworkPolicy allows egress restricted to the necessary ports, to support graph-builder scraping and DNS. " +
+				DescriptionAnnotation: egressDescription +
 					"It allows ingress from the router, to support serving policy-engine responses. " +
 					"All other ingress is blocked, including, for now, metrics scraping.",
 			},
@@ -451,30 +481,29 @@ func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkin
 					Port:     intOrStringPtr(intstr.FromString("policy-engine")),
 				}},
 			}},
-			Egress: []networkingv1.NetworkPolicyEgressRule{{
-				// TCP access to the necessary ports, for registry access, possibly via proxies
-				Ports: egressPolicyPorts,
-			}, {
-				To: []networkingv1.NetworkPolicyPeer{{
-					NamespaceSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"kubernetes.io/metadata.name": "openshift-dns",
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				// TCP access only to the necessary ports, for registry access, possibly via proxies
+				registryEgress, {
+					To: []networkingv1.NetworkPolicyPeer{{
+						NamespaceSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"kubernetes.io/metadata.name": "openshift-dns",
+							},
 						},
-					},
-					PodSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"dns.operator.openshift.io/daemonset-dns": "default",
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"dns.operator.openshift.io/daemonset-dns": "default",
+							},
 						},
-					},
+					}},
+					Ports: []networkingv1.NetworkPolicyPort{{
+						Protocol: corev1ProtocolPtr(corev1.ProtocolTCP),
+						Port:     intOrStringPtr(intstr.FromInt32(5353)),
+					}, {
+						Protocol: corev1ProtocolPtr(corev1.ProtocolUDP),
+						Port:     intOrStringPtr(intstr.FromInt32(5353)),
+					}},
 				}},
-				Ports: []networkingv1.NetworkPolicyPort{{
-					Protocol: corev1ProtocolPtr(corev1.ProtocolTCP),
-					Port:     intOrStringPtr(intstr.FromInt32(5353)),
-				}, {
-					Protocol: corev1ProtocolPtr(corev1.ProtocolUDP),
-					Port:     intOrStringPtr(intstr.FromInt32(5353)),
-				}},
-			}},
 		},
 	}
 }

@@ -223,6 +223,56 @@ func Test_egressPorts(t *testing.T) {
 	}
 }
 
+func Test_namespaceFromInternalHost(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		host     string
+		expected string
+	}{
+		{
+			name:     "service.namespace.svc",
+			host:     "image-registry.openshift-image-registry.svc",
+			expected: "openshift-image-registry",
+		},
+		{
+			name:     "service.namespace.svc.cluster.local",
+			host:     "image-registry.openshift-image-registry.svc.cluster.local",
+			expected: "openshift-image-registry",
+		},
+		{
+			name:     "service.namespace.svc with port",
+			host:     "image-registry.openshift-image-registry.svc:5000",
+			expected: "openshift-image-registry",
+		},
+		{
+			name:     "service.namespace.svc.cluster.local with port",
+			host:     "image-registry.openshift-image-registry.svc.cluster.local:5000",
+			expected: "openshift-image-registry",
+		},
+		{
+			name: "external host returns empty",
+			host: "quay.io",
+		},
+		{
+			name: "bare hostname returns empty",
+			host: "localhost",
+		},
+		{
+			name: "svc in domain name but not cluster-internal",
+			host: "my.svc.company.com",
+		},
+		{
+			name: "service only with .svc suffix returns empty",
+			host: "registry.svc",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := namespaceFromInternalHost(tc.host)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
 func Test_newNetworkPolicy_egress_ports(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
@@ -279,6 +329,55 @@ func Test_newNetworkPolicy_egress_ports(t *testing.T) {
 				assert.Equal(t, corev1.ProtocolTCP, *p.Protocol)
 			}
 			assert.ElementsMatch(t, tc.wantPorts, gotPorts)
+		})
+	}
+}
+
+func Test_newNetworkPolicy_egress_namespace(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		releases      string
+		wantNamespace string
+	}{
+		{
+			name:          "external registry has no namespace restriction",
+			releases:      "quay.io/openshift-release-dev/ocp-release",
+			wantNamespace: "",
+		},
+		{
+			name:          "cluster-internal .svc restricts to namespace",
+			releases:      "image-registry.openshift-image-registry.svc:5000/openshift/release",
+			wantNamespace: "openshift-image-registry",
+		},
+		{
+			name:          "cluster-internal .svc.cluster.local restricts to namespace",
+			releases:      "image-registry.openshift-image-registry.svc.cluster.local:5000/openshift/release",
+			wantNamespace: "openshift-image-registry",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("HTTP_PROXY", "")
+			t.Setenv("HTTPS_PROXY", "")
+
+			instance := &cv1.UpdateService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "test-ns",
+				},
+				Spec: cv1.UpdateServiceSpec{
+					Releases: tc.releases,
+				},
+			}
+			k := &kubeResources{}
+			np := k.newNetworkPolicy(instance)
+
+			registryEgress := np.Spec.Egress[0]
+			if tc.wantNamespace == "" {
+				assert.Empty(t, registryEgress.To, "external registry should have no destination restriction")
+			} else {
+				assert.Len(t, registryEgress.To, 1)
+				assert.Equal(t, tc.wantNamespace, registryEgress.To[0].NamespaceSelector.MatchLabels["kubernetes.io/metadata.name"])
+			}
 		})
 	}
 }
