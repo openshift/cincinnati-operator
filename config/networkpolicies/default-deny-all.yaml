@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Default deny policy that blocks all ingress and egress traffic for all pods in the namespace.
+      This provides a secure baseline where only explicitly allowed traffic can flow.
+      Other network policies in this namespace will provide specific allow rules.
+spec:
+  # Apply to all pods in the namespace
+  podSelector: {}
+  # Block all traffic types by specifying empty arrays
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress rules = deny all ingress
+  ingress: []
+  # No egress rules = deny all egress
+  egress: []

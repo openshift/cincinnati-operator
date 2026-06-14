@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operand-egress-cluster-proxy
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Allows UpdateService operand pods to access OpenShift cluster-wide proxy.
+      This enables the Cincinnati policy engine to access external registries
+      through the cluster's configured HTTP/HTTPS proxy in disconnected environments.
+  labels:
+    app.kubernetes.io/name: update-service
+    app.kubernetes.io/component: network-policy
+spec:
+  # Target all operand pods (UpdateService workloads)
+  podSelector:
+    matchExpressions:
+      - key: deployment
+        operator: Exists  # Matches any pod with a "deployment" label (operand pods)
+  policyTypes:
+    - Egress
+  egress:
+    # Allow access to cluster-wide proxy (if configured)
+    # This targets the proxy service in openshift-config-managed or similar
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-config-managed
+      ports:
+        - protocol: TCP
+          port: 3128  # Standard HTTP proxy port
+        - protocol: TCP
+          port: 8080  # Alternative proxy port
+
+    # Allow access to proxy pods in openshift-ingress or similar namespaces
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-ingress
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: proxy
+      ports:
+        - protocol: TCP
+          port: 3128
+        - protocol: TCP
+          port: 8080

@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operand-egress-external-registries
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Allows UpdateService operand pods to access container registries for graph data scraping.
+      This enables the Cincinnati policy engine to gather release metadata from registries.
+      Access may be via proxies in disconnected environments.
+  labels:
+    app.kubernetes.io/name: update-service
+    app.kubernetes.io/component: network-policy
+spec:
+  # Target all operand pods (UpdateService workloads)
+  podSelector:
+    matchExpressions:
+      - key: deployment
+        operator: Exists  # Matches any pod with a "deployment" label (operand pods)
+  policyTypes:
+    - Egress
+  egress:
+    # Allow HTTPS registry access (direct or via proxy)
+    - to: []  # Allow to any destination for registry access
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS for secure registry access
+        - protocol: TCP
+          port: 80   # HTTP for some registries/proxies
+    # Allow proxy access if configured
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 8080  # Common proxy port
+        - protocol: TCP
+          port: 3128  # Squid proxy port

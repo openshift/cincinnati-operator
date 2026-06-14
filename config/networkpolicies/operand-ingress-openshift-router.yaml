@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operand-ingress-openshift-router
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Allows OpenShift router to forward traffic to UpdateService operand pods.
+      This enables external clients to access the Cincinnati policy engine API.
+  labels:
+    app.kubernetes.io/name: update-service
+    app.kubernetes.io/component: network-policy
+spec:
+  # Target all operand pods (UpdateService workloads)
+  podSelector:
+    matchExpressions:
+      - key: deployment
+        operator: Exists  # Matches any pod with a "deployment" label (operand pods)
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow traffic from OpenShift router
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              policy-group.network.openshift.io/ingress: ""
+      ports:
+        - protocol: TCP
+          port: policy-engine  # Named port reference
+        - protocol: TCP
+          port: 8081          # Direct port reference as fallback

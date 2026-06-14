@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operator-ingress-prometheus
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Allows Prometheus monitoring stack to scrape metrics from the Cincinnati operator.
+      This enables observability and monitoring of the operator's health and performance.
+  labels:
+    app.kubernetes.io/name: update-service-operator
+    app.kubernetes.io/component: network-policy
+spec:
+  # Target operator pods only
+  podSelector:
+    matchLabels:
+      name: updateservice-operator
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow Prometheus to scrape metrics
+    - from:
+        # OpenShift monitoring namespace (cluster monitoring)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        # Alternative monitoring namespace patterns
+        - namespaceSelector:
+            matchLabels:
+              name: openshift-monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+        # User workload monitoring namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-user-workload-monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080  # Default metrics port for operator-sdk
+        - protocol: TCP
+          port: 8443  # HTTPS metrics port if using TLS

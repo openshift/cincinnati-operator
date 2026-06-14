@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operator-egress-openshift-dns
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Allows the Cincinnati operator to perform DNS resolution.
+      This enables the operator to resolve service names and external dependencies.
+  labels:
+    app.kubernetes.io/name: update-service-operator
+    app.kubernetes.io/component: network-policy
+spec:
+  # Target operator pods only
+  podSelector:
+    matchLabels:
+      name: updateservice-operator
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution to openshift-dns namespace
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+          podSelector:
+            matchLabels:
+              dns.operator.openshift.io/daemonset-dns: default
+      ports:
+        - protocol: UDP
+          port: 5353  # CoreDNS port
+        - protocol: TCP
+          port: 5353  # CoreDNS TCP fallback
