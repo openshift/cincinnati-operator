@@ -868,10 +868,12 @@ func (r *UpdateServiceReconciler) ensureNetworkPolicy(ctx context.Context, reqLo
 
 func (r *UpdateServiceReconciler) ensurePrometheusRole(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	role := resources.prometheusRole
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, role, r.Scheme); err != nil {
 		return err
 	}
 
+	// Check if it already exists
 	found := &rbacv1.Role{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: role.Name, Namespace: role.Namespace}, found)
 	if err != nil && apiErrors.IsNotFound(err) {
@@ -885,6 +887,7 @@ func (r *UpdateServiceReconciler) ensurePrometheusRole(ctx context.Context, reqL
 		return err
 	}
 
+	// found existing resource; let's compare and update if needed
 	if !reflect.DeepEqual(found.Rules, role.Rules) {
 		reqLogger.Info("Updating Prometheus Role", "Namespace", role.Namespace, "Name", role.Name)
 		updated := found.DeepCopy()
@@ -892,7 +895,6 @@ func (r *UpdateServiceReconciler) ensurePrometheusRole(ctx context.Context, reqL
 		err = r.Client.Update(ctx, updated)
 		if err != nil {
 			handleErr(reqLogger, &instance.Status, "UpdatePrometheusRoleFailed", err)
-			return err
 		}
 	}
 
@@ -901,10 +903,12 @@ func (r *UpdateServiceReconciler) ensurePrometheusRole(ctx context.Context, reqL
 
 func (r *UpdateServiceReconciler) ensurePrometheusRoleBinding(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
 	rb := resources.prometheusRoleBinding
+	// Set UpdateService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, rb, r.Scheme); err != nil {
 		return err
 	}
 
+	// Check if it already exists
 	found := &rbacv1.RoleBinding{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: rb.Name, Namespace: rb.Namespace}, found)
 	if err != nil && apiErrors.IsNotFound(err) {
@@ -931,6 +935,7 @@ func (r *UpdateServiceReconciler) ensurePrometheusRoleBinding(ctx context.Contex
 		return err
 	}
 
+	// found existing resource; let's compare and update if needed
 	if !reflect.DeepEqual(found.Subjects, rb.Subjects) {
 		reqLogger.Info("Updating Prometheus RoleBinding", "Namespace", rb.Namespace, "Name", rb.Name)
 		updated := found.DeepCopy()
@@ -938,7 +943,6 @@ func (r *UpdateServiceReconciler) ensurePrometheusRoleBinding(ctx context.Contex
 		err = r.Client.Update(ctx, updated)
 		if err != nil {
 			handleErr(reqLogger, &instance.Status, "UpdatePrometheusRoleBindingFailed", err)
-			return err
 		}
 	}
 

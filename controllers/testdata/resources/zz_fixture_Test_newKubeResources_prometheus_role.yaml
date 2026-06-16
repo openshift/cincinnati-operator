@@ -1,0 +1,17 @@
+metadata:
+  creationTimestamp: null
+  labels:
+    app: sample
+  name: sample-prometheus-k8s
+  namespace: sample-ns
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  - pods
+  verbs:
+  - get
+  - list
+  - watch

@@ -1,0 +1,14 @@
+metadata:
+  creationTimestamp: null
+  labels:
+    app: sample
+  name: sample-prometheus-k8s
+  namespace: sample-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: sample-prometheus-k8s
+subjects:
+- kind: ServiceAccount
+  name: prometheus-k8s
+  namespace: openshift-monitoring

@@ -44,6 +44,8 @@ func Test_newKubeResources(t *testing.T) {
 		"graph_builder_service":    actual.graphBuilderService,
 		"network_policy":           actual.networkPolicy,
 		"pod_disruption_budget":    actual.podDisruptionBudget,
+		"prometheus_role":          actual.prometheusRole,
+		"prometheus_role_binding":  actual.prometheusRoleBinding,
 		"policy_engine_old_route":  actual.policyEngineRoute,
 		"policy_engine_route":      actual.policyEngineRoute,
 		"policy_engine_service":    actual.policyEngineService,
