@@ -26,6 +26,10 @@ const (
 	namePullSecret = "pull-secret"
 	// ClusterCAMountDir is the mount path for the dir containing cluster CA
 	ClusterCAMountDir = "/etc/pki/ca-trust/extracted/cluster-ca/"
+	// OpenshiftMonitoringNamespace is the namespace where Prometheus runs
+	OpenshiftMonitoringNamespace = "openshift-monitoring"
+	// NamePrometheusServiceAccount is the Prometheus service account name
+	NamePrometheusServiceAccount = "prometheus-k8s"
 )
 
 func nameDeployment(instance *cv1.UpdateService) string {
@@ -66,6 +70,14 @@ func nameAdditionalTrustedCA(instance *cv1.UpdateService) string {
 
 func namePullSecretCopy(instance *cv1.UpdateService) string {
 	return instance.Name + "-" + namePullSecret
+}
+
+func namePrometheusRole(instance *cv1.UpdateService) string {
+	return instance.Name + "-prometheus-k8s"
+}
+
+func namePrometheusRoleBinding(instance *cv1.UpdateService) string {
+	return instance.Name + "-prometheus-k8s"
 }
 
 // When running a single replica, allow 0 available so we don't block node

@@ -17,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -94,6 +95,8 @@ type kubeResources struct {
 	policyEngineRoute        *routev1.Route
 	policyEngineOldRoute     *routev1.Route
 	networkPolicy            *networkingv1.NetworkPolicy
+	prometheusRole           *rbacv1.Role
+	prometheusRoleBinding    *rbacv1.RoleBinding
 	trustedCAConfig          *corev1.ConfigMap
 	trustedClusterCAConfig   *corev1.ConfigMap
 	pullSecret               *corev1.Secret
@@ -138,6 +141,8 @@ func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *cor
 	k.policyEngineRoute = k.newPolicyEngineRoute(instance)
 	k.policyEngineOldRoute = k.oldPolicyEngineRoute(instance)
 	k.networkPolicy = k.newNetworkPolicy(instance)
+	k.prometheusRole = k.newPrometheusRole(instance)
+	k.prometheusRoleBinding = k.newPrometheusRoleBinding(instance)
 	return &k, nil
 }
 
@@ -511,6 +516,49 @@ func (k *kubeResources) newNetworkPolicy(instance *cv1.UpdateService) *networkin
 func corev1ProtocolPtr(proto corev1.Protocol) *corev1.Protocol { return &proto }
 
 func intOrStringPtr(intOrString intstr.IntOrString) *intstr.IntOrString { return &intOrString }
+
+func (k *kubeResources) newPrometheusRole(instance *cv1.UpdateService) *rbacv1.Role {
+	return &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namePrometheusRole(instance),
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				"app": instance.Name,
+			},
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"services", "endpoints", "pods"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
+		},
+	}
+}
+
+func (k *kubeResources) newPrometheusRoleBinding(instance *cv1.UpdateService) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namePrometheusRoleBinding(instance),
+			Namespace: instance.Namespace,
+			Labels: map[string]string{
+				"app": instance.Name,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "Role",
+			Name:     namePrometheusRole(instance),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      NamePrometheusServiceAccount,
+				Namespace: OpenshiftMonitoringNamespace,
+			},
+		},
+	}
+}
 
 func (k *kubeResources) newEnvConfig(instance *cv1.UpdateService) *corev1.ConfigMap {
 	return &corev1.ConfigMap{

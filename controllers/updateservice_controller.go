@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -69,6 +70,7 @@ type UpdateServiceReconciler struct {
 // +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=create;get;list;patch;update;watch,namespace=openshift-update-service
 // +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service
 
 func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	/*    **Reconcile Pattern**
@@ -169,6 +171,8 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		r.ensurePodDisruptionBudget,
 		r.ensurePolicyEngineRoute,
 		r.ensureNetworkPolicy,
+		r.ensurePrometheusRole,
+		r.ensurePrometheusRoleBinding,
 	} {
 		err = f(ctx, reqLogger, instanceCopy, resources)
 		if err != nil {
@@ -861,6 +865,85 @@ func (r *UpdateServiceReconciler) ensureNetworkPolicy(ctx context.Context, reqLo
 	return nil
 }
 
+func (r *UpdateServiceReconciler) ensurePrometheusRole(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
+	role := resources.prometheusRole
+	if err := controllerutil.SetControllerReference(instance, role, r.Scheme); err != nil {
+		return err
+	}
+
+	found := &rbacv1.Role{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: role.Name, Namespace: role.Namespace}, found)
+	if err != nil && apiErrors.IsNotFound(err) {
+		reqLogger.Info("Creating Prometheus Role", "Namespace", role.Namespace, "Name", role.Name)
+		if err = r.Client.Create(ctx, role); err != nil {
+			handleErr(reqLogger, &instance.Status, "CreatePrometheusRoleFailed", err)
+		}
+		return err
+	} else if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetPrometheusRoleFailed", err)
+		return err
+	}
+
+	if !reflect.DeepEqual(found.Rules, role.Rules) {
+		reqLogger.Info("Updating Prometheus Role", "Namespace", role.Namespace, "Name", role.Name)
+		updated := found.DeepCopy()
+		updated.Rules = role.Rules
+		err = r.Client.Update(ctx, updated)
+		if err != nil {
+			handleErr(reqLogger, &instance.Status, "UpdatePrometheusRoleFailed", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *UpdateServiceReconciler) ensurePrometheusRoleBinding(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
+	rb := resources.prometheusRoleBinding
+	if err := controllerutil.SetControllerReference(instance, rb, r.Scheme); err != nil {
+		return err
+	}
+
+	found := &rbacv1.RoleBinding{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: rb.Name, Namespace: rb.Namespace}, found)
+	if err != nil && apiErrors.IsNotFound(err) {
+		reqLogger.Info("Creating Prometheus RoleBinding", "Namespace", rb.Namespace, "Name", rb.Name)
+		if err = r.Client.Create(ctx, rb); err != nil {
+			handleErr(reqLogger, &instance.Status, "CreatePrometheusRoleBindingFailed", err)
+		}
+		return err
+	} else if err != nil {
+		handleErr(reqLogger, &instance.Status, "GetPrometheusRoleBindingFailed", err)
+		return err
+	}
+
+	// RoleRef is immutable; if it changed, delete and recreate
+	if !reflect.DeepEqual(found.RoleRef, rb.RoleRef) {
+		reqLogger.Info("Recreating Prometheus RoleBinding (RoleRef changed)", "Namespace", rb.Namespace, "Name", rb.Name)
+		if err = r.Client.Delete(ctx, found); err != nil {
+			handleErr(reqLogger, &instance.Status, "DeletePrometheusRoleBindingFailed", err)
+			return err
+		}
+		if err = r.Client.Create(ctx, rb); err != nil {
+			handleErr(reqLogger, &instance.Status, "CreatePrometheusRoleBindingFailed", err)
+		}
+		return err
+	}
+
+	if !reflect.DeepEqual(found.Subjects, rb.Subjects) {
+		reqLogger.Info("Updating Prometheus RoleBinding", "Namespace", rb.Namespace, "Name", rb.Name)
+		updated := found.DeepCopy()
+		updated.Subjects = rb.Subjects
+		err = r.Client.Update(ctx, updated)
+		if err != nil {
+			handleErr(reqLogger, &instance.Status, "UpdatePrometheusRoleBindingFailed", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager, namespace string) error {
 	mapped := &mapper{client: mgr.GetClient(), namespace: namespace}
@@ -873,6 +956,8 @@ func (r *UpdateServiceReconciler) SetupWithManager(mgr ctrl.Manager, namespace s
 		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&routev1.Route{}).
 		Owns(&networkingv1.NetworkPolicy{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.Pod{}).
 		Watches(
 			&apicfgv1.Image{},
