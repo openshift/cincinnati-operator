@@ -146,8 +146,8 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
-  - roles
   - rolebindings
+  - roles
   verbs:
   - create
   - delete
