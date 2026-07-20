@@ -54,6 +54,9 @@ spec:
         - containerPort: 8080
           name: graph-builder
           protocol: TCP
+        - containerPort: 8090
+          name: products-data
+          protocol: TCP
         - containerPort: 9080
           name: status-gb
           protocol: TCP

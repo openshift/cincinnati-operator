@@ -191,6 +191,12 @@ func (k *kubeResources) newGraphBuilderService(instance *cv1.UpdateService) *cor
 					Protocol:   corev1.ProtocolTCP,
 				},
 				{
+					Name:       "products-data",
+					Port:       8090,
+					TargetPort: intstr.FromInt32(8090),
+					Protocol:   corev1.ProtocolTCP,
+				},
+				{
 					Name:       "status-gb",
 					Port:       9080,
 					TargetPort: intstr.FromInt32(9080),
@@ -809,6 +815,11 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 			{
 				Name:          "graph-builder",
 				ContainerPort: 8080,
+				Protocol:      corev1.ProtocolTCP,
+			},
+			{
+				Name:          "products-data",
+				ContainerPort: 8090,
 				Protocol:      corev1.ProtocolTCP,
 			},
 			{

@@ -16,6 +16,10 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: 8080
+  - name: products-data
+    port: 8090
+    protocol: TCP
+    targetPort: 8090
   - name: status-gb
     port: 9080
     protocol: TCP
