@@ -6,6 +6,7 @@ package tlsconfig
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 
 	libgocrypto "github.com/openshift/library-go/pkg/crypto"
@@ -48,7 +49,7 @@ func TLSConfigFromCluster(ctx context.Context, reader client.Reader) (func(*tls.
 
 	observedConfig, errs := apiserver.ObserveTLSSecurityProfile(listers, recorder, map[string]interface{}{})
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("observing TLS security profile: %v", errs[0])
+		return nil, fmt.Errorf("observing TLS security profile: %w", errors.Join(errs...))
 	}
 
 	minVersionStr, _, err := unstructured.NestedString(observedConfig, observedConfigKeyServingInfo, observedConfigKeyMinTLSVersion)
