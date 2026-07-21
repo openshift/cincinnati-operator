@@ -16,12 +16,14 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-06-17T20:26:03Z"
+    console.openshift.io/operator-monitoring-default: "true"
+    createdAt: "2026-07-21T18:06:48Z"
     description: Creates and maintains an OpenShift Update Service instance
     kubernetes.io/description: "This OpenShift Update Service operator Deployment
       reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift
       resources like Cincinnati Deployments and Routes, and it reports the status
       of those components in \nthe UpdateService status.\n"
+    operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-update-service
     operators.operatorframework.io/builder: operator-sdk-v1.31.0-ocp
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
