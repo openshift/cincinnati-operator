@@ -58,7 +58,7 @@ type UpdateServiceReconciler struct {
 // +kubebuilder:rbac:groups="apps",resources=deployments,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch
 // +kubebuilder:rbac:groups="policy",resources=poddisruptionbudgets,verbs=get;list;watch
-// +kubebuilder:rbac:groups=config.openshift.io,resources=images,verbs=get;list;watch
+// +kubebuilder:rbac:groups=config.openshift.io,resources=apiservers;images,verbs=get;list;watch
 // +kubebuilder:rbac:groups=route.openshift.io,resources=routes,verbs=get;list;watch
 // +kubebuilder:rbac:groups=updateservice.operator.openshift.io,resources=*,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets,verbs=create;delete;get;list;patch;update;watch,namespace=openshift-update-service

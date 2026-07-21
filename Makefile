@@ -75,7 +75,7 @@ func-test: deploy
 unit-test:
 	@echo "Executing unit tests"
 	go clean -testcache
-	go test -v ./controllers/...
+	go test -v ./controllers/... ./pkg/...
 
 build: $(SOURCES)
 	go build $(GOBUILDFLAGS) -ldflags="$(GOLDFLAGS)" -o ./update-service-operator ./

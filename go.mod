@@ -5,9 +5,10 @@ go 1.22.0
 require (
 	github.com/go-logr/logr v1.4.2
 	github.com/openshift/api v0.0.0-20240912201240-0a8800162826
+	github.com/openshift/client-go v0.0.0-20240528061634-b054aa794d87
 	github.com/openshift/cluster-image-registry-operator v0.0.0-20210830135433-48485bb2206c
 	github.com/openshift/custom-resource-status v1.1.0
-	github.com/openshift/library-go v0.0.0-20210906100234-6754cfd64cb5
+	github.com/openshift/library-go v0.0.0-20260204121159-64f3fd0bee44
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.30.8
 	k8s.io/apimachinery v0.30.8
@@ -20,6 +21,7 @@ require (
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
@@ -50,6 +52,7 @@ require (
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
+	github.com/robfig/cron v1.2.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
@@ -67,9 +70,13 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.30.1 // indirect
+	k8s.io/apiserver v0.30.1 // indirect
+	k8s.io/component-base v0.30.1 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
+	k8s.io/kube-aggregator v0.30.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
+	sigs.k8s.io/kube-storage-version-migrator v0.0.6-0.20230721195810-5c8923c5ff96 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
