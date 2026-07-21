@@ -4,13 +4,17 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: updateservice-operator
+    name: updateservice-operator
   name: updateservice-operator-metrics-monitor
   namespace: openshift-update-service
 spec:
   endpoints:
     - path: /metrics
       port: https
+      scheme: https
+      tlsConfig:
+        caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+        serverName: updateservice-operator-metrics.openshift-update-service.svc
   selector:
     matchLabels:
-      control-plane: updateservice-operator
+      name: updateservice-operator
