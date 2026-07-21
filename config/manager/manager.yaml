@@ -42,3 +42,15 @@ spec:
               value: "updateservice-operator"
             - name: RELATED_IMAGE_OPERAND
               value: "quay.io/cincinnati/cincinnati:latest"
+          ports:
+            - containerPort: 8443
+              name: https
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /etc/metrics-certs
+              name: metrics-certs
+              readOnly: true
+      volumes:
+        - name: metrics-certs
+          secret:
+            secretName: updateservice-operator-metrics-tls

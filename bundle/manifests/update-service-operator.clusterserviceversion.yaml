@@ -16,7 +16,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-05-14T21:01:52Z"
+    createdAt: "2026-06-17T20:26:03Z"
     description: Creates and maintains an OpenShift Update Service instance
     kubernetes.io/description: "This OpenShift Update Service operator Deployment
       reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift
@@ -124,6 +124,7 @@ spec:
         - apiGroups:
           - config.openshift.io
           resources:
+          - apiservers
           - images
           verbs:
           - get
@@ -192,8 +193,20 @@ spec:
                 image: controller:latest
                 imagePullPolicy: Always
                 name: updateservice-operator
+                ports:
+                - containerPort: 8443
+                  name: https
+                  protocol: TCP
                 resources: {}
+                volumeMounts:
+                - mountPath: /etc/metrics-certs
+                  name: metrics-certs
+                  readOnly: true
               serviceAccountName: updateservice-operator
+              volumes:
+              - name: metrics-certs
+                secret:
+                  secretName: updateservice-operator-metrics-tls
       permissions:
       - rules:
         - apiGroups:

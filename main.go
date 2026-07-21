@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -18,12 +20,14 @@ import (
 
 	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
 	"github.com/openshift/cincinnati-operator/controllers"
+	"github.com/openshift/cincinnati-operator/pkg/tlsconfig"
 	"github.com/openshift/cincinnati-operator/version"
 
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	// +kubebuilder:scaffold:imports
 )
@@ -66,7 +70,7 @@ func getEnvVar(envVarName string) (string, error) {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8443", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -86,10 +90,30 @@ func main() {
 		log.Error(err, "POD_NAMESPACE must be set; unable to start manager")
 		os.Exit(1)
 	}
+
+	restConfig := ctrl.GetConfigOrDie()
+
+	// Read the cluster's TLS security profile from ApiServer configuration
+	// and apply it to the metrics server. Falls back to Intermediate if unavailable.
+	c, err := client.New(restConfig, client.Options{Scheme: scheme})
+	if err != nil {
+		log.Error(err, "unable to create client")
+		os.Exit(1)
+	}
+	tlsOpt, err := tlsconfig.TLSConfigFromCluster(context.Background(), c)
+	if err != nil {
+		log.Error(err, "unable to configure TLS from cluster profile")
+		os.Exit(1)
+	}
+
 	options := ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
+			BindAddress:   metricsAddr,
+			SecureServing: true,
+			CertDir:       "/etc/metrics-certs",
+			TLSOpts:       []func(*tls.Config){tlsOpt},
+			// TODO: add FilterProvider: filters.WithAuthenticationAndAuthorization when upgrading controller-runtime to v0.19+
 		},
 		LeaderElection:   enableLeaderElection,
 		LeaderElectionID: "48ad1930.openshift.io",
@@ -101,7 +125,7 @@ func main() {
 		},
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
+	mgr, err := ctrl.NewManager(restConfig, options)
 	if err != nil {
 		log.Error(err, "unable to start manager")
 		os.Exit(1)
