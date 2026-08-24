@@ -669,9 +669,9 @@ func validateRouteName(instance *cv1.UpdateService, name string, namespace strin
 	if numErrors == 0 {
 		return nil
 	} else if numErrors == 1 {
-		return fmt.Errorf(fmt.Sprintf("UpdateService route name %q %s", routeName, errReasons[0]))
+		return fmt.Errorf("UpdateService route name %q %s", routeName, errReasons[0])
 	}
-	return fmt.Errorf(fmt.Sprintf("UpdateService route name %q %s Route name %s", routeName, errReasons[0], errReasons[1]))
+	return fmt.Errorf("UpdateService route name %q %s Route name %s", routeName, errReasons[0], errReasons[1])
 }
 
 func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {
