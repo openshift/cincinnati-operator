@@ -16,7 +16,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-05-14T21:01:52Z"
+    createdAt: "2026-09-01T13:08:47Z"
     description: Creates and maintains an OpenShift Update Service instance
     kubernetes.io/description: "This OpenShift Update Service operator Deployment
       reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift
@@ -190,7 +190,7 @@ spec:
                 - name: RELATED_IMAGE_OPERAND
                   value: quay.io/cincinnati/cincinnati:latest
                 image: controller:latest
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 name: updateservice-operator
                 resources: {}
               serviceAccountName: updateservice-operator

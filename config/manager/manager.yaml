@@ -28,7 +28,7 @@ spec:
       containers:
         - name: updateservice-operator
           image: controller:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           env:
             - name: POD_NAME
               valueFrom:
