@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: operator-egress-openshift-api
+  namespace: openshift-update-service
+  annotations:
+    description: |
+      Allows the Cincinnati operator to communicate with the OpenShift API server.
+      This is required for the operator to manage UpdateService resources and their owned resources.
+  labels:
+    app.kubernetes.io/name: update-service-operator
+    app.kubernetes.io/component: network-policy
+spec:
+  # Target operator pods only
+  podSelector:
+    matchLabels:
+      name: updateservice-operator
+  policyTypes:
+    - Egress
+  egress:
+    # Allow OpenShift API server communication via kubernetes service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: default
+          podSelector:
+            matchLabels:
+              component: apiserver
+      ports:
+        - protocol: TCP
+          port: 443   # HTTPS API server (kubernetes service)
+        - protocol: TCP
+          port: 6443  # Direct API server port
+    # Allow OpenShift API server pods (master nodes)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-kube-apiserver
+      ports:
+        - protocol: TCP
+          port: 6443
+    # Allow OpenShift OAuth API server
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-oauth-apiserver
+      ports:
+        - protocol: TCP
+          port: 8443
