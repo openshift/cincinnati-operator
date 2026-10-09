@@ -1,0 +1,5 @@
+---
+packageName: update-service-operator
+channels:
+- name: stable-5.0
+  currentCSV: update-service-operator.v5.0.5
