@@ -1,0 +1,6 @@
+---
+updates:
+- file: "manifests/update-service-operator.clusterserviceversion.yaml"
+  update_list:
+  - search: "5.0.2-dev"
+    replace: "5.0.5"

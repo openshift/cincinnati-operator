@@ -1,0 +1,13 @@
+---
+kind: ImageStream
+apiVersion: image.openshift.io/v1
+spec:
+  tags:
+  - name: openshift-update-service-rhel8
+    from:
+      kind: DockerImage
+      name: quay.io/cincinnati/cincinnati:latest
+  - name: openshift-update-service-rhel8-operator
+    from:
+      kind: DockerImage
+      name: controller:latest
