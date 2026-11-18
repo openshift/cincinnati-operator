@@ -70,10 +70,10 @@ spec:
         resources:
           limits:
             cpu: 750m
-            memory: 512Mi
+            memory: 768Mi
           requests:
             cpu: 150m
-            memory: 64Mi
+            memory: 128Mi
         volumeMounts:
         - mountPath: /etc/configs
           name: configs
@@ -168,10 +168,10 @@ spec:
         resources:
           limits:
             cpu: 750m
-            memory: 512Mi
+            memory: 1Gi
           requests:
             cpu: 150m
-            memory: 64Mi
+            memory: 128Mi
       initContainers:
       - image: example.com/library/graph-data@sha256:123
         imagePullPolicy: Always

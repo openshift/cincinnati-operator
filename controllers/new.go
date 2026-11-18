@@ -820,12 +820,16 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 		Env: gbENV,
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(750, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(512*1024*1024, resource.BinarySI),
+				corev1.ResourceCPU: *resource.NewMilliQuantity(750, resource.DecimalSI),
+				// 768Mi matches the limit the Red Hat-hosted Cincinnati deployment
+				// runs with.  512Mi is no longer enough to scrape a release
+				// repository the size of quay.io/openshift-release-dev/ocp-release,
+				// and graph-builder gets OOMKilled into CrashLoopBackOff.
+				corev1.ResourceMemory: *resource.NewQuantity(768*1024*1024, resource.BinarySI),
 			},
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    *resource.NewMilliQuantity(150, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
+				corev1.ResourceMemory: *resource.NewQuantity(128*1024*1024, resource.BinarySI),
 			},
 		},
 		VolumeMounts: k.graphBuilderVolumeMounts,
@@ -945,12 +949,15 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 		},
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(750, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(512*1024*1024, resource.BinarySI),
+				corev1.ResourceCPU: *resource.NewMilliQuantity(750, resource.DecimalSI),
+				// 1Gi matches the limit the Red Hat-hosted Cincinnati deployment
+				// runs with.  policy-engine holds the whole graph in memory, so it
+				// grows with the release repository just as graph-builder does.
+				corev1.ResourceMemory: *resource.NewQuantity(1024*1024*1024, resource.BinarySI),
 			},
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    *resource.NewMilliQuantity(150, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
+				corev1.ResourceMemory: *resource.NewQuantity(128*1024*1024, resource.BinarySI),
 			},
 		},
 		LivenessProbe: &corev1.Probe{
