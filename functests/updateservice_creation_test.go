@@ -8,9 +8,11 @@ import (
 	"testing"
 
 	updateservicev1 "github.com/openshift/cincinnati-operator/api/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apiresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -72,6 +74,23 @@ func TestCustomResource(t *testing.T) {
 	if err := waitForDeployment(ctx, k8sClient, customResourceName); err != nil {
 		t.Fatal(err)
 	}
+
+	expectedResources := map[string]containerResourceExpectation{
+		"graph-builder": {
+			limits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "256Mi"},
+			requests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "32Mi"},
+		},
+		"policy-engine": {
+			limits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "512Mi"},
+			requests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		},
+	}
+	deployment, err := k8sClient.AppsV1().Deployments(operatorNamespace).Get(ctx, customResourceName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifyDeploymentResources(t, deployment, expectedResources)
+	t.Log("Operand container resources validated")
 
 	labelSelector = metav1.LabelSelector{MatchLabels: map[string]string{"app": customResourceName}}
 	listOptions = metav1.ListOptions{
@@ -298,4 +317,42 @@ func TestCustomResource(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("NetworkPolicy %s garbage-collected after CR deletion", customResourceName)
+}
+
+type containerResourceExpectation struct {
+	limits   map[corev1.ResourceName]string
+	requests map[corev1.ResourceName]string
+}
+
+func verifyDeploymentResources(t *testing.T, deployment *appsv1.Deployment, expected map[string]containerResourceExpectation) {
+	t.Helper()
+	for containerName, want := range expected {
+		var container *corev1.Container
+		for i := range deployment.Spec.Template.Spec.Containers {
+			if deployment.Spec.Template.Spec.Containers[i].Name == containerName {
+				container = &deployment.Spec.Template.Spec.Containers[i]
+				break
+			}
+		}
+		if container == nil {
+			t.Errorf("container %q not found in deployment %q", containerName, deployment.Name)
+			continue
+		}
+		verifyResourceQuantities(t, containerName, "limit", want.limits, container.Resources.Limits)
+		verifyResourceQuantities(t, containerName, "request", want.requests, container.Resources.Requests)
+	}
+}
+
+func verifyResourceQuantities(t *testing.T, containerName, kind string, expected map[corev1.ResourceName]string, actual corev1.ResourceList) {
+	t.Helper()
+	for name, quantity := range expected {
+		actualQuantity, ok := actual[name]
+		if !ok {
+			t.Errorf("container %q: missing %s for %s", containerName, kind, name)
+			continue
+		}
+		if !apiresource.MustParse(quantity).Equal(actualQuantity) {
+			t.Errorf("container %q: expected %s %s %s, got %s", containerName, kind, name, quantity, actualQuantity.String())
+		}
+	}
 }

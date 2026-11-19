@@ -9,3 +9,9 @@ spec:
   graphDataImage: your-registry/your-repo/your-init-container
   releases: quay.io/openshift-ota/openshift-cincinnati-test-public-manual
   replicas: 1
+  resources:
+    graphBuilder:
+      limits:
+        memory: 256Mi
+      requests:
+        memory: 32Mi
