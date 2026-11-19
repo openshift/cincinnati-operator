@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/yaml"
@@ -379,5 +380,108 @@ func Test_newNetworkPolicy_egress_namespace(t *testing.T) {
 				assert.Equal(t, tc.wantNamespace, registryEgress.To[0].NamespaceSelector.MatchLabels["kubernetes.io/metadata.name"])
 			}
 		})
+	}
+}
+
+func Test_mergeResourceRequirements(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		overrides        cv1.ResourceRequirements
+		expectedLimits   map[corev1.ResourceName]string
+		expectedRequests map[corev1.ResourceName]string
+	}{
+		{
+			name:             "no overrides keeps defaults",
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "512Mi"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		},
+		{
+			name: "memory limit override keeps other defaults",
+			overrides: cv1.ResourceRequirements{
+				Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+			},
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "2Gi"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		},
+		{
+			name: "request override keeps other defaults",
+			overrides: cv1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("256Mi")},
+			},
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "512Mi"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "256Mi"},
+		},
+		{
+			name: "new resource can be added",
+			overrides: cv1.ResourceRequirements{
+				Limits: corev1.ResourceList{corev1.ResourceName("example.com/gpu"): resource.MustParse("1")},
+			},
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "512Mi", corev1.ResourceName("example.com/gpu"): "1"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := mergeResourceRequirements(defaultOperandResources(), tc.overrides)
+			assertResourceList(t, tc.expectedLimits, actual.Limits)
+			assertResourceList(t, tc.expectedRequests, actual.Requests)
+		})
+	}
+}
+
+func Test_newKubeResources_resources(t *testing.T) {
+	sample := &cv1.UpdateService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sample",
+			Namespace: "sample-ns",
+		},
+		Spec: cv1.UpdateServiceSpec{
+			GraphDataImage: "example.com/library/graph-data@sha256:123",
+			Releases:       "example.com/library/xyz@sha256:123",
+			Resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+				},
+				PolicyEngine: cv1.ResourceRequirements{
+					Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")},
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("500m")},
+				},
+			},
+		},
+	}
+
+	actual, actualErr := newKubeResources(
+		sample,
+		"image",
+		&corev1.Secret{Data: map[string][]byte{"a": []byte("b")}},
+		&corev1.ConfigMap{Data: map[string]string{"a": "b"}},
+		nil,
+	)
+	assert.Nil(t, actualErr)
+
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "2Gi"},
+		actual.graphBuilderContainer.Resources.Limits)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		actual.graphBuilderContainer.Resources.Requests)
+
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "1Gi"},
+		actual.policyEngineContainer.Resources.Limits)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "500m", corev1.ResourceMemory: "64Mi"},
+		actual.policyEngineContainer.Resources.Requests)
+}
+
+func assertResourceList(t *testing.T, expected map[corev1.ResourceName]string, actual corev1.ResourceList) {
+	t.Helper()
+	assert.Len(t, actual, len(expected))
+	for name, quantity := range expected {
+		actualQuantity, ok := actual[name]
+		if !assert.True(t, ok, "missing resource %s", name) {
+			continue
+		}
+		assert.True(t, resource.MustParse(quantity).Equal(actualQuantity),
+			"%s: expected %s, got %s", name, quantity, actualQuantity.String())
 	}
 }
