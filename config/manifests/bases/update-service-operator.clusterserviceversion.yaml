@@ -40,6 +40,13 @@ spec:
           all times.
         displayName: Replicas
         path: replicas
+      - description: resources allows customizing the compute resource requests and
+          limits of the graph-builder and policy-engine containers.  Values specified
+          here override the operator defaults for the corresponding container; any
+          value left unset keeps its default.  Raising the graph-builder memory limit
+          is useful when scraping a release repository with many tags.
+        displayName: Resources
+        path: resources
       statusDescriptors:
       - description: Conditions describe the state of the UpdateService resource.
         displayName: Conditions

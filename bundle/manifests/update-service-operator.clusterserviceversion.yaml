@@ -16,7 +16,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-09-01T13:08:47Z"
+    createdAt: "2026-11-19T20:28:43Z"
     description: Creates and maintains an OpenShift Update Service instance
     kubernetes.io/description: "This OpenShift Update Service operator Deployment
       reconciles local UpdateServices into more fundamental Kubernetes\nand OpenShift
@@ -53,6 +53,13 @@ spec:
           all times.
         displayName: Replicas
         path: replicas
+      - description: resources allows customizing the compute resource requests and
+          limits of the graph-builder and policy-engine containers.  Values specified
+          here override the operator defaults for the corresponding container; any
+          value left unset keeps its default.  Raising the graph-builder memory limit
+          is useful when scraping a release repository with many tags.
+        displayName: Resources
+        path: resources
       statusDescriptors:
       - description: Conditions describe the state of the UpdateService resource.
         displayName: Conditions
