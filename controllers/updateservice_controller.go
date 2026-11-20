@@ -15,10 +15,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -113,6 +116,21 @@ func (r *UpdateServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			reqLogger.Error(err, "Failed to update Status")
 		}
 		reqLogger.Error(err, "Unable to create UpdateService route")
+		return ctrl.Result{}, nil
+	}
+
+	if err := validateResources(newOperandResources(instanceCopy)); err != nil {
+		conditionsv1.SetStatusCondition(&instanceCopy.Status.Conditions, conditionsv1.Condition{
+			Type:    cv1.ConditionReconcileError,
+			Status:  corev1.ConditionTrue,
+			Reason:  "Invalid resource requirements",
+			Message: err.Error(),
+		})
+		if updateErr := r.Client.Status().Update(ctx, instanceCopy); updateErr != nil {
+			reqLogger.Error(updateErr, "Failed to update Status")
+			return ctrl.Result{}, updateErr
+		}
+		reqLogger.Error(err, "Invalid resource requirements")
 		return ctrl.Result{}, nil
 	}
 
@@ -504,26 +522,10 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 		containers[i].Ports = original.Ports
 		containers[i].Env = original.Env
 
-		// Resources don't seem to work with DeepEqual, so we check equality
-		// manually.
-		if containers[i].Resources.Limits == nil {
-			containers[i].Resources.Limits = corev1.ResourceList{}
-		}
-		for k, origVal := range original.Resources.Limits {
-			value, ok := containers[i].Resources.Limits[k]
-			if !ok || !origVal.Equal(value) {
-				containers[i].Resources.Limits[k] = origVal
-			}
-		}
-		if containers[i].Resources.Requests == nil {
-			containers[i].Resources.Requests = corev1.ResourceList{}
-		}
-		for k, origVal := range original.Resources.Requests {
-			value, ok := containers[i].Resources.Requests[k]
-			if !ok || !origVal.Equal(value) {
-				containers[i].Resources.Requests[k] = origVal
-			}
-		}
+		// Take the generated resources wholesale.  The update decision below
+		// uses apiequality.Semantic, which compares quantities by value, so a
+		// live quantity in a different representation does not cause an update.
+		containers[i].Resources = *original.Resources.DeepCopy()
 		containers[i].VolumeMounts = original.VolumeMounts
 		containers[i].LivenessProbe = original.LivenessProbe
 		containers[i].ReadinessProbe = original.ReadinessProbe
@@ -556,7 +558,7 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 		initContainers = append([]corev1.Container(nil), initContainers[graphDataInitContainerIdx])
 	}
 
-	if !reflect.DeepEqual(updated.Spec, found.Spec) {
+	if !equality.Semantic.DeepEqual(updated.Spec, found.Spec) {
 		reqLogger.Info("Updating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
 		err = r.Client.Update(ctx, updated)
 		if err != nil {
@@ -679,6 +681,186 @@ func validateRouteName(instance *cv1.UpdateService, name string, namespace strin
 		return fmt.Errorf(fmt.Sprintf("UpdateService route name %q %s", routeName, errReasons[0]))
 	}
 	return fmt.Errorf(fmt.Sprintf("UpdateService route name %q %s Route name %s", routeName, errReasons[0], errReasons[1]))
+}
+
+// validateResources checks the requirements that newOperandResources computed
+// for the operand containers.
+//
+// The operand Deployment is validated by the API server when it is created,
+// but a rejected pod template would only show up as a failing reconcile.  These
+// checks surface the same problems as a status condition with a message that
+// names the offending container.
+//
+// The rules mirror ValidateResourceRequirements and ValidateResourceQuantityValue
+// in k8s.io/kubernetes/pkg/apis/core/validation and the helpers in
+// k8s.io/kubernetes/pkg/apis/core/helper.  That package cannot be imported, so
+// the rules are reimplemented here.
+func validateResources(resources operandResources) error {
+	var errReasons []string
+
+	for _, container := range []struct {
+		name         string
+		requirements corev1.ResourceRequirements
+	}{
+		{name: NameContainerGraphBuilder, requirements: resources.graphBuilder},
+		{name: NameContainerPolicyEngine, requirements: resources.policyEngine},
+	} {
+		errReasons = append(errReasons, validateContainerResources(container.name, container.requirements)...)
+	}
+
+	if len(errReasons) == 0 {
+		return nil
+	}
+	return fmt.Errorf("invalid spec.resources: %s", strings.Join(errReasons, "; "))
+}
+
+// validateContainerResources checks a single container's resource requirements
+// the way the API server does when it admits a Pod.
+func validateContainerResources(containerName string, requirements corev1.ResourceRequirements) []string {
+	var errReasons []string
+	limContainsCPUOrMemory := false
+	reqContainsCPUOrMemory := false
+	limContainsHugePages := false
+	reqContainsHugePages := false
+
+	for resourceName, quantity := range requirements.Limits {
+		errReasons = append(errReasons,
+			validateContainerResourceQuantity(containerName, "limit", resourceName, quantity)...)
+		limContainsCPUOrMemory = limContainsCPUOrMemory || isCPUOrMemoryResource(resourceName)
+		limContainsHugePages = limContainsHugePages || isHugePageResourceName(resourceName)
+	}
+
+	for resourceName, quantity := range requirements.Requests {
+		errReasons = append(errReasons,
+			validateContainerResourceQuantity(containerName, "request", resourceName, quantity)...)
+
+		limit, hasLimit := requirements.Limits[resourceName]
+		switch {
+		case hasLimit && !isOvercommitAllowed(resourceName) && quantity.Cmp(limit) != 0:
+			errReasons = append(errReasons, fmt.Sprintf(
+				"%s container: request for %s (%s) must equal the limit (%s) because %s cannot be overcommitted",
+				containerName, resourceName, quantity.String(), limit.String(), resourceName))
+		case hasLimit && isOvercommitAllowed(resourceName) && quantity.Cmp(limit) > 0:
+			errReasons = append(errReasons, fmt.Sprintf(
+				"%s container: request for %s (%s) must not exceed the limit (%s)",
+				containerName, resourceName, quantity.String(), limit.String()))
+		case !hasLimit && !isOvercommitAllowed(resourceName):
+			errReasons = append(errReasons, fmt.Sprintf(
+				"%s container: a limit for %s must be set because %s cannot be overcommitted",
+				containerName, resourceName, resourceName))
+		}
+
+		reqContainsCPUOrMemory = reqContainsCPUOrMemory || isCPUOrMemoryResource(resourceName)
+		reqContainsHugePages = reqContainsHugePages || isHugePageResourceName(resourceName)
+	}
+
+	if !limContainsCPUOrMemory && !reqContainsCPUOrMemory && (limContainsHugePages || reqContainsHugePages) {
+		errReasons = append(errReasons,
+			fmt.Sprintf("%s container: hugepages require a cpu or memory request or limit", containerName))
+	}
+
+	return errReasons
+}
+
+// validateContainerResourceQuantity checks one limit or request entry.
+func validateContainerResourceQuantity(containerName, kind string, name corev1.ResourceName, quantity resource.Quantity) []string {
+	var errReasons []string
+	if err := validateContainerResourceName(name); err != nil {
+		errReasons = append(errReasons, fmt.Sprintf("%s container: %s name %q %s", containerName, kind, name, err))
+	}
+	if quantity.Sign() < 0 {
+		errReasons = append(errReasons, fmt.Sprintf("%s container: %s for %s must not be negative", containerName, kind, name))
+	}
+	if isExtendedResourceName(name) && quantity.MilliValue()%1000 != 0 {
+		errReasons = append(errReasons,
+			fmt.Sprintf("%s container: %s for %s (%s) must be an integer", containerName, kind, name, quantity.String()))
+	}
+	if err := validateHugePageQuantity(name, quantity); err != nil {
+		errReasons = append(errReasons, fmt.Sprintf("%s container: %s for %s: %s", containerName, kind, name, err))
+	}
+	return errReasons
+}
+
+// validateHugePageQuantity implements IsHugePageResourceValueDivisible: a
+// hugepage quantity must be a multiple of the page size in the resource name.
+func validateHugePageQuantity(name corev1.ResourceName, quantity resource.Quantity) error {
+	if !isHugePageResourceName(name) {
+		return nil
+	}
+	pageSize, err := resource.ParseQuantity(strings.TrimPrefix(string(name), corev1.ResourceHugePagesPrefix))
+	if err != nil {
+		return fmt.Errorf("resource name has an invalid hugepage page size")
+	}
+	// Value and MilliValue silently overflow for quantities outside the int64
+	// range, so reject an overflowing page size before dividing by it.
+	maxPageSize := *resource.NewQuantity(1<<63-1, resource.BinarySI)
+	pageSizeBytes := pageSize.Value()
+	if pageSize.Sign() <= 0 || pageSize.Cmp(maxPageSize) > 0 ||
+		pageSizeBytes <= 0 || pageSize.MilliValue()%1000 != 0 {
+		return fmt.Errorf("resource name has an invalid hugepage page size")
+	}
+	if quantity.Value()%pageSizeBytes != 0 {
+		return fmt.Errorf("%s is not a positive integer multiple of the %s page size", quantity.String(), name)
+	}
+	return nil
+}
+
+// validateContainerResourceName accepts only the resource names Kubernetes
+// allows on a container: the standard compute resources, hugepages, and
+// qualified extended resources.
+func validateContainerResourceName(name corev1.ResourceName) error {
+	if errs := validation.IsQualifiedName(string(name)); len(errs) > 0 {
+		return fmt.Errorf("must be a valid resource name: %s", strings.Join(errs, "; "))
+	}
+	if !strings.Contains(string(name), "/") {
+		if isStandardContainerResource(name) {
+			return nil
+		}
+		return fmt.Errorf("must be a standard resource for containers")
+	}
+	if isNativeResource(name) {
+		// The API server lets names in the reserved kubernetes.io namespace
+		// through, but nothing consumes them on a container, so reject them
+		// instead of silently ignoring the request.
+		return fmt.Errorf("must not use the reserved %q namespace", corev1.ResourceDefaultNamespacePrefix)
+	}
+	if isExtendedResourceName(name) {
+		return nil
+	}
+	return fmt.Errorf("must be a fully qualified extended resource name")
+}
+
+func isStandardContainerResource(name corev1.ResourceName) bool {
+	return isCPUOrMemoryResource(name) ||
+		name == corev1.ResourceEphemeralStorage ||
+		isHugePageResourceName(name)
+}
+
+func isCPUOrMemoryResource(name corev1.ResourceName) bool {
+	return name == corev1.ResourceCPU || name == corev1.ResourceMemory
+}
+
+func isHugePageResourceName(name corev1.ResourceName) bool {
+	return strings.HasPrefix(string(name), corev1.ResourceHugePagesPrefix)
+}
+
+// isNativeResource matches helper.IsNativeResource: a name is native when it has
+// no domain, or when it carries the reserved kubernetes.io domain anywhere in
+// the name, including a subdomain such as example.kubernetes.io/gpu.
+func isNativeResource(name corev1.ResourceName) bool {
+	return !strings.Contains(string(name), "/") ||
+		strings.Contains(string(name), corev1.ResourceDefaultNamespacePrefix)
+}
+
+func isExtendedResourceName(name corev1.ResourceName) bool {
+	if isNativeResource(name) || strings.HasPrefix(string(name), corev1.DefaultResourceRequestsPrefix) {
+		return false
+	}
+	return len(validation.IsQualifiedName(corev1.DefaultResourceRequestsPrefix+string(name))) == 0
+}
+
+func isOvercommitAllowed(name corev1.ResourceName) bool {
+	return isNativeResource(name) && !isHugePageResourceName(name)
 }
 
 func (r *UpdateServiceReconciler) ensurePolicyEngineRoute(ctx context.Context, reqLogger logr.Logger, instance *cv1.UpdateService, resources *kubeResources) error {

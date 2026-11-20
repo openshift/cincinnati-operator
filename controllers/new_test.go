@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/yaml"
@@ -379,5 +380,409 @@ func Test_newNetworkPolicy_egress_namespace(t *testing.T) {
 				assert.Equal(t, tc.wantNamespace, registryEgress.To[0].NamespaceSelector.MatchLabels["kubernetes.io/metadata.name"])
 			}
 		})
+	}
+}
+
+func Test_mergeResourceRequirements(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		overrides        cv1.ResourceRequirements
+		expectedLimits   map[corev1.ResourceName]string
+		expectedRequests map[corev1.ResourceName]string
+	}{
+		{
+			name:             "no overrides keeps defaults",
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "512Mi"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		},
+		{
+			name: "memory limit override keeps other defaults",
+			overrides: cv1.ResourceRequirements{
+				Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+			},
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "2Gi"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		},
+		{
+			name: "request override keeps other defaults",
+			overrides: cv1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("256Mi")},
+			},
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "512Mi"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "256Mi"},
+		},
+		{
+			name: "new resource can be added",
+			overrides: cv1.ResourceRequirements{
+				Limits: corev1.ResourceList{corev1.ResourceName("example.com/gpu"): resource.MustParse("1")},
+			},
+			expectedLimits:   map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "512Mi", corev1.ResourceName("example.com/gpu"): "1"},
+			expectedRequests: map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := mergeResourceRequirements(defaultOperandResources(), tc.overrides)
+			assertResourceList(t, tc.expectedLimits, actual.Limits)
+			assertResourceList(t, tc.expectedRequests, actual.Requests)
+		})
+	}
+}
+
+func Test_newOperandResources(t *testing.T) {
+	instance := &cv1.UpdateService{
+		Spec: cv1.UpdateServiceSpec{
+			Resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+				},
+				PolicyEngine: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2")},
+				},
+			},
+		},
+	}
+
+	actual := newOperandResources(instance)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "2Gi"},
+		actual.graphBuilder.Limits)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		actual.graphBuilder.Requests)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "2", corev1.ResourceMemory: "512Mi"},
+		actual.policyEngine.Limits)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		actual.policyEngine.Requests)
+}
+
+func Test_newKubeResources_resources(t *testing.T) {
+	sample := &cv1.UpdateService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "sample",
+			Namespace: "sample-ns",
+		},
+		Spec: cv1.UpdateServiceSpec{
+			GraphDataImage: "example.com/library/graph-data@sha256:123",
+			Releases:       "example.com/library/xyz@sha256:123",
+			Resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+				},
+				PolicyEngine: cv1.ResourceRequirements{
+					Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")},
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("500m")},
+				},
+			},
+		},
+	}
+
+	actual, actualErr := newKubeResources(
+		sample,
+		"image",
+		&corev1.Secret{Data: map[string][]byte{"a": []byte("b")}},
+		&corev1.ConfigMap{Data: map[string]string{"a": "b"}},
+		nil,
+	)
+	assert.Nil(t, actualErr)
+
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "2Gi"},
+		actual.graphBuilderContainer.Resources.Limits)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		actual.graphBuilderContainer.Resources.Requests)
+
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "1Gi"},
+		actual.policyEngineContainer.Resources.Limits)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "500m", corev1.ResourceMemory: "64Mi"},
+		actual.policyEngineContainer.Resources.Requests)
+}
+
+func Test_validateResources(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		resources cv1.UpdateServiceResources
+		expected  []string
+	}{
+		{
+			name: "defaults are valid",
+		},
+		{
+			name: "raising graph-builder memory limit and request is valid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+					Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")},
+				},
+			},
+		},
+		{
+			name: "request above the merged default limit is invalid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi")},
+				},
+			},
+			expected: []string{"graph-builder container: request for memory (1Gi) must not exceed the limit (512Mi)"},
+		},
+		{
+			name: "negative policy-engine limit is invalid",
+			resources: cv1.UpdateServiceResources{
+				PolicyEngine: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("-1Mi")},
+				},
+			},
+			expected: []string{"policy-engine container: limit for memory must not be negative"},
+		},
+		{
+			name: "qualified extended resource is valid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("example.com/gpu"): resource.MustParse("1")},
+				},
+			},
+		},
+		{
+			name: "extended resource must be an integer",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("example.com/gpu"): resource.MustParse("500m")},
+				},
+			},
+			expected: []string{"graph-builder container: limit for example.com/gpu (500m) must be an integer"},
+		},
+		{
+			name: "hugepage limit is valid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("hugepages-2Mi"): resource.MustParse("64Mi")},
+				},
+			},
+		},
+		{
+			name: "hugepage amount must be a multiple of the page size",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("hugepages-2Mi"): resource.MustParse("3Mi")},
+				},
+			},
+			expected: []string{"graph-builder container: limit for hugepages-2Mi: 3Mi is not a positive integer multiple of the hugepages-2Mi page size"},
+		},
+		{
+			name: "hugepage page size must not overflow an int64",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("hugepages-1e100"): resource.MustParse("1")},
+				},
+			},
+			expected: []string{"graph-builder container: limit for hugepages-1e100: resource name has an invalid hugepage page size"},
+		},
+		{
+			name: "hugepage request must equal the limit",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits:   corev1.ResourceList{corev1.ResourceName("hugepages-2Mi"): resource.MustParse("64Mi")},
+					Requests: corev1.ResourceList{corev1.ResourceName("hugepages-2Mi"): resource.MustParse("32Mi")},
+				},
+			},
+			expected: []string{"graph-builder container: request for hugepages-2Mi (32Mi) must equal the limit (64Mi) because hugepages-2Mi cannot be overcommitted"},
+		},
+		{
+			name: "misspelled native resource name is invalid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("memroy"): resource.MustParse("1Gi")},
+				},
+			},
+			expected: []string{`graph-builder container: limit name "memroy" must be a standard resource for containers`},
+		},
+		{
+			name: "invalid resource name in requests is invalid",
+			resources: cv1.UpdateServiceResources{
+				PolicyEngine: cv1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceName("memroy"): resource.MustParse("1Gi")},
+				},
+			},
+			expected: []string{`policy-engine container: request name "memroy" must be a standard resource for containers`},
+		},
+		{
+			name: "reserved kubernetes.io domain is invalid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("kubernetes.io/foo"): resource.MustParse("1")},
+				},
+			},
+			expected: []string{`graph-builder container: limit name "kubernetes.io/foo" must not use the reserved "kubernetes.io/" namespace`},
+		},
+		{
+			name: "reserved kubernetes.io subdomain is invalid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("example.kubernetes.io/gpu"): resource.MustParse("1")},
+				},
+			},
+			expected: []string{`graph-builder container: limit name "example.kubernetes.io/gpu" must not use the reserved "kubernetes.io/" namespace`},
+		},
+		{
+			name: "malformed extended resource name is invalid",
+			resources: cv1.UpdateServiceResources{
+				GraphBuilder: cv1.ResourceRequirements{
+					Limits: corev1.ResourceList{corev1.ResourceName("Example.com/gpu"): resource.MustParse("1")},
+				},
+			},
+			expected: []string{"must be a valid resource name"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			instance := &cv1.UpdateService{
+				Spec: cv1.UpdateServiceSpec{Resources: tc.resources},
+			}
+			err := validateResources(newOperandResources(instance))
+			if len(tc.expected) == 0 {
+				assert.NoError(t, err)
+				return
+			}
+			if !assert.Error(t, err) {
+				return
+			}
+			assert.Contains(t, err.Error(), "invalid spec.resources: ")
+			for _, expected := range tc.expected {
+				assert.Contains(t, err.Error(), expected)
+			}
+		})
+	}
+}
+
+func Test_validateContainerResources(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		requirements corev1.ResourceRequirements
+		expected     []string
+	}{
+		{
+			name: "operand defaults are valid",
+			requirements: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("750m"),
+					corev1.ResourceMemory: resource.MustParse("512Mi"),
+				},
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("150m"),
+					corev1.ResourceMemory: resource.MustParse("64Mi"),
+				},
+			},
+		},
+		{
+			name: "ephemeral storage can be requested",
+			requirements: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceEphemeralStorage: resource.MustParse("1Gi")},
+				Requests: corev1.ResourceList{corev1.ResourceEphemeralStorage: resource.MustParse("500Mi")},
+			},
+		},
+		{
+			name: "hugepages require cpu or memory",
+			requirements: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{corev1.ResourceName("hugepages-2Mi"): resource.MustParse("64Mi")},
+			},
+			expected: []string{"hugepages require a cpu or memory request or limit"},
+		},
+		{
+			name: "hugepages require a limit",
+			requirements: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("512Mi")},
+				Requests: corev1.ResourceList{corev1.ResourceName("hugepages-2Mi"): resource.MustParse("64Mi")},
+			},
+			expected: []string{"a limit for hugepages-2Mi must be set because hugepages-2Mi cannot be overcommitted"},
+		},
+		{
+			name: "hugepage page size must divide the quantity",
+			requirements: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory:                resource.MustParse("512Mi"),
+					corev1.ResourceName("hugepages-1Gi"): resource.MustParse("1500Mi"),
+				},
+			},
+			expected: []string{"1500Mi is not a positive integer multiple of the hugepages-1Gi page size"},
+		},
+		{
+			name: "hugepage page size must be a whole quantity",
+			requirements: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory:                resource.MustParse("512Mi"),
+					corev1.ResourceName("hugepages-1.5"): resource.MustParse("3Mi"),
+				},
+			},
+			expected: []string{"resource name has an invalid hugepage page size"},
+		},
+		{
+			name: "hugepage page size must be numeric",
+			requirements: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory:                  resource.MustParse("512Mi"),
+					corev1.ResourceName("hugepages-giant"): resource.MustParse("3Mi"),
+				},
+			},
+			expected: []string{"resource name has an invalid hugepage page size"},
+		},
+		{
+			name: "hugepage page size must not overflow an int64",
+			requirements: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory:                  resource.MustParse("512Mi"),
+					corev1.ResourceName("hugepages-1e100"): resource.MustParse("1"),
+				},
+			},
+			expected: []string{"resource name has an invalid hugepage page size"},
+		},
+		{
+			name: "extended resource requires a limit",
+			requirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceName("example.com/gpu"): resource.MustParse("1")},
+			},
+			expected: []string{"a limit for example.com/gpu must be set because example.com/gpu cannot be overcommitted"},
+		},
+		{
+			name: "extended resource request must equal the limit",
+			requirements: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceName("example.com/gpu"): resource.MustParse("2")},
+				Requests: corev1.ResourceList{corev1.ResourceName("example.com/gpu"): resource.MustParse("1")},
+			},
+			expected: []string{"request for example.com/gpu (1) must equal the limit (2)"},
+		},
+		{
+			name: "storage is not a container resource",
+			requirements: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{corev1.ResourceName("storage"): resource.MustParse("1Gi")},
+			},
+			expected: []string{`limit name "storage" must be a standard resource for containers`},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			errReasons := validateContainerResources("operand", tc.requirements)
+			if len(tc.expected) == 0 {
+				assert.Empty(t, errReasons)
+				return
+			}
+			joined := strings.Join(errReasons, "; ")
+			for _, expected := range tc.expected {
+				assert.Contains(t, joined, expected)
+			}
+		})
+	}
+}
+func assertResourceList(t *testing.T, expected map[corev1.ResourceName]string, actual corev1.ResourceList) {
+	t.Helper()
+	assert.Len(t, actual, len(expected))
+	for name, quantity := range expected {
+		actualQuantity, ok := actual[name]
+		if !assert.True(t, ok, "missing resource %s", name) {
+			continue
+		}
+		assert.True(t, resource.MustParse(quantity).Equal(actualQuantity),
+			"%s: expected %s, got %s", name, quantity, actualQuantity.String())
 	}
 }

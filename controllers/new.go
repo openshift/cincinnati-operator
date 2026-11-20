@@ -89,6 +89,7 @@ type kubeResources struct {
 	graphBuilderContainer    *corev1.Container
 	graphDataInitContainer   *corev1.Container
 	policyEngineContainer    *corev1.Container
+	operandResources         operandResources
 	graphBuilderService      *corev1.Service
 	policyEngineService      *corev1.Service
 	policyEngineRoute        *routev1.Route
@@ -102,7 +103,7 @@ type kubeResources struct {
 }
 
 func newKubeResources(instance *cv1.UpdateService, image string, pullSecret *corev1.Secret, caConfigMap *corev1.ConfigMap, clusterCA *corev1.ConfigMap) (*kubeResources, error) {
-	k := kubeResources{}
+	k := kubeResources{operandResources: newOperandResources(instance)}
 
 	gbConfig, err := k.newGraphBuilderConfig(instance)
 	if err != nil {
@@ -762,6 +763,63 @@ func (k *kubeResources) newGraphDataInitContainer(instance *cv1.UpdateService) *
 	}
 }
 
+// defaultOperandResources returns the resource requirements applied to the
+// graph-builder and policy-engine containers when the UpdateService does not
+// override them.
+func defaultOperandResources() corev1.ResourceRequirements {
+	return corev1.ResourceRequirements{
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(750, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(512*1024*1024, resource.BinarySI),
+		},
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    *resource.NewMilliQuantity(150, resource.DecimalSI),
+			corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
+		},
+	}
+}
+
+// operandResources holds the requirements applied to the operand containers,
+// after spec.resources is merged onto the operator defaults.
+type operandResources struct {
+	graphBuilder corev1.ResourceRequirements
+	policyEngine corev1.ResourceRequirements
+}
+
+// newOperandResources merges spec.resources onto the defaults once, so the
+// values used for validation are the values that end up in the containers.
+func newOperandResources(instance *cv1.UpdateService) operandResources {
+	defaults := defaultOperandResources()
+	return operandResources{
+		graphBuilder: mergeResourceRequirements(defaults, instance.Spec.Resources.GraphBuilder),
+		policyEngine: mergeResourceRequirements(defaults, instance.Spec.Resources.PolicyEngine),
+	}
+}
+
+// mergeResourceRequirements overlays the specified limits and requests onto
+// defaults.  A value in overrides replaces only the matching default entry, so
+// an UpdateService can raise a single value, such as the graph-builder memory
+// limit, without having to restate the whole default profile.
+func mergeResourceRequirements(defaults corev1.ResourceRequirements, overrides cv1.ResourceRequirements) corev1.ResourceRequirements {
+	merged := corev1.ResourceRequirements{
+		Limits:   defaults.Limits.DeepCopy(),
+		Requests: defaults.Requests.DeepCopy(),
+	}
+	for name, quantity := range overrides.Limits {
+		if merged.Limits == nil {
+			merged.Limits = corev1.ResourceList{}
+		}
+		merged.Limits[name] = quantity.DeepCopy()
+	}
+	for name, quantity := range overrides.Requests {
+		if merged.Requests == nil {
+			merged.Requests = corev1.ResourceList{}
+		}
+		merged.Requests[name] = quantity.DeepCopy()
+	}
+	return merged
+}
+
 func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, image string) *corev1.Container {
 
 	gbENV := []corev1.EnvVar{
@@ -817,17 +875,8 @@ func (k *kubeResources) newGraphBuilderContainer(instance *cv1.UpdateService, im
 				Protocol:      corev1.ProtocolTCP,
 			},
 		},
-		Env: gbENV,
-		Resources: corev1.ResourceRequirements{
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(750, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(512*1024*1024, resource.BinarySI),
-			},
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(150, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
-			},
-		},
+		Env:          gbENV,
+		Resources:    *k.operandResources.graphBuilder.DeepCopy(),
 		VolumeMounts: k.graphBuilderVolumeMounts,
 		LivenessProbe: &corev1.Probe{
 			FailureThreshold:    3,
@@ -943,16 +992,7 @@ func (k *kubeResources) newPolicyEngineContainer(instance *cv1.UpdateService, im
 			newCMEnvVar("PE_MANDATORY_CLIENT_PARAMETERS", "pe.mandatory_client_parameters", envConfigName),
 			newCMEnvVar("RUST_BACKTRACE", "pe.rust_backtrace", envConfigName),
 		},
-		Resources: corev1.ResourceRequirements{
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(750, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(512*1024*1024, resource.BinarySI),
-			},
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    *resource.NewMilliQuantity(150, resource.DecimalSI),
-				corev1.ResourceMemory: *resource.NewQuantity(64*1024*1024, resource.BinarySI),
-			},
-		},
+		Resources: *k.operandResources.policyEngine.DeepCopy(),
 		LivenessProbe: &corev1.Probe{
 			FailureThreshold:    3,
 			SuccessThreshold:    1,

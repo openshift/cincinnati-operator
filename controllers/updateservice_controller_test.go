@@ -19,6 +19,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -103,6 +104,33 @@ func TestReconcile(t *testing.T) {
 			verifyConditions(t, test.expectedConditions, instance)
 		})
 	}
+}
+
+func TestReconcileInvalidResources(t *testing.T) {
+	updateservice := newDefaultUpdateService()
+	updateservice.Spec.Resources.GraphBuilder.Limits = corev1.ResourceList{
+		corev1.ResourceName("hugepages-2Mi"): resource.MustParse("3Mi"),
+	}
+
+	r := newTestReconciler(updateservice, newSecret())
+	request := newRequest(updateservice)
+
+	_, err := r.Reconcile(context.TODO(), request)
+	assert.NoError(t, err)
+
+	instance := &cv1.UpdateService{}
+	assert.NoError(t, r.Client.Get(context.TODO(), request.NamespacedName, instance))
+
+	condition := conditionsv1.FindStatusCondition(instance.Status.Conditions, cv1.ConditionReconcileError)
+	if assert.NotNil(t, condition) {
+		assert.Equal(t, corev1.ConditionTrue, condition.Status)
+		assert.Equal(t, "Invalid resource requirements", condition.Reason)
+		assert.Contains(t, condition.Message, "3Mi is not a positive integer multiple of the hugepages-2Mi page size")
+	}
+
+	// The operand must not be created with requirements the API server rejects.
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: updateservice.Name, Namespace: updateservice.Namespace}, &appsv1.Deployment{})
+	assert.True(t, apierrors.IsNotFound(err), "unexpected Deployment get error: %v", err)
 }
 
 func TestEnsureConfig(t *testing.T) {
@@ -417,6 +445,80 @@ func TestEnsureDeployment(t *testing.T) {
 			assert.Equal(t, &initContainer, resources.graphDataInitContainer)
 		})
 	}
+}
+
+func TestEnsureDeploymentUpdatesResources(t *testing.T) {
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice, newSecret())
+
+	ensure := func() {
+		ps, err := r.findPullSecret(context.TODO(), log, updateservice)
+		assert.NoError(t, err)
+		cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
+		assert.NoError(t, err)
+		resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
+		assert.NoError(t, err)
+		assert.NoError(t, r.ensureDeployment(context.TODO(), log, updateservice, resources, ""))
+	}
+
+	ensure()
+
+	found := &appsv1.Deployment{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: nameDeployment(updateservice), Namespace: updateservice.Namespace}, found)
+	assert.NoError(t, err)
+	found.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceName("example.com/gpu")] = resource.MustParse("1")
+	assert.NoError(t, r.Client.Update(context.TODO(), found))
+
+	updateservice.Spec.Resources.GraphBuilder.Limits = corev1.ResourceList{
+		corev1.ResourceMemory: resource.MustParse("2Gi"),
+	}
+	ensure()
+
+	found = &appsv1.Deployment{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: nameDeployment(updateservice), Namespace: updateservice.Namespace}, found)
+	assert.NoError(t, err)
+
+	graphBuilder := found.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, NameContainerGraphBuilder, graphBuilder.Name)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "750m", corev1.ResourceMemory: "2Gi"},
+		graphBuilder.Resources.Limits)
+	assertResourceList(t,
+		map[corev1.ResourceName]string{corev1.ResourceCPU: "150m", corev1.ResourceMemory: "64Mi"},
+		graphBuilder.Resources.Requests)
+}
+
+func TestEnsureDeploymentKeepsEquivalentResourceValues(t *testing.T) {
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice, newSecret())
+
+	ensure := func() *appsv1.Deployment {
+		t.Helper()
+		ps, err := r.findPullSecret(context.TODO(), log, updateservice)
+		assert.NoError(t, err)
+		cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
+		assert.NoError(t, err)
+		resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
+		assert.NoError(t, err)
+		assert.NoError(t, r.ensureDeployment(context.TODO(), log, updateservice, resources, ""))
+
+		found := &appsv1.Deployment{}
+		assert.NoError(t, r.Client.Get(context.TODO(),
+			types.NamespacedName{Name: nameDeployment(updateservice), Namespace: updateservice.Namespace}, found))
+		return found
+	}
+
+	found := ensure()
+
+	// Same value as the generated 512Mi, in a different representation.
+	found.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] =
+		*resource.NewQuantity(512*1024*1024, resource.DecimalSI)
+	assert.NoError(t, r.Client.Update(context.TODO(), found))
+
+	actual := ensure().Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory]
+	assert.True(t, resource.MustParse("512Mi").Equal(actual), "expected 512Mi, got %s", actual.String())
+	assert.Equal(t, resource.DecimalSI, actual.Format,
+		"the operator rewrote an equivalent quantity, which means it issued an update")
 }
 
 func TestEnsureGraphBuilderService(t *testing.T) {

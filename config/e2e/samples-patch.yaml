@@ -7,3 +7,11 @@
 - op: add
   path: "/spec/graphDataImage"
   value: your-registry/your-repo/your-init-container
+- op: add
+  path: "/spec/resources"
+  value:
+    graphBuilder:
+      limits:
+        memory: 256Mi
+      requests:
+        memory: 32Mi

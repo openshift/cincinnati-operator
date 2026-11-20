@@ -164,8 +164,24 @@ spec:
 If you have you mirrored your OpenShift Release Image and Release Content
 with an identical path, UpdateService's Graph Builder will take more memory
 than allowed by the Deployment configuration and the pod will be OOMKilled.
-If this is your case you can copy the release image to a different namespace
-in your registry.
+
+You can raise the Graph Builder memory limit for your UpdateService with
+`spec.resources`. Values you set override the operator defaults; anything you
+leave unset keeps its default (512Mi limit and 64Mi request). The policy-engine
+container can be tuned the same way under `spec.resources.policyEngine`.
+
+```yaml
+spec:
+  resources:
+    graphBuilder:
+      limits:
+        memory: 2Gi
+      requests:
+        memory: 1Gi
+```
+
+Alternatively, you can copy the release image to a different namespace in your
+registry, which reduces the number of tags Graph Builder has to scrape.
 
 ```
 skopeo copy docker://${DISCONNECTED_REGISTRY}/ocp4:4.5.2-x86_64 docker://${DISCONNECTED_REGISTRY}/release:4.5.2-x86_64 --authfile=/path/to/pull_secret.json
@@ -177,6 +193,27 @@ skopeo copy docker://${DISCONNECTED_REGISTRY}/ocp5:4.5.3-x86_64 docker://${DISCO
 If you see `ReconcileCompleted` status as `false` with reason `CreateRouteFailed` caused by `host must conform to DNS 1123 naming convention`
 and `must be no more than 63 characters`, try creating the Update Service with a shorter name.
     
+#### Invalid resource requirements
+
+If the operator reports `ReconcileCompleted` as `false` with reason
+`Invalid resource requirements`, the values under `spec.resources` would be
+rejected by the Kubernetes API server when it admits the operand Deployment.
+The operator validates the requirements it is about to apply, after merging
+them with its defaults, so the condition message names the container and the
+value at fault.
+
+The rules match the API server's container resource validation:
+
+- names must be `cpu`, `memory`, `ephemeral-storage`, `hugepages-<size>`, or a
+  fully qualified extended resource such as `example.com/gpu`;
+- quantities must not be negative, and extended resources must be integers;
+- a hugepage amount must be a multiple of its page size: `hugepages-2Mi: 64Mi`
+  is valid where `hugepages-2Mi: 3Mi` is not;
+- a request must not exceed its limit, and for resources that cannot be
+  overcommitted (`hugepages-*` and extended resources) the limit must be set and
+  the request must equal it;
+- hugepages require a `cpu` or `memory` request or limit as well.
+
 ## Make client cluster use UpdateService instance
 
 Once UpdateService starts, there is a public URL (OCP route) available. This URL is should be configured in the client cluster. 
