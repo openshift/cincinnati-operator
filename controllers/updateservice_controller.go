@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -521,36 +522,10 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 		containers[i].Ports = original.Ports
 		containers[i].Env = original.Env
 
-		// Resources don't seem to work with DeepEqual, so we check equality
-		// manually.
-		if containers[i].Resources.Limits == nil {
-			containers[i].Resources.Limits = corev1.ResourceList{}
-		}
-		for k, origVal := range original.Resources.Limits {
-			value, ok := containers[i].Resources.Limits[k]
-			if !ok || !origVal.Equal(value) {
-				containers[i].Resources.Limits[k] = origVal
-			}
-		}
-		for k := range containers[i].Resources.Limits {
-			if _, ok := original.Resources.Limits[k]; !ok {
-				delete(containers[i].Resources.Limits, k)
-			}
-		}
-		if containers[i].Resources.Requests == nil {
-			containers[i].Resources.Requests = corev1.ResourceList{}
-		}
-		for k, origVal := range original.Resources.Requests {
-			value, ok := containers[i].Resources.Requests[k]
-			if !ok || !origVal.Equal(value) {
-				containers[i].Resources.Requests[k] = origVal
-			}
-		}
-		for k := range containers[i].Resources.Requests {
-			if _, ok := original.Resources.Requests[k]; !ok {
-				delete(containers[i].Resources.Requests, k)
-			}
-		}
+		// Take the generated resources wholesale.  The update decision below
+		// uses apiequality.Semantic, which compares quantities by value, so a
+		// live quantity in a different representation does not cause an update.
+		containers[i].Resources = *original.Resources.DeepCopy()
 		containers[i].VolumeMounts = original.VolumeMounts
 		containers[i].LivenessProbe = original.LivenessProbe
 		containers[i].ReadinessProbe = original.ReadinessProbe
@@ -583,7 +558,7 @@ func (r *UpdateServiceReconciler) ensureDeployment(ctx context.Context, reqLogge
 		initContainers = append([]corev1.Container(nil), initContainers[graphDataInitContainerIdx])
 	}
 
-	if !reflect.DeepEqual(updated.Spec, found.Spec) {
+	if !equality.Semantic.DeepEqual(updated.Spec, found.Spec) {
 		reqLogger.Info("Updating Deployment", "Namespace", deployment.Namespace, "Name", deployment.Name)
 		err = r.Client.Update(ctx, updated)
 		if err != nil {

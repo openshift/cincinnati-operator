@@ -765,6 +765,39 @@ func TestEnsureDeploymentUpdatesResources(t *testing.T) {
 		graphBuilder.Resources.Requests)
 }
 
+func TestEnsureDeploymentKeepsEquivalentResourceValues(t *testing.T) {
+	updateservice := newDefaultUpdateService()
+	r := newTestReconciler(updateservice, newSecret())
+
+	ensure := func() *appsv1.Deployment {
+		t.Helper()
+		ps, err := r.findPullSecret(context.TODO(), log, updateservice)
+		assert.NoError(t, err)
+		cm, err := r.findTrustedCAConfig(context.TODO(), log, updateservice)
+		assert.NoError(t, err)
+		resources, err := newKubeResources(updateservice, testOperandImage, ps, cm, nil)
+		assert.NoError(t, err)
+		assert.NoError(t, r.ensureDeployment(context.TODO(), log, updateservice, resources, ""))
+
+		found := &appsv1.Deployment{}
+		assert.NoError(t, r.Client.Get(context.TODO(),
+			types.NamespacedName{Name: nameDeployment(updateservice), Namespace: updateservice.Namespace}, found))
+		return found
+	}
+
+	found := ensure()
+
+	// Same value as the generated 512Mi, in a different representation.
+	found.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] =
+		*resource.NewQuantity(512*1024*1024, resource.DecimalSI)
+	assert.NoError(t, r.Client.Update(context.TODO(), found))
+
+	actual := ensure().Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory]
+	assert.True(t, resource.MustParse("512Mi").Equal(actual), "expected 512Mi, got %s", actual.String())
+	assert.Equal(t, resource.DecimalSI, actual.Format,
+		"the operator rewrote an equivalent quantity, which means it issued an update")
+}
+
 func TestEnsureGraphBuilderService(t *testing.T) {
 	pullSecret := newSecret()
 	updateservice := newDefaultUpdateService()
