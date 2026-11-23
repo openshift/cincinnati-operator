@@ -2,6 +2,7 @@ package v1
 
 import (
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,6 +29,43 @@ type UpdateServiceSpec struct {
 	// +kubebuilder:validation:Required
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	GraphDataImage string `json:"graphDataImage"`
+
+	// resources allows customizing the compute resource requests and limits of
+	// the graph-builder and policy-engine containers.  Values specified here
+	// override the operator defaults for the corresponding container; any
+	// value left unset keeps its default.  Raising the graph-builder memory
+	// limit is useful when scraping a release repository with many tags.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Resources UpdateServiceResources `json:"resources,omitempty"`
+}
+
+// UpdateServiceResources defines the compute resource requirements of the
+// operand containers.
+type UpdateServiceResources struct {
+	// graphBuilder defines the resource requests and limits of the
+	// graph-builder container.  Each value specified here overrides the
+	// corresponding operator default; unset values keep their default.
+	// +kubebuilder:validation:Optional
+	GraphBuilder ResourceRequirements `json:"graphBuilder,omitempty"`
+
+	// policyEngine defines the resource requests and limits of the
+	// policy-engine container.  Each value specified here overrides the
+	// corresponding operator default; unset values keep their default.
+	// +kubebuilder:validation:Optional
+	PolicyEngine ResourceRequirements `json:"policyEngine,omitempty"`
+}
+
+// ResourceRequirements describes the compute resource requirements of a
+// container.
+type ResourceRequirements struct {
+	// limits describes the maximum amount of compute resources allowed.
+	// +kubebuilder:validation:Optional
+	Limits corev1.ResourceList `json:"limits,omitempty"`
+
+	// requests describes the minimum amount of compute resources required.
+	// +kubebuilder:validation:Optional
+	Requests corev1.ResourceList `json:"requests,omitempty"`
 }
 
 // UpdateServiceStatus defines the observed state of UpdateService.
